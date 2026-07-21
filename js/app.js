@@ -3,6 +3,12 @@
 // ============================================
 const { createApp, ref, computed, watch, onMounted, onUnmounted, nextTick } = Vue;
 
+// localStorage JSON 读取兜底：数据损坏时返回默认值，避免整页崩溃
+function lsReadJSON(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+
 const app = createApp({
   setup() {
     // ─── 状态 ──────────────────────────
@@ -34,7 +40,7 @@ const app = createApp({
 
     // 图床管理状态
     const showImageManager = ref(false);
-    const imageHistory = ref(JSON.parse(localStorage.getItem('md-converter-image-history') || '[]'));
+    const imageHistory = ref(lsReadJSON('md-converter-image-history', []));
 
     // Phase 2 状态
     const focusMode = ref(false);
@@ -181,13 +187,11 @@ const app = createApp({
       return defaultFence(tokens, idx, options, env, slf);
     };
 
-    // ─── 微信链接转脚注 ──────────────────
-    function convertLinksToFootnotes(html) {
-      if (!wechatFootnote.value) return html;
+    // ─── 微信链接转脚注（直接操作传入的 DOM 节点，省去额外解析） ──────────────────
+    function convertLinksToFootnotesEl(root) {
+      if (!wechatFootnote.value) return;
 
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = html;
-      const links = wrapper.querySelectorAll('a[href]');
+      const links = root.querySelectorAll('a[href]');
       const footnotes = [];
       let index = 1;
 
@@ -226,10 +230,8 @@ const app = createApp({
           p.textContent = text && text !== href ? `[${index}] ${text}: ${href}` : `[${index}] ${href}`;
           section.appendChild(p);
         });
-        wrapper.appendChild(section);
+        root.appendChild(section);
       }
-
-      return wrapper.innerHTML;
     }
 
     // ─── 渲染 HTML ──────────────────────
@@ -238,20 +240,12 @@ const app = createApp({
       const theme = themes[currentTheme.value];
       if (!theme) { renderedHtml.value = ''; return; }
       const raw = md.render(expandImagePlaceholders(markdownText.value));
-      let styled = applyThemeStyles(raw, theme.styles);
-
-      // 微信脚注转换
-      if (wechatFootnote.value) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = styled;
-        const innerDiv = tempDiv.querySelector('div');
-        if (innerDiv) {
-          innerDiv.innerHTML = convertLinksToFootnotes(innerDiv.innerHTML);
-          styled = tempDiv.innerHTML;
-        }
-      }
-
-      renderedHtml.value = styled;
+      // applyThemeStyles 内部已完成微信脚注转换，仅一趟 DOM 解析
+      const styled = applyThemeStyles(raw, theme.styles);
+      // DOMPurify 消毒：拦截 onerror/onload/<script>/javascript: 等注入向量（CDN 加载失败时降级为原样）
+      renderedHtml.value = window.DOMPurify
+        ? window.DOMPurify.sanitize(styled, { ADD_ATTR: ['style', 'target'] })
+        : styled;
       // 预览 DOM 更新后再渲染 Mermaid（render 异步，须作用于真实 DOM）
       nextTick(renderMermaidDiagrams);
     }
@@ -380,6 +374,9 @@ const app = createApp({
         const pre = el.querySelector('pre');
         if (pre) pre.setAttribute('style', `background: ${bgColor}; color: ${textColor}; padding: 16px; margin: 0; font-size: 13px; line-height: 1.7; overflow-x: auto; font-family: "SFMono-Regular", Consolas, monospace;`);
       });
+
+      // 脚注转换（作用于同一个 wrapper，避免再次解析序列化）
+      convertLinksToFootnotesEl(wrapper);
 
       let wrapperStyle = styles.wrapper || '';
       if (fontFamily.value && fontMap[fontFamily.value]) {
@@ -1095,7 +1092,7 @@ ${previewEl.innerHTML}
         time: new Date().toLocaleString('zh-CN'),
         preview: markdownText.value.slice(0, 100) + (markdownText.value.length > 100 ? '...' : ''),
       };
-      let history = JSON.parse(localStorage.getItem('md-converter-history') || '[]');
+      let history = lsReadJSON('md-converter-history', []);
       history.unshift(item);
       if (history.length > 20) history = history.slice(0, 20);
       localStorage.setItem('md-converter-history', JSON.stringify(history));
@@ -1109,7 +1106,7 @@ ${previewEl.innerHTML}
       showHistory.value = false;
     }
     function deleteHistory(id) {
-      let history = JSON.parse(localStorage.getItem('md-converter-history') || '[]');
+      let history = lsReadJSON('md-converter-history', []);
       history = history.filter(item => item.id !== id);
       localStorage.setItem('md-converter-history', JSON.stringify(history));
       historyList.value = history;
@@ -1117,7 +1114,7 @@ ${previewEl.innerHTML}
     function toggleHistory() {
       showHistory.value = !showHistory.value;
       if (showHistory.value) {
-        historyList.value = JSON.parse(localStorage.getItem('md-converter-history') || '[]');
+        historyList.value = lsReadJSON('md-converter-history', []);
       }
     }
 
@@ -1270,8 +1267,6 @@ ${previewEl.innerHTML}
       publishStatus.value = `正在复制 ${platform.name} 格式...`;
 
       try {
-        let copyContent = '';
-
         if (platform.format === 'html') {
           // 富文本格式：复制 HTML
           await copyPublishHtmlToClipboard(true);
@@ -1288,7 +1283,7 @@ ${previewEl.innerHTML}
             .replace(/\n{2,}/g, '\n')
             .trim();
           const excerpt = body.slice(0, 280);
-          copyContent = title ? `【${title}】\n${excerpt}...` : `${excerpt}...`;
+          const copyContent = title ? `【${title}】\n${excerpt}...` : `${excerpt}...`;
           await navigator.clipboard.writeText(copyContent);
         }
 
@@ -1373,26 +1368,24 @@ ${previewEl.innerHTML}
 
     // ─── Phase 2 功能 ──────────────────
 
-    // 查找替换
+    // 查找替换（统一大小写不敏感，保证计数与替换结果一致）
+    function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
     function findInEditor() {
       if (!findText.value) { findCount.value = 0; return; }
-      const regex = new RegExp(findText.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      const matches = markdownText.value.match(regex);
+      const matches = markdownText.value.match(new RegExp(escapeRegExp(findText.value), 'gi'));
       findCount.value = matches ? matches.length : 0;
     }
 
     function replaceOne() {
       if (!findText.value) return;
-      const idx = markdownText.value.indexOf(findText.value);
-      if (idx === -1) return;
-      markdownText.value = markdownText.value.substring(0, idx) + replaceText.value + markdownText.value.substring(idx + findText.value.length);
+      markdownText.value = markdownText.value.replace(new RegExp(escapeRegExp(findText.value), 'i'), replaceText.value);
       findInEditor();
     }
 
     function replaceAll() {
       if (!findText.value) return;
-      const regex = new RegExp(findText.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-      markdownText.value = markdownText.value.replace(regex, replaceText.value);
+      markdownText.value = markdownText.value.replace(new RegExp(escapeRegExp(findText.value), 'gi'), replaceText.value);
       findCount.value = 0;
     }
 
@@ -1487,7 +1480,7 @@ ${previewEl.innerHTML}
 
       // Mermaid 初始化
       if (window.mermaid) {
-        window.mermaid.initialize({ startOnLoad: false, theme: 'default' });
+        window.mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'strict' });
       }
 
       // 恢复自定义 CSS
@@ -1498,11 +1491,14 @@ ${previewEl.innerHTML}
       document.removeEventListener('keydown', handleKeyboard);
     });
 
+    let undoCoalesceTimer = null;
     watch(markdownText, (val, oldVal) => {
-      localStorage.setItem('md-converter-draft', val);
-      // 撤回栈
+      try { localStorage.setItem('md-converter-draft', val); } catch {}
+      // 撤回栈：连续输入合并为一个快照（停顿 500ms 后才开新快照）
       if (!isUndoRedo && oldVal !== undefined) {
-        pushUndo(oldVal);
+        if (!undoCoalesceTimer) pushUndo(oldVal);
+        clearTimeout(undoCoalesceTimer);
+        undoCoalesceTimer = setTimeout(() => { undoCoalesceTimer = null; }, 500);
       }
       // 防抖渲染
       if (renderTimer) clearTimeout(renderTimer);

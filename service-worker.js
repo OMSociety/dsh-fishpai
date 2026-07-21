@@ -2,7 +2,7 @@
 // MoPai 墨排 — Service Worker (PWA 离线支持)
 // ============================================
 
-const CACHE_NAME = 'mopai-v8';
+const CACHE_NAME = 'mopai-v9';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -14,14 +14,8 @@ const STATIC_ASSETS = [
   './js/app.js',
 ];
 
-// CDN 资源单独缓存
-const CDN_ASSETS = [
-  'https://unpkg.com/vue@3/dist/vue.global.prod.js',
-  'https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js',
-  'https://cdn.jsdelivr.net/npm/highlight.js@11/highlight.min.js',
-  'https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css',
-  'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js',
-];
+// 第三方 CDN 统一域名，运行时 stale-while-revalidate 缓存
+const CDN_HOSTS = ['https://cdn.jsdelivr.net'];
 
 // 安装：缓存静态资源
 self.addEventListener('install', (event) => {
@@ -47,15 +41,30 @@ self.addEventListener('activate', (event) => {
 
 // 请求拦截
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const req = event.request;
+  if (req.method !== 'GET') return;
+
+  // HTML 文档：network-first，部署后尽快生效，离线回退缓存
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req).then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
+        }
+        return response;
+      }).catch(() => caches.match(req).then(c => c || caches.match('./index.html')))
+    );
+    return;
+  }
 
   // CDN 资源：stale-while-revalidate
-  if (CDN_ASSETS.some(cdn => event.request.url.startsWith(cdn.split('/').slice(0, 3).join('/')))) {
+  if (CDN_HOSTS.some(host => req.url.startsWith(host))) {
     event.respondWith(
       caches.open(CACHE_NAME).then(async (cache) => {
-        const cached = await cache.match(event.request);
-        const fetched = fetch(event.request).then((response) => {
-          if (response.ok) cache.put(event.request, response.clone());
+        const cached = await cache.match(req);
+        const fetched = fetch(req).then((response) => {
+          if (response.ok) cache.put(req, response.clone());
           return response;
         }).catch(() => null);
         return cached || fetched;
@@ -64,13 +73,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 本地资源：缓存优先
+  // 本地静态资源（带 ?v= 版本号）：缓存优先
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request).then((response) => {
+    caches.match(req).then((cached) => {
+      return cached || fetch(req).then((response) => {
         if (response.ok) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
         }
         return response;
       });

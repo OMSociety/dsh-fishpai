@@ -121,13 +121,15 @@ function createCdpClient(wsUrl) {
 }
 
 async function main() {
-  const chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   const { server, port: appPort } = await startStaticServer();
   const cdpPort = await getFreePort();
   const userDataDir = await mkdtemp(path.join(tmpdir(), 'mopai-publish-test-'));
   const chrome = spawn(chromePath, [
     '--headless=new',
     '--disable-gpu',
+    '--no-sandbox',
+    '--disable-dev-shm-usage',
     '--no-first-run',
     '--no-default-browser-check',
     `--user-data-dir=${userDataDir}`,

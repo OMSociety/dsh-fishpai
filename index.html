@@ -6,22 +6,45 @@
   <title>MoPai 墨排 — 优雅高效的多平台 Markdown 排版工具</title>
   <meta name="description" content="MoPai 墨排 — 优雅高效的多平台 Markdown 排版工具，支持 13 种主题、暗色模式、14 平台一键发布、自定义颜色、Mac 代码块、微信脚注、手机预览、一键复制到公众号">
   
+  <!-- 所有第三方脚本均锁定版本并启用 SRI（子资源完整性），防 CDN 投毒 -->
   <!-- Vue 3 -->
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.40/dist/vue.global.prod.js"
+          integrity="sha384-yjSqnKX+01fhYzLUMRlCkMrHMTdKxwYcGIk5HZ6ug+4nfJn10+F7YsKRuGR5kQac"
+          crossorigin="anonymous"></script>
+  <!-- DOMPurify（预览 HTML 消毒，防 XSS） -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.12/dist/purify.min.js"
+          integrity="sha384-piCcpDdJ7qVeK4Tv8Z6Hpcr3ZBIgP16TxQTPVfsLFdZ5uDgwc3Y8Ho7oUnqf12qu"
+          crossorigin="anonymous"></script>
   <!-- Markdown-it -->
-  <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"
+          integrity="sha384-wLhprpjsmjc/XYIcF+LpMxd8yS1gss6jhevOp6F6zhiIoFK6AmHtm4bGKtehTani"
+          crossorigin="anonymous"></script>
   <!-- Highlight.js -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/atom-one-dark.min.css">
-  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/atom-one-dark.min.css"
+        integrity="sha384-oaMLBGEzBOJx3UHwac0cVndtX5fxGQIfnAeFZ35RTgqPcYlbprH9o9PUV/F8Le07"
+        crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"
+          integrity="sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp"
+          crossorigin="anonymous"></script>
   <!-- Mermaid -->
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.6/dist/mermaid.min.js"
+          integrity="sha384-qX9VvWkP79m/O121ZE6sOYp0nf/pldQgtvWDbkpzi+3mUo4Wn4Ix4cFzNPay3VaB"
+          crossorigin="anonymous"></script>
   <!-- html2canvas (长图导出) -->
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <!-- html-docx-js (Word 导出) -->
-  <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.4.8/dist/html-docx.min.js"></script>
-  <!-- WechatSync 多平台分发 SDK -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wechatsync/article-syncjs@latest/dist/styles.css">
-  <script src="https://cdn.jsdelivr.net/gh/wechatsync/article-syncjs@latest/dist/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"
+          integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H"
+          crossorigin="anonymous"></script>
+  <!-- html-docx-js (Word 导出) — 修正为存在的 0.3.1（旧 0.4.8/min 链接为 404） -->
+  <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"
+          integrity="sha384-TtrQp5nveof/QP1+f/OLiEHL3GuOIRyl3IfsGxu5X45VO2vHeT4HRNmQuTR3Ea3w"
+          crossorigin="anonymous"></script>
+  <!-- WechatSync 多平台分发 SDK（锁定提交号 + SRI，内容不可变） -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wechatsync/article-syncjs@774a7604d02d70df5dc97415b8f5bae5df6052ce/dist/styles.css"
+        integrity="sha384-Qc/dh0nTWjrixaJyR+Ti0HOwkMOLOALXTTGLo4MSLr05VeIeV1pQc5/8WiVTAX8h"
+        crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/gh/wechatsync/article-syncjs@774a7604d02d70df5dc97415b8f5bae5df6052ce/dist/main.js"
+          integrity="sha384-Pr+UI0VjjTxIPTZNWuraaXbU3A9YQFXG7fH2Ci+x8pcU4o1wVO+rzLmfVO9TlLdD"
+          crossorigin="anonymous"></script>
   
   <!-- 样式 -->
   <link rel="stylesheet" href="css/styles.css">

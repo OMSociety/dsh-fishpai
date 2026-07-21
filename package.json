@@ -1,0 +1,12 @@
+{
+  "name": "mopai-markdown",
+  "version": "3.0.0",
+  "private": true,
+  "description": "优雅高效的多平台 Markdown 排版工具",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node tests/publish-html.test.mjs"
+  },
+  "license": "MIT"
+}
