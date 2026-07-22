@@ -1,18 +1,41 @@
+<div align="center">
+
 # MoPai 墨排 ✒️
 
-> 优雅高效的多平台 Markdown 排版工具
+**不只是排版 —— 一次写作，一键「去 AI 味」+ 分发到 14+ 平台。**
 
-MoPai 墨排是一款本地运行的 Markdown 排版编辑器，专为微信公众号、知乎、CSDN 等内容平台的创作者设计。提供 13+ 精美主题、暗色模式、一键复制到公众号、多平台一键分发等功能。
+专为公众号 / 知乎 / CSDN 等中文创作者打造的本地 Markdown 排版工具。
 
-![MoPai 墨排](https://img.shields.io/badge/MoPai-墨排-000?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9IndoaXRlIj48cGF0aCBkPSJNMyAyMWMwIDAgMi0yIDQtMnMyLjUgMSA0LjUgMSAzLTEuNSA0LjUtMS41IDIgLjUgMiAuNSIvPjxwYXRoIGQ9Ik0xMiAzYy0uNSAyLTEgMy41LTEgNSAwIDIgMS41IDMgMS41IDVzLTEgMy41LTEgNSIgc3Ryb2tlPSJ3aGl0ZSIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iNSIgcj0iMS4yIiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg==)
-![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
-![Vue](https://img.shields.io/badge/Vue-3-4FC08D?style=flat-square&logo=vuedotjs)
+[![▶ 在线体验 Live Demo](https://img.shields.io/badge/▶_在线体验-Live_Demo-4f6ef7?style=for-the-badge)](https://mopai-markdown.vercel.app)
 
-## 📸 预览
+[![test](https://github.com/ye4wzp/mopai-markdown/actions/workflows/test.yml/badge.svg)](https://github.com/ye4wzp/mopai-markdown/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?style=flat-square&logo=vuedotjs)
+![PWA](https://img.shields.io/badge/PWA-可离线安装-5a0fc8?style=flat-square)
 
-| 主界面 | 暗色模式 |
+[English](README.en.md) · **中文**
+
+<img src="screenshots/main.png" alt="MoPai 墨排 主界面" width="820">
+
+👉 **无需安装，打开即用：<https://mopai-markdown.vercel.app>**
+
+</div>
+
+## 🔥 为什么选 MoPai
+
+「Markdown 转公众号」的工具不少，MoPai 想做的是**从写作到发布的完整闭环**——下面这些是它和纯排版工具不一样的地方：
+
+- 🧹 **去 AI 味** — 内置 AI 写作痕迹检测，一键标出「赋能 / 闭环 / 值得注意的是」等 AI 高频表达，可接 DeepSeek 一键改写。**纯排版工具没有这个。**
+- 🚀 **一键分发全平台** — 14 平台按最优格式一键复制；配合 [WechatSync](https://github.com/wechatsync/Wechatsync) 扩展可直接同步到 29+ 平台创建草稿。
+- 🖼️ **四种导出** — HTML / PDF / 长图 PNG / Word，文件自动以文章标题命名。
+- 📱 **离线可用** — PWA 可安装为桌面应用，手机端编辑/预览功能完整。
+- 🎨 **13 主题 + 深度定制** — 暗色模式、自定义主题色、字体字号、自定义 CSS。
+
+## 📸 更多预览
+
+| 暗色模式 | 🧹 去 AI 味检测 |
 |:---:|:---:|
-| ![main](screenshots/main.png) | ![dark](screenshots/dark.png) |
+| ![dark](screenshots/dark.png) | ![ai-detect](screenshots/ai-detect.png) |
 
 | 发布助手 | 设置面板 |
 |:---:|:---:|
@@ -138,12 +161,16 @@ open http://localhost:8080
 mopai-markdown/
 ├── index.html          # 主页面
 ├── manifest.json       # PWA 配置
-├── sw.js               # Service Worker
+├── service-worker.js   # Service Worker（离线缓存）
 ├── css/
 │   └── styles.css      # 样式文件
 ├── js/
 │   ├── app.js          # Vue 应用主逻辑
-│   └── themes.js       # 13 种主题定义 + 示例内容
+│   ├── themes.js       # 13 种主题定义 + 示例内容
+│   ├── ai-detector.js  # 去 AI 味检测 + DeepSeek 改写
+│   ├── templates.js    # 模板库
+│   └── publish-utils.js # 发布 HTML 兼容处理
+├── tests/              # Chrome CDP 集成测试
 ├── screenshots/        # 项目截图
 └── README.md
 ```
@@ -163,4 +190,4 @@ mopai-markdown/
 
 ## 📄 License
 
-MIT License © 2025
+[MIT](LICENSE) © 2026 ye4wzp
