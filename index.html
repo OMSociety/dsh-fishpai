@@ -362,7 +362,7 @@
               <button @click="exportHtml(); showExportMenu = false;">📄 导出 HTML</button>
               <button @click="exportPdf(); showExportMenu = false;">📑 导出 PDF</button>
               <button @click="exportImage(); showExportMenu = false;">🖼️ 导出长图</button>
-              <button @click="exportDocx(); showExportMenu = false;">📝 导出 Word</button>
+              <button @click="exportDocx(); showExportMenu = false;">📝 导出 Word（实验）</button>
               <hr style="margin: 4px 0; border: none; border-top: 1px solid var(--border);">
               <button @click="syncToMultiPlatform(); showExportMenu = false;">🚀 分发到多平台</button>
             </div>
@@ -516,6 +516,19 @@
           placeholder="/* 输入自定义 CSS */&#10;.preview-body h1 { color: #e74c3c; }&#10;.preview-body blockquote { border-left: 3px solid gold; }"
           spellcheck="false"
         ></textarea>
+      </div>
+
+      <!-- 数据备份 -->
+      <div class="settings-section">
+        <div class="settings-section-title">💾 数据备份</div>
+        <div class="toggle-row-desc" style="margin-bottom:8px;">把全部本地数据（草稿、历史、图床记录、设置）导出为一个 JSON 文件；换设备或清缓存前先备份，导入即可还原。<strong>文件包含 API Key，请妥善保管。</strong></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" @click="exportBackup">⬇️ 导出备份</button>
+          <label class="btn" style="cursor:pointer;">
+            ⬆️ 导入恢复
+            <input type="file" accept="application/json,.json" class="file-input-hidden" @change="importBackup">
+          </label>
+        </div>
       </div>
     </div>
   </div>

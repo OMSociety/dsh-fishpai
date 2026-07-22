@@ -772,6 +772,50 @@ ${previewEl.innerHTML}
       showToast('export');
     }
 
+    // ─── 数据备份（导出/导入全部本地数据）──────
+    function exportBackup() {
+      const data = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('md-converter-')) data[k] = localStorage.getItem(k);
+      }
+      const payload = { __mopai_backup: true, version: 3, exportedAt: new Date().toISOString(), data };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      const now = new Date();
+      const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      link.download = `mopai-backup-${stamp}.json`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      showToast('export');
+    }
+
+    function importBackup(event) {
+      const file = event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        let payload;
+        try { payload = JSON.parse(e.target.result); }
+        catch { alert('文件解析失败，请选择有效的 MoPai 备份文件'); return; }
+        if (!payload || payload.__mopai_backup !== true || typeof payload.data !== 'object' || !payload.data) {
+          alert('这不是有效的 MoPai 备份文件'); return;
+        }
+        if (!confirm('导入将覆盖当前的草稿、历史、设置等全部数据，确认继续？')) return;
+        try {
+          Object.entries(payload.data).forEach(([k, v]) => {
+            if (typeof k === 'string' && k.startsWith('md-converter-') && typeof v === 'string') {
+              localStorage.setItem(k, v);
+            }
+          });
+        } catch (err) { alert('写入失败：' + ((err && err.message) || err)); return; }
+        location.reload();
+      };
+      reader.readAsText(file);
+    }
+
     // ─── 分发到多平台（WechatSync）─────
     function getPublishTitle() {
       const titleMatch = markdownText.value.match(/^#\s+(.+)/m);
@@ -1529,7 +1573,7 @@ ${previewEl.innerHTML}
       onThemeHover, onThemeLeave,
       setCustomColor, setFontFamily, setFontSize,
       copyToClipboard, handleFileUpload, clearEditor, exportHtml,
-      exportPdf, exportImage, exportDocx, syncToMultiPlatform, showExportMenu,
+      exportPdf, exportImage, exportDocx, exportBackup, importBackup, syncToMultiPlatform, showExportMenu,
       mobileTab,
       insertFormat, saveToHistory, loadHistory, deleteHistory, toggleHistory,
       syncScroll, scrollToHeading, handleTab, handlePaste, handleDrop, handleDragOver,
