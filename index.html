@@ -420,11 +420,16 @@
       <!-- AI 服务 -->
       <div class="settings-section">
         <div class="settings-section-title">🤖 AI 服务（可选）</div>
-        <div class="toggle-row-desc" style="margin-bottom:8px;">配置后可使用 AI 一键改写功能</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="password" :value="deepseekKey" @input="setDeepseekKey($event.target.value)" placeholder="DeepSeek API Key" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;">
-          <a href="https://platform.deepseek.com/api_keys" target="_blank" style="font-size:11px;color:var(--primary);white-space:nowrap;">获取 Key</a>
+        <div class="toggle-row-desc" style="margin-bottom:8px;">配置后可使用 AI 一键改写。Key 只保存在本机浏览器，不会上传到任何服务器。</div>
+        <select :value="aiConfig.provider" @change="setAiProvider($event.target.value)" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;">
+          <option v-for="p in aiProviderList" :key="p.id" :value="p.id">{{ p.name }}{{ p.proxy ? '（国内需代理）' : '' }}</option>
+        </select>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+          <input type="password" :value="aiKey" @input="setAiKey($event.target.value)" :placeholder="aiProviderInfo.name + ' API Key'" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;">
+          <a :href="aiProviderInfo.keyUrl" target="_blank" style="font-size:11px;color:var(--primary);white-space:nowrap;">获取 Key</a>
         </div>
+        <input type="text" :value="aiModel" @input="setAiModel($event.target.value)" :placeholder="'模型名，留空用 ' + aiProviderInfo.defaultModel" style="width:100%;margin-top:8px;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;">
+        <button v-if="aiKey" class="btn" style="margin-top:8px;font-size:11px;padding:4px 10px;" @click="setAiKey('')">清除 Key</button>
       </div>
 
       <!-- 字数目标 -->
@@ -638,12 +643,12 @@
                 <span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:1px 6px;border-radius:4px;font-size:12px;">{{ m.matched }}</span>
                 <div style="margin-top:4px;font-size:12px;color:var(--text-muted);">💡 {{ m.suggestion }}</div>
               </div>
-              <button v-if="deepseekKey" class="btn" style="font-size:11px;padding:4px 10px;white-space:nowrap;" @click="aiRewrite(m, issue)" :disabled="m.rewriting">
+              <button v-if="aiReady" class="btn" style="font-size:11px;padding:4px 10px;white-space:nowrap;" @click="aiRewrite(m)" :disabled="m.rewriting">
                 {{ m.rewriting ? '改写中...' : '✨ AI改写' }}
               </button>
             </div>
             <div v-if="m.rewriteResult" style="margin-top:6px;padding:6px 10px;background:rgba(16,185,129,0.08);border-radius:6px;font-size:12px;color:#10b981;">
-              ✅ {{ m.rewriteResult }}
+              {{ m.rewriting ? '✍️' : '✅' }} {{ m.rewriteResult }}
             </div>
           </div>
           <div v-if="issue.matches.length > 3" style="font-size:11px;color:var(--text-muted);padding:4px 12px;">
@@ -651,8 +656,8 @@
           </div>
         </div>
 
-        <div v-if="!deepseekKey && aiDetectResult.total > 0" style="text-align:center;padding:12px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:8px;">
-          💡 在设置面板配置 DeepSeek API Key 可解锁「AI 改写」功能
+        <div v-if="!aiReady && aiDetectResult.total > 0" style="text-align:center;padding:12px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:8px;">
+          💡 在设置面板配置 AI 服务（DeepSeek / 智谱 GLM 等）可解锁「AI 改写」功能
         </div>
       </div>
     </div>
@@ -710,10 +715,11 @@
 
 <!-- 主题 + AI检测 + 模板 + 应用 -->
 <script src="js/themes.js"></script>
-<script src="js/ai-detector.js"></script>
+<script src="js/ai-detector.js?v=20260808a"></script>
+<script src="js/ai-client.js?v=20260808a"></script>
 <script src="js/templates.js"></script>
 <script src="js/publish-utils.js?v=20260427b"></script>
-<script src="js/app.js?v=20260608a"></script>
+<script src="js/app.js?v=20260808a"></script>
 
 <!-- PWA Service Worker -->
 <script>

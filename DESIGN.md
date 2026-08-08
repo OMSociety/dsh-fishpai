@@ -225,7 +225,10 @@
 │ 🖼️ SM.MS 图床          [开关]     │
 │ 🔢 编辑器行号          [开关]     │
 ├── 🤖 AI 服务 ───────────────────┤
-│ DeepSeek API Key [输入框] [设置]  │
+│ [服务商下拉 ▾]                    │
+│ API Key [密码框]      [获取 Key]  │
+│ [模型名，留空用默认]              │
+│ [清除 Key]                        │
 ├── 🎨 颜色 ──────────────────────┤
 │ [●][●][●][●][●][●]              │
 │ [●][●][●][●][●][●]  [取色器]    │
@@ -424,7 +427,8 @@ SM.MS 图床开启？
 | `md-converter-image-store` | Base64 图片存储 Map |
 | `md-converter-image-history` | 图床上传历史 |
 | `md-converter-imagehost` | 图床开关状态 |
-| `md-converter-deepseek-key` | DeepSeek API Key |
+| `md-converter-ai-config` | AI 服务配置 `{ provider, keys, models }`（Key 按服务商分别保存） |
+| `md-converter-deepseek-key` | 旧版单一 DeepSeek Key，仅用于向后迁移 |
 | `md-converter-word-goal` | 字数目标设置 |
 | `md-converter-linenumbers` | 行号显示开关 |
 | `md-converter-custom-css` | 自定义 CSS 代码 |

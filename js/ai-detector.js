@@ -340,42 +340,14 @@ const aiDetector = (() => {
     };
   }
 
-  // ─── DeepSeek API 改写 ──────────────────
-  async function rewriteWithAI(text, apiKey) {
-    if (!apiKey) throw new Error('请先配置 DeepSeek API Key');
-
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          {
-            role: 'system',
-            content: `你是一个中文写作优化专家。用户会给你一段包含 AI 写作痕迹的文字，请改写它，要求：
+  // ─── 改写用 system prompt（传输由 aiClient 负责）──
+  const REWRITE_PROMPT = `你是一个中文写作优化专家。用户会给你一段包含 AI 写作痕迹的文字，请改写它，要求：
 1. 去除 AI 味（不用"此外""至关重要""深入探讨"等 AI 高频词）
 2. 不用三段式并列（"A、B、C"的句式）
 3. 不用否定式排比（"不仅...更是..."）
 4. 语气自然朴实，像真人写的
 5. 保留原文的核心信息和意思
-6. 直接输出改写结果，不要解释`
-          },
-          { role: 'user', content: text }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-      }),
-    });
+6. 直接输出改写结果，不要解释`;
 
-    const data = await response.json();
-    if (data.choices && data.choices[0]) {
-      return data.choices[0].message.content;
-    }
-    throw new Error(data.error?.message || '改写失败');
-  }
-
-  return { detect, rewriteWithAI };
+  return { detect, REWRITE_PROMPT };
 })();
