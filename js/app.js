@@ -76,6 +76,20 @@ const app = createApp({
     const showExportMenu = ref(false);
     const mobileTab = ref('editor');
 
+    // ─── 外部注入草稿（?load=<同源 md 路径>）──
+    // 供内容流水线自动灌稿。注入的标签页改用 sessionStorage 存草稿，与其他标签页的
+    // localStorage 草稿完全隔离，避免旧标签页的自动保存覆盖新注入的稿子
+    const injectParam = new URLSearchParams(location.search).get('load');
+    const draftStore = injectParam ? sessionStorage : localStorage;
+
+    // 只允许同源路径，防止被构造 URL 注入外部内容
+    function resolveInjectUrl(raw) {
+      try {
+        const url = new URL(raw, location.href);
+        return url.origin === location.origin ? url : null;
+      } catch { return null; }
+    }
+
     // ─── 撤回/重做 ────────────────────
     const UNDO_MAX = 50;
     const undoStack = [];
@@ -1551,8 +1565,22 @@ ${previewEl.innerHTML}
       const savedFootnote = localStorage.getItem('md-converter-footnote');
       if (savedFootnote === 'false') wechatFootnote.value = false;
 
-      const draft = localStorage.getItem('md-converter-draft');
-      if (draft) markdownText.value = draft;
+      // 注入模式下 sessionStorage 已有草稿 = 本标签页刷新，保留已编辑内容而非重新拉取
+      const draft = draftStore.getItem('md-converter-draft');
+      if (draft) {
+        markdownText.value = draft;
+      } else if (injectParam) {
+        const url = resolveInjectUrl(injectParam);
+        if (!url) {
+          alert('草稿载入失败：只允许载入同源路径');
+        } else {
+          url.searchParams.set('_', Date.now()); // 绕开 HTTP 缓存
+          fetch(url, { cache: 'no-store' })
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+            .then(text => { markdownText.value = text; showToast('injected'); })
+            .catch(e => alert('草稿载入失败：' + e.message));
+        }
+      }
 
       // 全局快捷键
       document.addEventListener('keydown', handleKeyboard);
@@ -1579,7 +1607,7 @@ ${previewEl.innerHTML}
 
     let undoCoalesceTimer = null;
     watch(markdownText, (val, oldVal) => {
-      try { localStorage.setItem('md-converter-draft', val); } catch {}
+      try { draftStore.setItem('md-converter-draft', val); } catch {}
       // 撤回栈：连续输入合并为一个快照（停顿 500ms 后才开新快照）
       if (!isUndoRedo && oldVal !== undefined) {
         if (!undoCoalesceTimer) pushUndo(oldVal);

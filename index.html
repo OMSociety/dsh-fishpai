@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- mmbiz.qpic.cn 等图床有防盗链，带 Referer 会返回占位图导致预览不显示 -->
+  <meta name="referrer" content="no-referrer">
   <title>MoPai 墨排 — 优雅高效的多平台 Markdown 排版工具</title>
   <meta name="description" content="MoPai 墨排 — 优雅高效的多平台 Markdown 排版工具，支持 13 种主题、暗色模式、14 平台一键发布、自定义颜色、Mac 代码块、微信脚注、手机预览、一键复制到公众号">
   
@@ -68,6 +70,7 @@
     <span v-else-if="copyTarget === 'export'">✅ 已导出 HTML</span>
     <span v-else-if="copyTarget === 'image'">✅ 图片已插入</span>
     <span v-else-if="copyTarget === 'uploading'">⏳ 正在上传到图床...</span>
+    <span v-else-if="copyTarget === 'injected'">✅ 已载入外部草稿（本标签页独立保存）</span>
     <span v-else>✅ 已复制</span>
   </div>
 
@@ -719,7 +722,7 @@
 <script src="js/ai-client.js?v=20260808a"></script>
 <script src="js/templates.js"></script>
 <script src="js/publish-utils.js?v=20260427b"></script>
-<script src="js/app.js?v=20260808a"></script>
+<script src="js/app.js?v=20260808b"></script>
 
 <!-- PWA Service Worker -->
 <script>

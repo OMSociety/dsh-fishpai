@@ -109,6 +109,20 @@ MoPai 内置了 [WechatSync](https://github.com/wechatsync/Wechatsync) SDK，支
 
 > 自动提取文章标题和首图作为封面，同步为草稿模式，发布前可在各平台二次编辑确认。
 
+## 🤖 外部自动化注入草稿
+
+给 AI 流水线/脚本用的入口：把生成好的 `.md` 放到站点同源目录，然后打开
+
+```
+http://localhost:8080/index.html?load=article-assets/my-post/article.md
+```
+
+编辑器会强制拉取最新文件（绕开 HTTP 与 Service Worker 缓存）并注入。
+
+- **只接受同源路径**，跨域 URL 会被拒绝
+- 注入的标签页草稿存 `sessionStorage`，**与其他标签页互不覆盖**；刷新该页保留已编辑内容
+- 放在 `article-assets/` 下的素材不走 SW 缓存，流水线重新生成后立即可见
+
 ## 🚀 快速开始
 
 ```bash

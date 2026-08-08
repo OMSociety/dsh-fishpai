@@ -2,7 +2,7 @@
 // MoPai 墨排 — Service Worker (PWA 离线支持)
 // ============================================
 
-const CACHE_NAME = 'mopai-v10';
+const CACHE_NAME = 'mopai-v11';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -44,6 +44,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
+
+  // 动态内容直连网络：外部注入的草稿（?load=，no-store）与其素材目录，
+  // 走缓存会让流水线刚生成的内容更新不可见
+  if (req.cache === 'no-store' || req.cache === 'reload' || req.url.includes('/article-assets/')) {
+    event.respondWith(fetch(req));
+    return;
+  }
 
   // HTML 文档：network-first，部署后尽快生效，离线回退缓存
   if (req.mode === 'navigate') {
