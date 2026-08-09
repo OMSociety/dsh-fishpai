@@ -90,6 +90,11 @@
       </a>
     </div>
     <div class="header-right">
+      <!-- AI 助手 -->
+      <button class="header-btn has-label" :class="{ active: showAiPanel }" @click="toggleAiPanel" title="AI 助手">
+        <span>🤖</span>
+        <span class="btn-label">AI</span>
+      </button>
       <!-- 图床管理 -->
       <button class="header-btn has-label" :class="{ active: showImageManager }" @click="toggleImageManager" title="图床管理">
         <span>🖼️</span>
@@ -415,6 +420,21 @@
         </div>
       </div>
 
+      <!-- AI 服务 -->
+      <div class="settings-section">
+        <div class="settings-section-title">🤖 AI 服务（可选）</div>
+        <div class="toggle-row-desc" style="margin-bottom:8px;">配置后可用 AI 助手。Key 只保存在本机浏览器，不会上传到任何服务器。</div>
+        <select :value="aiConfig.provider" @change="setAiProvider($event.target.value)" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;">
+          <option v-for="p in aiProviderList" :key="p.id" :value="p.id">{{ p.name }}{{ p.proxy ? '（国内需代理）' : '' }}</option>
+        </select>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+          <input type="password" :value="aiKey" @input="setAiKey($event.target.value)" :placeholder="aiProviderInfo.name + ' API Key'" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;">
+          <a :href="aiProviderInfo.keyUrl" target="_blank" style="font-size:11px;color:var(--primary);white-space:nowrap;">获取 Key</a>
+        </div>
+        <input type="text" :value="aiModel" @input="setAiModel($event.target.value)" :placeholder="'模型名，留空用 ' + aiProviderInfo.defaultModel" style="width:100%;margin-top:8px;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;">
+        <button v-if="aiKey" class="btn" style="margin-top:8px;font-size:11px;padding:4px 10px;" @click="setAiKey('')">清除 Key</button>
+      </div>
+
       <!-- 字数目标 -->
       <div class="settings-section">
         <div class="settings-section-title">🎯 字数目标</div>
@@ -584,6 +604,40 @@
     </div>
   </div>
 
+  <!-- AI 助手面板 -->
+  <div class="ai-panel" v-if="showAiPanel">
+    <div class="ai-panel-head">
+      <span>🤖 AI 助手</span>
+      <button class="close-btn" @click="showAiPanel = false">✕</button>
+    </div>
+
+    <div v-if="!aiReady" class="ai-hint">
+      先在 ⚙️ 设置面板配置 AI 服务的 API Key
+    </div>
+
+    <div v-if="aiReady && !aiMessages.length" class="ai-chips">
+      <button v-for="c in aiChips" :key="c" class="ai-chip" @click="aiSend(c)">{{ c }}</button>
+    </div>
+
+    <div class="ai-msgs">
+      <div v-for="(m, i) in aiMessages" :key="i" :class="'ai-msg ai-' + m.role">
+        <div v-if="m.text" class="ai-bubble">{{ m.text }}</div>
+        <div v-for="(op, j) in m.ops" :key="j" class="ai-op">
+          <span class="ai-op-label">{{ op.label }}</span>
+          <button v-if="op.pending" class="ai-op-btn" @click="applyAiOp(op)">应用</button>
+          <button v-else-if="op.before" class="ai-op-btn" @click="undoAiOp(op)">撤销</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ai-input">
+      <textarea v-model="aiInput" :disabled="!aiReady" rows="2"
+                placeholder="例：换成适合技术文的主题，主色改微信绿"
+                @keydown.enter.exact.prevent="aiSend()"></textarea>
+      <button class="btn btn-primary" :disabled="!aiReady" @click="aiBusy ? aiStop() : aiSend()">{{ aiBusy ? '⏹ 停止' : '发送' }}</button>
+    </div>
+  </div>
+
   <!-- 图床管理弹窗 -->
   <div class="modal-overlay" v-if="showImageManager" @click.self="showImageManager = false">
     <div class="modal" style="width:560px;">
@@ -636,9 +690,10 @@
 
 <!-- 主题 + 模板 + 应用 -->
 <script src="js/themes.js"></script>
+<script src="js/ai-client.js?v=20260809a"></script>
 <script src="js/templates.js"></script>
 <script src="js/publish-utils.js?v=20260427b"></script>
-<script src="js/app.js?v=20260809a"></script>
+<script src="js/app.js?v=20260809b"></script>
 
 <!-- PWA Service Worker -->
 <script>

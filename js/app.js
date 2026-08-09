@@ -33,6 +33,38 @@ const app = createApp({
     const useImageHost = ref(localStorage.getItem('md-converter-imagehost') !== 'false');
     const uploadingImage = ref(false);
 
+    // AI 服务配置（BYOK，多服务商；Key 按服务商分别保存）
+    const aiConfig = ref((() => {
+      const c = lsReadJSON('md-converter-ai-config', null) || {};
+      const cfg = {
+        provider: aiClient.PROVIDERS[c.provider] ? c.provider : 'deepseek',
+        keys: (c.keys && typeof c.keys === 'object') ? c.keys : {},
+        models: (c.models && typeof c.models === 'object') ? c.models : {},
+      };
+      // 迁移旧版单一 DeepSeek Key（也覆盖导入旧备份的情况）
+      const legacy = localStorage.getItem('md-converter-deepseek-key');
+      if (legacy && !cfg.keys.deepseek) cfg.keys.deepseek = legacy;
+      return cfg;
+    })());
+    const aiProviderList = Object.entries(aiClient.PROVIDERS).map(([id, p]) => ({ id, name: p.name, proxy: !!p.proxy }));
+    const aiProviderInfo = computed(() => aiClient.PROVIDERS[aiConfig.value.provider]);
+    const aiKey = computed(() => aiConfig.value.keys[aiConfig.value.provider] || '');
+    const aiModel = computed(() => aiConfig.value.models[aiConfig.value.provider] || '');
+    const aiReady = computed(() => !!aiKey.value);
+
+    // AI 助手面板
+    const showAiPanel = ref(false);
+    const aiMessages = ref([]);
+    const aiInput = ref('');
+    const aiBusy = ref(false);
+    const aiChips = [
+      '换成适合技术文的主题',
+      '主题色改成微信绿 #07c160',
+      '起 5 个标题备选',
+      '写一段 100 字摘要',
+      '给这篇文章提排版建议',
+    ];
+
     // 图床管理状态
     const showImageManager = ref(false);
     const imageHistory = ref(lsReadJSON('md-converter-image-history', []));
@@ -1364,6 +1396,216 @@ ${previewEl.innerHTML}
       }
     }
 
+    // ─── AI 助手 ───────────────────────
+    // 安全边界：模型只能输出结构化 JSON，经校验后调用下面白名单里已有的函数，永不 eval。
+    // publishTo / syncToMultiPlatform / clearEditor / exportBackup 等不可逆或破坏性操作一律不进白名单。
+    const AI_TOOLS = {
+      set_theme: {
+        desc: '切换排版主题',
+        props: { theme: { type: 'string', enum: Object.keys(themes), description: '主题 key' } },
+        required: ['theme'],
+        run: ({ theme }) => { selectTheme(theme); return '主题 → ' + themes[theme].name; },
+      },
+      set_style: {
+        desc: '调整主题色 / 字体 / 字号，至少给一个参数',
+        props: {
+          color: { type: 'string', description: '十六进制色值，如 #07c160' },
+          font_family: { type: 'string', enum: ['sans', 'serif', 'mono'] },
+          font_size: { type: 'number', enum: [14, 15, 16, 17, 18] },
+        },
+        run: (a) => {
+          const done = [];
+          if (a.color) {
+            if (!/^#[0-9a-fA-F]{6}$/.test(a.color)) throw new Error('颜色须为 #RRGGBB 格式');
+            setCustomColor(a.color); done.push('主题色 ' + a.color);
+          }
+          if (a.font_family) { setFontFamily(a.font_family); done.push('字体 ' + a.font_family); }
+          if (a.font_size) { setFontSize(a.font_size); done.push('字号 ' + a.font_size); }
+          if (!done.length) throw new Error('至少要给一个参数');
+          return done.join('，');
+        },
+      },
+      edit_text: {
+        desc: '把正文里唯一出现的一段文字替换成新文字（局部改写用这个）',
+        props: { old_text: { type: 'string', description: '正文里唯一出现的原文片段' }, new_text: { type: 'string' } },
+        required: ['old_text', 'new_text'],
+        run: ({ old_text, new_text }) => {
+          const doc = markdownText.value;
+          const at = doc.indexOf(old_text);
+          if (at === -1) throw new Error('正文里找不到这段文字');
+          if (doc.indexOf(old_text, at + 1) !== -1) throw new Error('这段文字出现多次，请给更长的唯一片段');
+          applyAiText(doc.slice(0, at) + new_text + doc.slice(at + old_text.length));
+          return '改写「' + old_text.slice(0, 12) + (old_text.length > 12 ? '…' : '') + '」';
+        },
+      },
+      replace_text: {
+        desc: '把正文里所有出现的某个字符串全部替换',
+        props: { find: { type: 'string' }, replace: { type: 'string' } },
+        required: ['find', 'replace'],
+        run: ({ find, replace }) => {
+          if (!find) throw new Error('find 不能为空');
+          const doc = markdownText.value;
+          const n = doc.split(find).length - 1;
+          if (!n) throw new Error('找不到「' + find + '」');
+          applyAiText(doc.split(find).join(replace));
+          return '替换 ' + n + ' 处「' + find + '」→「' + replace + '」';
+        },
+      },
+      replace_document: {
+        desc: '用改写后的全文替换正文。整篇改动必须走这个，会先让用户确认',
+        props: { content: { type: 'string', description: '改写后的完整 Markdown 正文' } },
+        required: ['content'],
+        run: ({ content }) => {
+          if (!content || content.length < 10) throw new Error('content 太短');
+          return { pending: { label: '📝 整篇改写提案（' + markdownText.value.length + ' → ' + content.length + ' 字）', text: content } };
+        },
+      },
+    };
+
+    // AI 写入正文统一入口：先切断 undo 合并窗口，否则会和用户刚敲的字合并成同一步 ⌘Z
+    function applyAiText(text) {
+      clearTimeout(undoCoalesceTimer);
+      undoCoalesceTimer = null;
+      markdownText.value = text;
+    }
+
+    // 主题/配色不进 undo 栈，所以每次工具执行前整体拍快照，供 op 卡片撤销
+    function aiSnapshot() {
+      return { theme: currentTheme.value, color: customColor.value, font: fontFamily.value, size: fontSize.value, text: markdownText.value };
+    }
+    function aiRestore(s) {
+      if (s.theme !== currentTheme.value) selectTheme(s.theme);
+      if (s.color !== customColor.value) setCustomColor(s.color);
+      if (s.font !== fontFamily.value) setFontFamily(s.font);
+      if (s.size !== fontSize.value) setFontSize(s.size);
+      if (s.text !== markdownText.value) applyAiText(s.text);
+    }
+
+    function dispatchAiTool(tc) {
+      const tool = AI_TOOLS[tc.name];
+      if (!tool) return { error: '未知工具：' + tc.name };
+      let args;
+      try { args = JSON.parse(tc.args || '{}'); } catch { return { error: 'arguments 不是合法 JSON' }; }
+      for (const k of tool.required || []) if (args[k] === undefined) return { error: '缺少参数 ' + k };
+      for (const [k, v] of Object.entries(args)) {
+        const spec = tool.props[k];
+        if (!spec) return { error: '未知参数 ' + k };
+        if (spec.enum && !spec.enum.includes(v)) return { error: k + ' 取值非法：' + v };
+      }
+      try {
+        const out = tool.run(args);
+        return (out && out.pending) ? out : { result: out };
+      } catch (e) { return { error: e.message }; }
+    }
+
+    function aiSystemPrompt() {
+      const doc = markdownText.value;
+      const clipped = doc.length > 12000 ? doc.slice(0, 12000) + '\n…（正文过长，此处截断）' : doc;
+      return [
+        '你是 MoPai 墨排的排版助手。MoPai 把 Markdown 排版成公众号/知乎等平台的富文本。',
+        '你可以调用工具直接操作编辑器：换主题、调配色字体字号、改写正文。',
+        '用户要「起标题」「写摘要」「写小红书版」这类不改动正文的东西时，直接在回复里给文本，不要调工具。',
+        '局部改写用 edit_text，整篇改写用 replace_document。不要臆造工具，不要重复调用同一个工具。',
+        '',
+        `当前状态：主题=${themes[currentTheme.value].name}(${currentTheme.value})，主题色=${customColor.value}，字体=${fontFamily.value}，字号=${fontSize.value}，字数=${wordCount.value}`,
+        '可选主题：' + Object.entries(themes).map(([k, v]) => `${k}(${v.name})`).join('、'),
+        '',
+        '当前正文：',
+        clipped,
+      ].join('\n');
+    }
+
+    function aiScroll() {
+      nextTick(() => { const el = document.querySelector('.ai-msgs'); if (el) el.scrollTop = el.scrollHeight; });
+    }
+
+    function toggleAiPanel() {
+      showAiPanel.value = !showAiPanel.value;
+      if (showAiPanel.value) showSettings.value = false; // 同为右侧面板，不叠
+    }
+
+    let aiAborter = null;
+    function aiStop() { aiAborter?.abort(); }
+
+    async function aiSend(preset) {
+      const text = (preset || aiInput.value).trim();
+      if (!text || aiBusy.value || !aiReady.value) return;
+      aiInput.value = '';
+      aiMessages.value.push({ role: 'user', text });
+
+      // 对话只带最近几轮；正文不累积在历史里，每轮由 system prompt 重新注入最新版
+      const history = aiMessages.value
+        .filter(m => (m.role === 'user' || m.role === 'assistant') && m.text)
+        .slice(-9).map(m => ({ role: m.role, content: m.text }));
+      const messages = [{ role: 'system', content: aiSystemPrompt() }, ...history];
+
+      // 必须拿数组里的响应式代理，直接改 push 进去的原始对象不会触发更新
+      aiMessages.value.push({ role: 'assistant', text: '', ops: [] });
+      const reply = aiMessages.value[aiMessages.value.length - 1];
+      aiBusy.value = true;
+      aiScroll();
+      const ctrl = aiAborter = new AbortController();
+
+      try {
+        for (let round = 0; ; round++) {
+          const { text: out, toolCalls } = await aiClient.chatStream({
+            provider: aiConfig.value.provider,
+            key: aiKey.value,
+            model: aiModel.value,
+            messages,
+            tools: Object.entries(AI_TOOLS).map(([name, t]) => ({
+              type: 'function',
+              function: { name, description: t.desc, parameters: { type: 'object', properties: t.props, required: t.required || [] } },
+            })),
+            onDelta: (full) => { reply.text = full; aiScroll(); },
+            signal: ctrl.signal,
+          });
+          if (!toolCalls.length) { reply.text = out || reply.text; break; }
+
+          messages.push({
+            role: 'assistant',
+            content: out || null,
+            tool_calls: toolCalls.map(t => ({ id: t.id, type: 'function', function: { name: t.name, arguments: t.args } })),
+          });
+          for (const tc of toolCalls) {
+            const before = aiSnapshot();
+            const r = dispatchAiTool(tc);
+            if (r.error) reply.ops.push({ label: '⚠️ ' + tc.name + '：' + r.error });
+            else if (r.pending) reply.ops.push({ label: r.pending.label, pending: r.pending });
+            else reply.ops.push({ label: '⚙️ ' + r.result, before });
+            messages.push({ role: 'tool', tool_call_id: tc.id, content: r.error ? '失败：' + r.error : (r.result || r.pending.label) });
+          }
+          aiScroll();
+          // 硬上限，防止模型来回调工具烧 token
+          if (round >= 3) { reply.ops.push({ label: '⚠️ 已达工具调用上限，停止' }); break; }
+        }
+      } catch (e) {
+        if (e.name !== 'AbortError') reply.text = (reply.text ? reply.text + '\n\n' : '') + '❌ ' + e.message;
+      }
+      aiBusy.value = false;
+      if (aiAborter === ctrl) aiAborter = null;
+      aiScroll();
+    }
+
+    function applyAiOp(op) {
+      const before = aiSnapshot();
+      applyAiText(op.pending.text);
+      op.before = before;
+      op.label = '✅ 已应用整篇改写';
+      op.pending = null;
+    }
+    function undoAiOp(op) {
+      if (!op.before) return;
+      aiRestore(op.before);
+      op.label = '↩️ 已撤销';
+      op.before = null;
+    }
+
+    function saveAiConfig() { localStorage.setItem('md-converter-ai-config', JSON.stringify(aiConfig.value)); }
+    function setAiProvider(id) { if (aiClient.PROVIDERS[id]) { aiConfig.value.provider = id; saveAiConfig(); } }
+    function setAiKey(key) { aiConfig.value.keys[aiConfig.value.provider] = key.trim(); saveAiConfig(); }
+    function setAiModel(model) { aiConfig.value.models[aiConfig.value.provider] = model.trim(); saveAiConfig(); }
+
     // ─── 图床管理 ──────────────────────
     function addImageHistory(name, url) {
       const now = new Date();
@@ -1578,6 +1820,11 @@ ${previewEl.innerHTML}
       wordGoal, wordGoalProgress, setWordGoal,
       showLineNumbers, toggleLineNumbers, lineNumbers,
       findInEditor, replaceOne, replaceAll,
+      // AI 助手
+      aiConfig, aiProviderList, aiProviderInfo, aiKey, aiModel, aiReady,
+      setAiProvider, setAiKey, setAiModel,
+      showAiPanel, aiMessages, aiInput, aiBusy, aiChips,
+      toggleAiPanel, aiSend, aiStop, applyAiOp, undoAiOp,
       // Phase 3
       showTemplates, templates, applyTemplate,
       customCss, setCustomCss,
