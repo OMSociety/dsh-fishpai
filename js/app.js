@@ -33,29 +33,6 @@ const app = createApp({
     const useImageHost = ref(localStorage.getItem('md-converter-imagehost') !== 'false');
     const uploadingImage = ref(false);
 
-    // AI 检测状态
-    const showAiDetect = ref(false);
-    const aiDetectResult = ref({ total: 0, issues: [], score: 100 });
-
-    // AI 服务配置（BYOK，多服务商；Key 按服务商分别保存）
-    const aiConfig = ref((() => {
-      const c = lsReadJSON('md-converter-ai-config', null) || {};
-      const cfg = {
-        provider: aiClient.PROVIDERS[c.provider] ? c.provider : 'deepseek',
-        keys: (c.keys && typeof c.keys === 'object') ? c.keys : {},
-        models: (c.models && typeof c.models === 'object') ? c.models : {},
-      };
-      // 迁移旧版单一 DeepSeek Key（也覆盖导入旧备份的情况）
-      const legacy = localStorage.getItem('md-converter-deepseek-key');
-      if (legacy && !cfg.keys.deepseek) cfg.keys.deepseek = legacy;
-      return cfg;
-    })());
-    const aiProviderList = Object.entries(aiClient.PROVIDERS).map(([id, p]) => ({ id, name: p.name, proxy: !!p.proxy }));
-    const aiProviderInfo = computed(() => aiClient.PROVIDERS[aiConfig.value.provider]);
-    const aiKey = computed(() => aiConfig.value.keys[aiConfig.value.provider] || '');
-    const aiModel = computed(() => aiConfig.value.models[aiConfig.value.provider] || '');
-    const aiReady = computed(() => !!aiKey.value);
-
     // 图床管理状态
     const showImageManager = ref(false);
     const imageHistory = ref(lsReadJSON('md-converter-image-history', []));
@@ -1387,61 +1364,6 @@ ${previewEl.innerHTML}
       }
     }
 
-    // ─── 去 AI 味检测 ──────────────────
-    function runAiDetect() {
-      const result = aiDetector.detect(markdownText.value);
-      // 为每个 match 添加 Vue 响应式属性
-      result.issues.forEach(issue => {
-        issue.matches.forEach(m => {
-          m.rewriting = false;
-          m.rewriteResult = '';
-        });
-      });
-      aiDetectResult.value = result;
-      showAiDetect.value = true;
-    }
-
-    let rewriteAborter = null;
-    async function aiRewrite(match) {
-      if (!aiReady.value || match.rewriting) return;
-      rewriteAborter?.abort();
-      const ctrl = rewriteAborter = new AbortController();
-      match.rewriting = true;
-      match.rewriteResult = '';
-      try {
-        await aiClient.chatStream({
-          provider: aiConfig.value.provider,
-          key: aiKey.value,
-          model: aiModel.value,
-          messages: [
-            { role: 'system', content: aiDetector.REWRITE_PROMPT },
-            { role: 'user', content: match.matched },
-          ],
-          onDelta: (full) => { match.rewriteResult = full; },
-          signal: ctrl.signal,
-        });
-      } catch (err) {
-        if (err.name !== 'AbortError') match.rewriteResult = '❌ ' + (err.message || '改写失败');
-      }
-      match.rewriting = false;
-      if (rewriteAborter === ctrl) rewriteAborter = null;
-    }
-
-    function saveAiConfig() {
-      localStorage.setItem('md-converter-ai-config', JSON.stringify(aiConfig.value));
-    }
-    function setAiProvider(id) {
-      if (aiClient.PROVIDERS[id]) { aiConfig.value.provider = id; saveAiConfig(); }
-    }
-    function setAiKey(key) {
-      aiConfig.value.keys[aiConfig.value.provider] = key.trim();
-      saveAiConfig();
-    }
-    function setAiModel(model) {
-      aiConfig.value.models[aiConfig.value.provider] = model.trim();
-      saveAiConfig();
-    }
-
     // ─── 图床管理 ──────────────────────
     function addImageHistory(name, url) {
       const now = new Date();
@@ -1648,10 +1570,6 @@ ${previewEl.innerHTML}
       insertFormat, saveToHistory, loadHistory, deleteHistory, toggleHistory,
       syncScroll, scrollToHeading, handleTab, handlePaste, handleDrop, handleDragOver,
       colorPresets,
-      // AI 检测与服务配置
-      showAiDetect, aiDetectResult, runAiDetect, aiRewrite,
-      aiConfig, aiProviderList, aiProviderInfo, aiKey, aiModel, aiReady,
-      setAiProvider, setAiKey, setAiModel,
       // 图床管理
       showImageManager, imageHistory,
       toggleImageManager, copyImageUrl, copyImageMd,

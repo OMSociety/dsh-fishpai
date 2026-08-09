@@ -90,11 +90,6 @@
       </a>
     </div>
     <div class="header-right">
-      <!-- 去 AI 味 -->
-      <button class="header-btn has-label" :class="{ active: showAiDetect }" @click="runAiDetect" title="检测 AI 写作痕迹">
-        <span>🧹</span>
-        <span class="btn-label">去AI味</span>
-      </button>
       <!-- 图床管理 -->
       <button class="header-btn has-label" :class="{ active: showImageManager }" @click="toggleImageManager" title="图床管理">
         <span>🖼️</span>
@@ -420,21 +415,6 @@
         </div>
       </div>
 
-      <!-- AI 服务 -->
-      <div class="settings-section">
-        <div class="settings-section-title">🤖 AI 服务（可选）</div>
-        <div class="toggle-row-desc" style="margin-bottom:8px;">配置后可使用 AI 一键改写。Key 只保存在本机浏览器，不会上传到任何服务器。</div>
-        <select :value="aiConfig.provider" @change="setAiProvider($event.target.value)" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;">
-          <option v-for="p in aiProviderList" :key="p.id" :value="p.id">{{ p.name }}{{ p.proxy ? '（国内需代理）' : '' }}</option>
-        </select>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
-          <input type="password" :value="aiKey" @input="setAiKey($event.target.value)" :placeholder="aiProviderInfo.name + ' API Key'" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;">
-          <a :href="aiProviderInfo.keyUrl" target="_blank" style="font-size:11px;color:var(--primary);white-space:nowrap;">获取 Key</a>
-        </div>
-        <input type="text" :value="aiModel" @input="setAiModel($event.target.value)" :placeholder="'模型名，留空用 ' + aiProviderInfo.defaultModel" style="width:100%;margin-top:8px;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;">
-        <button v-if="aiKey" class="btn" style="margin-top:8px;font-size:11px;padding:4px 10px;" @click="setAiKey('')">清除 Key</button>
-      </div>
-
       <!-- 字数目标 -->
       <div class="settings-section">
         <div class="settings-section-title">🎯 字数目标</div>
@@ -604,68 +584,6 @@
     </div>
   </div>
 
-  <!-- 去 AI 味检测结果弹窗 -->
-  <div class="modal-overlay" v-if="showAiDetect" @click.self="showAiDetect = false">
-    <div class="modal" style="width:620px;">
-      <div class="modal-header">
-        <h3>🧹 AI 写作痕迹检测</h3>
-        <button class="close-btn" @click="showAiDetect = false">✕</button>
-      </div>
-      <div style="padding:14px 18px; max-height:65vh; overflow-y:auto;">
-        <!-- 评分 -->
-        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:14px 18px;background:var(--hover-bg);border-radius:10px;">
-          <div style="font-size:36px;font-weight:800;" :style="{ color: aiDetectResult.score >= 80 ? '#10b981' : aiDetectResult.score >= 50 ? '#f59e0b' : '#ef4444' }">
-            {{ aiDetectResult.score }}
-          </div>
-          <div>
-            <div style="font-weight:600;font-size:15px;">人性化评分</div>
-            <div style="font-size:12px;color:var(--text-muted);">
-              {{ aiDetectResult.score >= 80 ? '✅ 文章很自然，AI 痕迹较少' : aiDetectResult.score >= 50 ? '⚠️ 存在一些 AI 痕迹，建议修改' : '🚨 AI 痕迹明显，建议大幅修改' }}
-            </div>
-          </div>
-          <div style="margin-left:auto;font-size:13px;color:var(--text-muted);">
-            检测到 <strong style="color:var(--text);">{{ aiDetectResult.total }}</strong> 处问题
-          </div>
-        </div>
-
-        <!-- 无问题 -->
-        <div v-if="aiDetectResult.total === 0" style="text-align:center;padding:40px;color:var(--text-muted);">
-          🎉 太棒了！未检测到明显的 AI 写作痕迹
-        </div>
-
-        <!-- 问题列表 -->
-        <div v-for="issue in aiDetectResult.issues" :key="issue.ruleId" style="margin-bottom:14px;">
-          <div style="font-size:13px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-            <span>{{ issue.category }}</span>
-            <span style="color:var(--text);">{{ issue.name }}</span>
-            <span style="margin-left:auto;font-size:11px;padding:2px 8px;background:var(--hover-bg);border-radius:10px;color:var(--text-muted);">{{ issue.count }} 处</span>
-          </div>
-          <div v-for="(m, idx) in issue.matches.slice(0, 3)" :key="idx" style="margin:4px 0;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;">
-            <div style="display:flex;align-items:flex-start;gap:8px;">
-              <div style="flex:1;">
-                <span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:1px 6px;border-radius:4px;font-size:12px;">{{ m.matched }}</span>
-                <div style="margin-top:4px;font-size:12px;color:var(--text-muted);">💡 {{ m.suggestion }}</div>
-              </div>
-              <button v-if="aiReady" class="btn" style="font-size:11px;padding:4px 10px;white-space:nowrap;" @click="aiRewrite(m)" :disabled="m.rewriting">
-                {{ m.rewriting ? '改写中...' : '✨ AI改写' }}
-              </button>
-            </div>
-            <div v-if="m.rewriteResult" style="margin-top:6px;padding:6px 10px;background:rgba(16,185,129,0.08);border-radius:6px;font-size:12px;color:#10b981;">
-              {{ m.rewriting ? '✍️' : '✅' }} {{ m.rewriteResult }}
-            </div>
-          </div>
-          <div v-if="issue.matches.length > 3" style="font-size:11px;color:var(--text-muted);padding:4px 12px;">
-            还有 {{ issue.matches.length - 3 }} 处相同问题...
-          </div>
-        </div>
-
-        <div v-if="!aiReady && aiDetectResult.total > 0" style="text-align:center;padding:12px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:8px;">
-          💡 在设置面板配置 AI 服务（DeepSeek / 智谱 GLM 等）可解锁「AI 改写」功能
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- 图床管理弹窗 -->
   <div class="modal-overlay" v-if="showImageManager" @click.self="showImageManager = false">
     <div class="modal" style="width:560px;">
@@ -716,13 +634,11 @@
   </div>
 </div>
 
-<!-- 主题 + AI检测 + 模板 + 应用 -->
+<!-- 主题 + 模板 + 应用 -->
 <script src="js/themes.js"></script>
-<script src="js/ai-detector.js?v=20260808a"></script>
-<script src="js/ai-client.js?v=20260808a"></script>
 <script src="js/templates.js"></script>
 <script src="js/publish-utils.js?v=20260427b"></script>
-<script src="js/app.js?v=20260808b"></script>
+<script src="js/app.js?v=20260809a"></script>
 
 <!-- PWA Service Worker -->
 <script>

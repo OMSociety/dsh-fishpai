@@ -2,7 +2,7 @@
 
 # MoPai 墨排 ✒️
 
-**不只是排版 —— 一次写作，一键「去 AI 味」+ 分发到 14+ 平台。**
+**不只是排版 —— 一次写作，一键分发 14+ 平台，还能被自动化流水线直接灌稿。**
 
 专为公众号 / 知乎 / CSDN 等中文创作者打造的本地 Markdown 排版工具。
 
@@ -25,7 +25,7 @@
 
 「Markdown 转公众号」的工具不少，MoPai 想做的是**从写作到发布的完整闭环**——下面这些是它和纯排版工具不一样的地方：
 
-- 🧹 **去 AI 味** — 内置 AI 写作痕迹检测，一键标出「赋能 / 闭环 / 值得注意的是」等 AI 高频表达，可接 DeepSeek / 智谱 GLM / SiliconFlow / 通义千问 / OpenAI / OpenRouter 流式改写。**纯排版工具没有这个。**
+- 🤖 **可被脚本/Agent 驱动** — `?load=` 注入入口，外部流水线生成好文章后直接拉起编辑器待审。**纯排版工具没有这个。**
 - 🚀 **一键分发全平台** — 14 平台按最优格式一键复制；配合 [WechatSync](https://github.com/wechatsync/Wechatsync) 扩展可直接同步到 29+ 平台创建草稿。
 - 🖼️ **四种导出** — HTML / PDF / 长图 PNG / Word，文件自动以文章标题命名。
 - 📱 **离线可用** — PWA 可安装为桌面应用，手机端编辑/预览功能完整。
@@ -33,13 +33,13 @@
 
 ## 📸 更多预览
 
-| 暗色模式 | 🧹 去 AI 味检测 |
+| 暗色模式 | 发布助手 |
 |:---:|:---:|
-| ![dark](screenshots/dark.png) | ![ai-detect](screenshots/ai-detect.png) |
+| ![dark](screenshots/dark.png) | ![publish](screenshots/publish.png) |
 
-| 发布助手 | 设置面板 |
+| 图床管理 | 设置面板 |
 |:---:|:---:|
-| ![publish](screenshots/publish.png) | ![settings](screenshots/settings.png) |
+| ![image-manager](screenshots/image-manager.png) | ![settings](screenshots/settings.png) |
 
 ## ✨ 核心功能
 
@@ -181,8 +181,6 @@ mopai-markdown/
 ├── js/
 │   ├── app.js          # Vue 应用主逻辑
 │   ├── themes.js       # 13 种主题定义 + 示例内容
-│   ├── ai-detector.js  # 去 AI 味检测规则引擎
-│   ├── ai-client.js    # LLM 传输层（OpenAI 兼容 + SSE 流式，BYOK）
 │   ├── templates.js    # 模板库
 │   └── publish-utils.js # 发布 HTML 兼容处理
 ├── tests/              # Chrome CDP 集成测试

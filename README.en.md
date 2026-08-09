@@ -2,7 +2,7 @@
 
 # MoPai ✒️
 
-**More than a formatter — write once, then "de-AI" your prose and distribute to 14+ platforms in one click.**
+**More than a formatter — write once, distribute to 14+ platforms in one click, and let your automation pipeline feed drafts straight in.**
 
 A local, install-free Markdown typesetting tool built for creators on WeChat Official Accounts, Zhihu, CSDN and other Chinese content platforms.
 
@@ -25,7 +25,7 @@ A local, install-free Markdown typesetting tool built for creators on WeChat Off
 
 There are plenty of "Markdown → WeChat" formatters. MoPai aims at the **full write-to-publish loop**. Here's what sets it apart from a plain formatter:
 
-- 🧹 **De-AI your writing** — a built-in detector flags telltale AI phrasing, with optional one-click rewriting via DeepSeek. Plain formatters don't do this.
+- 🤖 **Scriptable / agent-friendly** — a `?load=` entry point lets an external pipeline generate an article and open it straight in the editor for review. Plain formatters don't do this.
 - 🚀 **One-click multi-platform distribution** — copies content in each platform's best format for 14 platforms; pairs with the [WechatSync](https://github.com/wechatsync/Wechatsync) extension to push drafts to 29+ platforms.
 - 🖼️ **Four export formats** — HTML / PDF / long-image PNG / Word, auto-named from the article title.
 - 📱 **Works offline** — installable PWA; fully usable on mobile (edit / preview tabs).
