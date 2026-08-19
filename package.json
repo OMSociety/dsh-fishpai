@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "python3 -m http.server 8080",
-    "test": "node tests/publish-html.test.mjs"
+    "test": "node --test"
   },
   "license": "MIT"
 }
