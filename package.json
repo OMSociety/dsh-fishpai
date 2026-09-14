@@ -59,6 +59,7 @@
     "check:build": "node scripts/build-client.mjs && git diff --exit-code -- lib/"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.1",
     "esbuild": "^0.28.2",
