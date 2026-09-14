@@ -1,12 +1,68 @@
 {
-  "name": "mopai-markdown",
-  "version": "3.0.0",
-  "private": true,
-  "description": "优雅高效的多平台 Markdown 排版工具",
+  "name": "dsh-fishpai",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness plugin: 鱼排 FishPai — a WeChat Official Account typesetting workbench in the DSH right sidebar, with block-level diffs and annotations a model can read. Rendering core derived from the MIT mopai-markdown.",
   "type": "module",
-  "scripts": {
-    "start": "python3 -m http.server 8080",
-    "test": "node --test"
+  "license": "MIT",
+  "author": "OMSociety (https://github.com/OMSociety)",
+  "homepage": "https://github.com/OMSociety/dsh-fishpai#readme",
+  "bugs": "https://github.com/OMSociety/dsh-fishpai/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OMSociety/dsh-fishpai.git"
   },
-  "license": "MIT"
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "wechat",
+    "markdown",
+    "typesetting",
+    "sidebar",
+    "skill"
+  ],
+  "main": "./plugin/index.mjs",
+  "exports": {
+    ".": "./plugin/index.mjs",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "plugin",
+    "lib",
+    "skills",
+    "cordis.patch.yml",
+    "README.md",
+    "NOTICE.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-locale"
+      ],
+      "platform": "web"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build-client.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/",
+    "test:golden:regen": "node scripts/regen-golden.mjs",
+    "check:build": "node scripts/build-client.mjs && git diff --exit-code -- lib/"
+  },
+  "devDependencies": {
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.1",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.6.0"
+  }
 }

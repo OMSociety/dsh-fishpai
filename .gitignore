@@ -1,3 +1,13 @@
-article-assets/
 node_modules/
+*.tsbuildinfo
+
+# FishPai runtime state, when a workspace happens to be this repository.
+# The plugin writes its own `.fishpai/.gitignore` too; these lines only cover
+# the case where the repository root itself is the working document's directory.
+.fishpai/state/
+.fishpai/history/
+.fishpai/docs/
+
+# Upstream's own ignore rules, kept for the reference site under legacy-site/
+article-assets/
 .DS_Store

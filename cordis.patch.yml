@@ -1,0 +1,10 @@
+# DSH bundle layer: mount the host plugin that registers the fishpai tools,
+# the /fishpai/api routes, and the bundled `fishpai` skill.
+#
+# `name` is the module specifier DSH imports (the vendor/loader resolves
+# `options.name`), so it must be the published package name, not the repo name.
+# The same package also declares its browser half through `dsh.client` +
+# `exports["./client"]`, which the client module loader serves as one bundle.
+- insert:
+    - id: fishpai
+      name: dsh-fishpai

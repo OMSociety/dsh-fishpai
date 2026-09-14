@@ -1,0 +1,202 @@
+{
+  "hljs": {
+    "color": "rgb(171, 178, 191)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-comment": {
+    "color": "rgb(92, 99, 112)",
+    "fontWeight": "400",
+    "fontStyle": "italic"
+  },
+  "hljs-quote": {
+    "color": "rgb(92, 99, 112)",
+    "fontWeight": "400",
+    "fontStyle": "italic"
+  },
+  "hljs-doctag": {
+    "color": "rgb(198, 120, 221)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-formula": {
+    "color": "rgb(198, 120, 221)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-keyword": {
+    "color": "rgb(198, 120, 221)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-deletion": {
+    "color": "rgb(224, 108, 117)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-name": {
+    "color": "rgb(224, 108, 117)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-section": {
+    "color": "rgb(224, 108, 117)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-selector-tag": {
+    "color": "rgb(224, 108, 117)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-subst": {
+    "color": "rgb(224, 108, 117)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-literal": {
+    "color": "rgb(86, 182, 194)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-addition": {
+    "color": "rgb(152, 195, 121)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-attribute": {
+    "color": "rgb(152, 195, 121)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-meta": {
+    "color": "rgb(97, 174, 238)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-regexp": {
+    "color": "rgb(152, 195, 121)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-string": {
+    "color": "rgb(152, 195, 121)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-attr": {
+    "color": "rgb(209, 154, 102)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-number": {
+    "color": "rgb(209, 154, 102)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-selector-attr": {
+    "color": "rgb(209, 154, 102)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-selector-class": {
+    "color": "rgb(209, 154, 102)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-selector-pseudo": {
+    "color": "rgb(209, 154, 102)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-template-variable": {
+    "color": "rgb(209, 154, 102)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-type": {
+    "color": "rgb(209, 154, 102)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-variable": {
+    "color": "rgb(209, 154, 102)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-bullet": {
+    "color": "rgb(97, 174, 238)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-link": {
+    "color": "rgb(97, 174, 238)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-selector-id": {
+    "color": "rgb(97, 174, 238)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-symbol": {
+    "color": "rgb(97, 174, 238)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-title": {
+    "color": "rgb(97, 174, 238)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-built_in": {
+    "color": "rgb(230, 192, 123)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-title.class_": {
+    "color": "rgb(171, 178, 191)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "function_": {
+    "color": "rgb(171, 178, 191)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-params": {
+    "color": "rgb(171, 178, 191)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-emphasis": {
+    "color": "rgb(171, 178, 191)",
+    "fontWeight": "400",
+    "fontStyle": "italic"
+  },
+  "hljs-strong": {
+    "color": "rgb(171, 178, 191)",
+    "fontWeight": "700",
+    "fontStyle": "normal"
+  },
+  "class_": {
+    "color": "rgb(171, 178, 191)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  "hljs-title.function_": {
+    "color": "rgb(171, 178, 191)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  ".hljs-meta .hljs-string": {
+    "color": "rgb(152, 195, 121)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  },
+  ".hljs-class .hljs-title": {
+    "color": "rgb(230, 192, 123)",
+    "fontWeight": "400",
+    "fontStyle": "normal"
+  }
+}

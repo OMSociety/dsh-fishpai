@@ -1,0 +1,16 @@
+# Byte stability beats EOL niceties in this repository:
+#   * `test/golden/**` is compared byte-for-byte by the renderer regression tests;
+#   * `plugin/vendor/**` keeps upstream provenance recorded in NOTICE.md.
+# Force LF in the repository AND in every checkout, so a Windows working tree
+# (system core.autocrlf=true) can never rewrite a golden file behind our back.
+* text=auto eol=lf
+
+# Real binaries: never touch their bytes.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pptx binary
+*.xlsx binary
