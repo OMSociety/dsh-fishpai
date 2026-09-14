@@ -38,7 +38,7 @@ export interface FishpaiState {
   blocks: Block[]
   notes: Note[]
   placeholders: Placeholder[]
-  images: Array<{ src: string; status: string }>
+  images: Array<{ src: string; status: string; size: number | null; embed: boolean }>
   history: HistoryEntry[]
   themes: ThemeInfo[]
   presets: Array<{ name: string; color: string }>

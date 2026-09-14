@@ -188,6 +188,8 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
   // 只用来把"点了没反应"的开关置灰并说明原因
   const docHasLinks = hasExternalLinks(state.markdown)
   const docHasCode = hasCodeBlocks(state.markdown)
+  // 内嵌不了的图（文件不在/越界/超上限）粘进公众号大概率不显示，要在编辑器里手动传
+  const manualImages = state.images.filter((i) => !i.embed)
 
   // ── 工具栏动作 ─────────────────────────────────────────────
   const onCopy = async () => {
@@ -274,7 +276,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
             刷新
           </Btn>
           <Btn primary title="下载「复制到公众号」形态的自包含 HTML 文件（本地图片已内嵌 base64）" onClick={() => void onExport()}>
-            导出
+            导出 HTML
           </Btn>
           <Btn primary title="复制后直接粘进公众号编辑器（⌘⇧C）" onClick={() => void onCopy()}>
             复制到公众号
@@ -486,6 +488,19 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
         <span>rev {state.revision}</span>
         <span>{state.saving ? '保存中…' : state.dirty ? '未保存' : '已保存'}</span>
         <span className="fp-spacer" />
+        {state.images.length ? (
+          <span
+            className={manualImages.length ? 'fp-warn' : undefined}
+            title={
+              manualImages.length
+                ? `这些图不会被内嵌，粘进公众号后要在编辑器里手动上传：\n${manualImages.map((i) => i.src).join('\n')}`
+                : '本地图会内嵌成 base64，复制到公众号时跟着一起过去，不用手动重传'
+            }
+          >
+            图片 {state.images.length}
+            {manualImages.length ? `（${manualImages.length} 需手动上传）` : ''}
+          </span>
+        ) : null}
         {state.placeholders.length ? <span className="fp-warn">待补 {state.placeholders.length}</span> : null}
         {openNotes.length ? <span>批注 {openNotes.length}</span> : null}
         <span className="fp-muted" title={currentTheme ? currentTheme.desc : undefined}>

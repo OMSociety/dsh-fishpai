@@ -215,9 +215,7 @@ test('客户端 bundle 导出 name / inject / apply', () => {
 
 test('面板文案：改名与新增说明必须真的进产物（防"改了源码没重新构建"）', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
-  // 「导出」保持原名，但升级成主按钮；主题分组、风险提示、置灰说明都要在产物里
-  assert.ok(source.includes('"导出"'), '按钮文案应为「导出」')
-  assert.ok(!source.includes('"导出 HTML"'), '没有改成「导出 HTML」')
+  assert.ok(source.includes('"导出 HTML"'), '导出按钮文案应为「导出 HTML」')
   assert.ok(source.includes('适合公众号'), '主题分组标签')
   assert.ok(source.includes('微信可能掉样式'), '风险分组标签')
   assert.ok(source.includes('background-clip: text'), '主题风险提示要说明机制')

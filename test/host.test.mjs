@@ -98,6 +98,40 @@ test('docKey：Windows 上大小写视为同一份状态（其它平台区分大
   assert.equal(store.docKey(upper), store.docKey(path.join(cwd, '.', 'Notes.md')), '同一路径的不同写法必须同一个 key')
 })
 
+test('图片清单：会说清楚"哪些能内嵌、哪些粘过去要手动上传"', async () => {
+  const { listLocalImages, listRemoteImages } = await import('../plugin/host/assets.mjs')
+  const cwd = tmpWorkspace()
+  fs.writeFileSync(path.join(cwd, 'ok.png'), Buffer.alloc(1024))
+  fs.writeFileSync(path.join(cwd, 'huge.png'), Buffer.alloc(64))
+  const markdown = [
+    '![好图](ok.png)',
+    '![大图](huge.png)',
+    '![缺图](nope.png)',
+    '![越界](../outside.png)',
+    '![外链](https://example.com/a.png)',
+  ].join('\n\n')
+
+  const local = listLocalImages({ markdown, cwd, docPath: path.join(cwd, 'a.md'), maxBytes: 32 })
+  assert.deepEqual(
+    local.map((i) => [path.basename(i.src), i.status, i.embed]),
+    [
+      ['ok.png', 'too-large', false], // 1024 字节 > maxBytes(32)
+      ['huge.png', 'too-large', false],
+      ['nope.png', 'missing', false],
+      ['outside.png', 'outside', false],
+    ],
+  )
+  const generous = listLocalImages({ markdown, cwd, docPath: path.join(cwd, 'a.md'), maxBytes: 4096 })
+  assert.equal(generous.find((i) => path.basename(i.src) === 'ok.png').embed, true, '没超上限就该能内嵌')
+  assert.equal(generous.find((i) => path.basename(i.src) === 'huge.png').embed, true)
+  assert.equal(generous.find((i) => path.basename(i.src) === 'nope.png').status, 'missing')
+  assert.equal(generous.find((i) => path.basename(i.src) === 'outside.png').status, 'outside')
+
+  // 外链图单独一类：它们才是微信会拦的那种
+  const remote = listRemoteImages({ markdown })
+  assert.deepEqual(remote.map((i) => i.src), ['https://example.com/a.png'])
+})
+
 test('revision 守卫：baseRevision 不匹配就拒绝，且盘上内容不变', () => {
   const cwd = tmpWorkspace()
   store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })

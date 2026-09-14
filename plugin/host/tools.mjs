@@ -15,7 +15,7 @@ import { diffBlocks } from '../core/diff.mjs'
 import { applyPatches } from '../core/patch.mjs'
 import { attachPlaceholdersToBlocks, extractPlaceholders, reanchorNotes } from '../core/notes.mjs'
 import * as store from './store.mjs'
-import { listLocalImages, makeImageResolver } from './assets.mjs'
+import { MAX_EMBED_BYTES, listLocalImages, listRemoteImages, makeImageResolver } from './assets.mjs'
 
 const OUT_SCHEMA = {
   type: 'object',
@@ -230,10 +230,28 @@ export function registerTools(ctx, deps) {
           out.push(`行内占位（${placeholders.length} 处，处理完请一并删掉）：`)
           for (const p of placeholders) out.push(`  - 第 ${p.line} 行：${clip(p.text, 200)}`)
         }
-        const badImages = images.filter((i) => i.status !== 'ok')
-        if (images.length) {
-          out.push(`图片 ${images.length} 张（复制到公众号时本地图会自动内嵌 base64，粘进微信编辑器后仍需在编辑器里重新上传）`)
-          for (const img of badImages) out.push(`  - ⚠ ${img.src}：${img.status === 'missing' ? '文件不存在' : '在工作目录之外，未内嵌'}`)
+        // 图片分三类说清楚：会内嵌的（粘过去自带）、内嵌不了的、外链的（微信正文不许引用）
+        const inlineOk = images.filter((i) => i.embed)
+        const notEmbedded = images.filter((i) => !i.embed)
+        const remoteImages = listRemoteImages({ markdown })
+        if (images.length || remoteImages.length) {
+          const parts = []
+          if (inlineOk.length) parts.push(`${inlineOk.length} 张本地图会内嵌 base64（粘进公众号编辑器时跟着一起过去，不用手动重传）`)
+          if (notEmbedded.length) parts.push(`${notEmbedded.length} 张本地图不会被内嵌`)
+          if (remoteImages.length) parts.push(`${remoteImages.length} 张外链图会被微信拦掉`)
+          out.push(`图片：${parts.join('；')}`)
+          for (const img of notEmbedded) {
+            const why =
+              img.status === 'missing'
+                ? '文件不存在'
+                : img.status === 'too-large'
+                  ? `超过 ${Math.round(MAX_EMBED_BYTES / 1024 / 1024)}MB 内嵌上限`
+                  : '在工作目录之外'
+            out.push(`  - ⚠ ${img.src}：${why}，粘过去可能不显示，要在编辑器里手动上传`)
+          }
+          for (const img of remoteImages) {
+            out.push(`  - ⚠ ${img.src}：外链图，微信正文不允许引用，需要先下载再上传`)
+          }
         }
 
         if (include === 'outline') {

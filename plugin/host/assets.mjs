@@ -69,8 +69,28 @@ export function readAsset({ cwd, docPath, src, maxBytes = 20 * 1024 * 1024 }) {
   }
 }
 
-/** Markdown 里引用的本地图片清单（面板用它提示"这些图粘过去后要在微信里重传"）。 */
-export function listLocalImages({ markdown, cwd, docPath }) {
+/**
+ * Markdown 里引用的**外链图**清单：这些是微信会拦掉的那一类（"此图片来自…未经允许不可引用"），
+ * 复制过去也不显示，必须手动重新上传。本地图不走这里——它们会被内嵌成 base64 带过去。
+ */
+export function listRemoteImages({ markdown }) {
+  const out = []
+  const re = /!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g
+  let m
+  while ((m = re.exec(String(markdown || ''))) !== null) {
+    if (isRemote(m[1])) out.push({ src: m[1] })
+  }
+  return out
+}
+
+/**
+ * Markdown 里引用的本地图片清单，并标出**能不能被内嵌**。
+ *
+ * 只有 `embed: true` 的图会被 base64 内嵌进剪贴板、跟着粘贴一起进公众号编辑器；
+ * 其余的（文件不在、越界、超过大小上限）不会被内嵌，粘过去大概率不显示，需要手动上传。
+ * 面板与 `fishpai_read` 都靠 `embed` 这一列说人话。
+ */
+export function listLocalImages({ markdown, cwd, docPath, maxBytes = MAX_EMBED_BYTES }) {
   const baseDir = path.dirname(docPath)
   const out = []
   const re = /!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g
@@ -79,13 +99,19 @@ export function listLocalImages({ markdown, cwd, docPath }) {
     const src = m[1]
     if (isRemote(src)) continue
     let status = 'ok'
+    let size = null
     try {
       const abs = resolveInCwd(cwd, path.isAbsolute(src) ? src : path.join(baseDir, src), { exts: IMAGE_EXTS })
-      if (!fs.existsSync(abs)) status = 'missing'
-      out.push({ src, status })
+      if (!fs.existsSync(abs)) {
+        status = 'missing'
+      } else {
+        size = fs.statSync(abs).size
+        if (size > maxBytes) status = 'too-large'
+      }
     } catch {
-      out.push({ src, status: 'outside' })
+      status = 'outside'
     }
+    out.push({ src, status, size, embed: status === 'ok' })
   }
   return out
 }
