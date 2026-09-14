@@ -145,8 +145,10 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 `wechatBackground` 是**纯规范化**（除了这几个属性名，别的字节一个都不动）。
 想自己复验结构校验，用微信官方实现
 [wechatjs/verify-article-structure-spec](https://github.com/wechatjs/verify-article-structure-spec)
-（CLI 用 puppeteer 真机测量；本机 Chrome 即可，见下节命令）——正文段落、引用、列表、表格、信息卡片
-都可过；`tech` / `gradient` 会被另一条 `darkmode-no-gradient` 标出，与面板里"微信可能掉样式"的提示一致。
+（CLI 用 puppeteer 真机测量；本机 Chrome 即可，见下节命令）。正文段落、引用、列表、表格、信息卡片都能过；
+`tech` / `gradient` 会被另一条 `darkmode-no-gradient` 标出，与面板里"微信可能掉样式"的提示一致。
+唯一还在的是**围栏代码块**（```）：它天然多行、且文字走 markdown-it 的 `fence` 规则（上游的 mac 标题栏
+结构不能动），素材里有代码块时官方校验器仍会标出那条 line-height——上游形态也一样。
 
 ## 🛠 开发
 
