@@ -145,61 +145,11 @@ const themes = {
     }
   },
 
-  ft: {
-    name: '金融时报',
-    emoji: '💰',
-    desc: 'FT 经典粉橙色调',
-    category: 'media',
-    styles: {
-      wrapper: 'font-family: "Georgia", "Noto Serif SC", serif; color: #33302e; line-height: 1.8; padding: 20px 24px; font-size: 16px; background: #fff1e5;',
-      h1: 'font-size: 28px; font-weight: 700; margin: 32px 0 12px; color: #33302e; letter-spacing: -0.3px; line-height: 1.2; border-bottom: 1px solid #ccc1b7; padding-bottom: 8px;',
-      h2: 'font-size: 22px; font-weight: 600; margin: 24px 0 10px; color: #33302e;',
-      h3: 'font-size: 17px; font-weight: 600; margin: 18px 0 8px; color: #66605c;',
-      p: 'margin: 8px 0; line-height: 1.85; color: #33302e;',
-      blockquote: 'border-left: 4px solid #0d7680; background: rgba(13,118,128,0.05); padding: 14px 20px; margin: 14px auto; color: #0d7680; border-radius: 0 4px 4px 0;',
-      code_inline: 'background: rgba(13,118,128,0.08); color: #0d7680; padding: 2px 6px; border-radius: 3px; font-size: 90%;',
-      code_block: 'background: #262a33; color: #ccc1b7; padding: 18px; border-radius: 6px; font-size: 13px; line-height: 1.6; overflow-x: auto;',
-      ul: 'margin: 8px 0; padding-left: 24px;',
-      ol: 'margin: 8px 0; padding-left: 24px;',
-      li: 'margin: 4px 0; line-height: 1.85;',
-      img: 'max-width: 100%; margin: 16px auto; display: block; border-radius: 4px;',
-      a: 'color: #0d7680; text-decoration: none; border-bottom: 1px solid #0d7680;',
-      table: 'width: 100%; border-collapse: collapse; margin: 16px auto;',
-      th: 'background: rgba(13,118,128,0.08); padding: 10px 14px; border-bottom: 2px solid #0d7680; font-weight: bold; text-align: left;',
-      td: 'padding: 10px 14px; border-bottom: 1px solid #ccc1b7;',
-      hr: 'border: none; border-top: 1px solid #ccc1b7; margin: 28px 0;',
-      strong: 'font-weight: 700; color: #0d7680;',
-      em: 'font-style: italic; color: #66605c;',
-    }
-  },
-
-  medium: {
-    name: 'Medium',
-    emoji: '📝',
-    desc: 'Medium 博客风格',
-    category: 'media',
-    styles: {
-      wrapper: 'font-family: "Charter", "Georgia", "Noto Serif SC", serif; color: #292929; line-height: 1.85; padding: 20px 24px; font-size: 18px;',
-      h1: 'font-family: "Lucida Grande", "PingFang SC", sans-serif; font-size: 30px; font-weight: 800; margin: 36px 0 12px; color: #292929; letter-spacing: -0.5px; line-height: 1.25;',
-      h2: 'font-family: "Lucida Grande", "PingFang SC", sans-serif; font-size: 22px; font-weight: 700; margin: 28px 0 8px; color: #292929;',
-      h3: 'font-family: "Lucida Grande", "PingFang SC", sans-serif; font-size: 18px; font-weight: 600; margin: 20px 0 6px; color: #292929;',
-      p: 'margin: 12px 0; line-height: 1.85; color: #292929; letter-spacing: -0.003em;',
-      blockquote: 'border-left: 3px solid #292929; padding: 0 0 0 20px; margin: 20px auto; color: #292929; font-style: italic; font-size: 21px; line-height: 1.58;',
-      code_inline: 'background: #f2f2f2; color: #292929; padding: 3px 6px; border-radius: 3px; font-size: 85%;',
-      code_block: 'background: #f2f2f2; color: #292929; padding: 20px; border-radius: 6px; font-size: 14px; line-height: 1.6; overflow-x: auto;',
-      ul: 'margin: 12px 0; padding-left: 28px;',
-      ol: 'margin: 12px 0; padding-left: 28px;',
-      li: 'margin: 6px 0; line-height: 1.85;',
-      img: 'max-width: 100%; margin: 20px auto; display: block;',
-      a: 'color: #292929; text-decoration: underline;',
-      table: 'width: 100%; border-collapse: collapse; margin: 16px auto;',
-      th: 'padding: 10px 14px; border-bottom: 2px solid #292929; font-weight: bold; text-align: left;',
-      td: 'padding: 10px 14px; border-bottom: 1px solid #e0e0e0;',
-      hr: 'border: none; text-align: center; margin: 32px auto;',
-      strong: 'font-weight: 700;',
-      em: 'font-style: italic;',
-    }
-  },
+  // 上游的「金融时报（ft）」与「Medium」两套主题已移除（实测后决定，非上游行为）：
+  //   · ft 的特点就是整页粉橙异色底（background: #fff1e5），而公众号文章不适合整页底色；
+  //     去掉底之后它与相邻的衬线主题几乎一样，没有单独存在的价值。
+  //   · medium 与 nyt 的差别只剩字号与字体栈，实际观感重合。
+  // 上游原版 themes.js 仍完整保留在 legacy-site/ 里，需要逐字节比对时看那边。
 
   // ─── 现代数字系列 ─────────────────────
   apple: {
@@ -236,7 +186,7 @@ const themes = {
     desc: 'Anthropic Claude 风格',
     category: 'modern',
     styles: {
-      wrapper: 'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; color: #2d2b2a; line-height: 1.8; padding: 20px 24px; font-size: 16px; background: #fffcf5;',
+      wrapper: 'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; color: #2d2b2a; line-height: 1.8; padding: 20px 24px; font-size: 16px;',
       h1: 'font-size: 26px; font-weight: 700; margin: 32px 0 16px; color: #c96442; letter-spacing: -0.3px;',
       h2: 'font-size: 21px; font-weight: 600; margin: 24px 0 12px; color: #c96442; border-bottom: 2px solid #f0dcc8; padding-bottom: 8px;',
       h3: 'font-size: 17px; font-weight: 600; margin: 18px 0 8px; color: #8b5c3e;',

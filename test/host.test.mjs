@@ -145,6 +145,67 @@ test('图片清单：会说清楚"哪些能内嵌、哪些粘过去要手动上�
   assert.deepEqual(remote.map((i) => i.src), ['https://example.com/a.png'])
 })
 
+// ── 粘贴进来的图片（POST /upload）──────────────────────────────
+
+const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4])
+
+test('粘贴图片：落在文档同级的 assets/ 里，回相对路径，重名不覆盖', () => {
+  const cwd = tmpWorkspace()
+  const docPath = path.join(cwd, 'notes', 'article.md')
+  const first = store.saveAsset({ cwd, docPath, name: '微信截图.png', mime: 'image/png', data: PNG_BYTES.toString('base64') })
+  assert.equal(first.src, `assets/${path.basename(first.path)}`, 'src 是相对文档目录的写法')
+  assert.ok(first.src.startsWith('assets/'), `src 应当是 assets/ 下的相对路径，实际 ${first.src}`)
+  assert.equal(path.dirname(first.path), path.join(cwd, 'notes', 'assets'), '落在文档同级的 assets/ 里')
+  assert.deepEqual(fs.readFileSync(first.path), PNG_BYTES, '内容要一字不差')
+  assert.equal(first.bytes, PNG_BYTES.length)
+  // 文件名带得出来路（时间戳 + 原名的可读部分），但不采信客户端给的路径
+  const base = path.basename(first.path)
+  assert.match(base, /^\d{8}-\d{6}-微信截图\.png$/)
+  assert.ok(!base.includes('..') && !base.includes('/') && !base.includes('\\'))
+
+  // 同一秒内再来一张同名：加序号，绝不覆盖
+  const second = store.saveAsset({ cwd, docPath, name: '微信截图.png', mime: 'image/png', data: PNG_BYTES.toString('base64') })
+  assert.notEqual(second.path, first.path)
+  assert.deepEqual(fs.readFileSync(first.path), PNG_BYTES, '先存的那张不能被后来的盖掉')
+
+  // 客户端给的名字是路径也不参与拼接
+  const sneaky = store.saveAsset({ cwd, docPath, name: '../../../evil.png', mime: 'image/png', data: PNG_BYTES.toString('base64') })
+  assert.equal(path.dirname(sneaky.path), path.join(cwd, 'notes', 'assets'))
+  // 剪贴板里的通用名换成 paste（image.png 这种等于没有名字）
+  const generic = store.saveAsset({ cwd, docPath, name: 'image.png', mime: 'image/png', data: PNG_BYTES.toString('base64') })
+  assert.match(path.basename(generic.path), /-paste\.png$/)
+})
+
+test('粘贴图片的边界：超限、非图片、空内容、扩展名不合法都当场拒绝', () => {
+  const cwd = tmpWorkspace()
+  const docPath = path.join(cwd, 'a.md')
+  const png = PNG_BYTES.toString('base64')
+  assert.throws(() => store.saveAsset({ cwd, docPath, name: 'x.png', mime: 'image/png', data: '' }), /内容为空/)
+  assert.throws(
+    () => store.saveAsset({ cwd, docPath, name: 'x.png', mime: 'image/png', data: Buffer.alloc(store.MAX_ASSET_BYTES + 1024).toString('base64') }),
+    /超过 5MB 上限/,
+  )
+  assert.throws(() => store.saveAsset({ cwd, docPath, name: 'x.exe', mime: 'application/octet-stream', data: png }), /只支持/)
+  // 文档路径本身仍要过守卫：越界的"文档"不许成为写文件的入口
+  assert.throws(() => store.saveAsset({ cwd, docPath: path.join('..', '..', 'evil.md'), mime: 'image/png', data: png }), /越界/)
+  // 没有任何图片落盘
+  assert.equal(fs.existsSync(path.join(cwd, 'assets')), false)
+})
+
+test('粘贴进来的图与复制/导出那条路对得上：能被内嵌成 base64', async () => {
+  const { makeImageResolver, listLocalImages } = await import('../plugin/host/assets.mjs')
+  const cwd = tmpWorkspace()
+  const docPath = path.join(cwd, 'a.md')
+  const saved = store.saveAsset({ cwd, docPath, name: '图.png', mime: 'image/png', data: PNG_BYTES.toString('base64') })
+  const markdown = `正文\n\n![](${saved.src})\n`
+  fs.writeFileSync(docPath, markdown)
+  const listed = listLocalImages({ markdown, cwd, docPath })
+  assert.equal(listed[0].src, saved.src)
+  assert.equal(listed[0].embed, true, '自己存进来的图当然要能内嵌')
+  const resolver = makeImageResolver({ cwd, docPath })
+  assert.match(resolver(saved.src), /^data:image\/png;base64,/)
+})
+
 test('revision 守卫：baseRevision 不匹配就拒绝，且盘上内容不变', () => {
   const cwd = tmpWorkspace()
   store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
@@ -489,6 +550,42 @@ test('微信结构兼容层只走复制/导出：publish 包 span，preview 不�
   assert.doesNotMatch(preview.json.html, /<span>/, '预览不加兼容层（那段 HTML 不进微信）')
 })
 
+test('微信底色兼容层只走复制/导出：publish 把 background 拆成长写，preview 原样', async () => {
+  const RICH = '# 标题\n\n> 引用一段\n\n| 概念 | 说明 |\n| --- | --- |\n|  | 从文本的沉默处读出问题结构 |\n'
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: RICH, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const render = (mode) => callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: 's1', docKey: opened.key, mode } })
+
+  // 微信的安全过滤按属性名过：`background` 简写不在名单里 → 引用块的框、表头底色粘过去会整条丢
+  const publish = await render('publish')
+  assert.equal(publish.status, 200)
+  assert.match(publish.json.html, /background-color:/, '复制/导出的产物必须用长写')
+  assert.doesNotMatch(publish.json.html, /(^|[;"\s])background\s*:/, '复制/导出的产物里不该再有裸的 background 简写')
+
+  const preview = await render('preview')
+  assert.equal(preview.status, 200)
+  assert.match(preview.json.html, /(^|[;"\s])background\s*:/, '预览保持与站点一致的原始形态')
+})
+
+test('状态里存着已移除的主题（ft/medium）：退回默认，不让文档打不开', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  store.updateMeta({ cwd, docPath: opened.path, meta: { theme: 'ft' } }) // 旧状态 / 手改的状态
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+
+  const doc = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=s1&docKey=${opened.key}` })
+  assert.equal(doc.status, 200)
+  assert.equal(doc.json.meta.theme, 'default', '认不出的主题要退回默认，而不是原样回给面板')
+
+  const preview = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: 's1', docKey: opened.key, mode: 'preview' } })
+  assert.equal(preview.status, 200, '主题名失效不该让整篇预览失败')
+  const publish = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: 's1', docKey: opened.key, mode: 'publish' } })
+  assert.equal(publish.status, 200)
+})
+
 test('fishpai_render：默认（复制形态）加兼容层，publish:false 时保持原始形态', async () => {
   const cwd = tmpWorkspace()
   const { tools, exec } = fakeHost(cwd)
@@ -704,7 +801,13 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   // 1) GET /themes —— 面板工具栏
   const themes = await callRoute(handler, { method: 'GET', url: '/fishpai/api/themes' })
   assert.equal(themes.status, 200)
-  assert.equal(themes.json.themes.length, 13)
+  // 主题是 themes.js 里的数据，数量会变；这里钉住的是"两套不适合公众号的已被移除"
+  assert.ok(themes.json.themes.length >= 8, `主题太少了：${themes.json.themes.length}`)
+  assert.deepEqual(
+    themes.json.themes.map((t) => t.key).filter((k) => ['ft', 'medium'].includes(k)),
+    [],
+    'ft（整页粉橙异色底）与 medium（与 nyt 几乎重合）不该再出现在面板里',
+  )
   assert.equal(themes.json.presets.length, 12)
   assert.ok(themes.json.sizes.includes('17px'))
   // 每条都要带能力标注，否则面板没法判断"主题色该不该显示""要不要提醒微信风险"
@@ -825,4 +928,41 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   const activated = await callRoute(handler, { method: 'POST', url: '/fishpai/api/active', body: { sessionId: session, docKey } })
   assert.equal(activated.status, 200)
   assert.equal(activated.json.docKey, docKey)
+
+  // 12) POST /upload —— 粘贴进来的图片：只存图、不动正文
+  const docFile = doc.json.doc.path
+  const before = fs.readFileSync(docFile, 'utf8')
+  const uploaded = await callRoute(handler, {
+    method: 'POST',
+    url: '/fishpai/api/upload',
+    body: { sessionId: session, docKey, name: 'image.png', mime: 'image/png', data: PNG_BYTES.toString('base64') },
+  })
+  assert.equal(uploaded.status, 200)
+  assert.match(uploaded.json.src, /^assets\/\d{8}-\d{6}-paste\.png$/)
+  assert.deepEqual(fs.readFileSync(uploaded.json.path), PNG_BYTES)
+  assert.equal(path.dirname(uploaded.json.path), path.join(path.dirname(docFile), 'assets'), '落在文档同级的 assets/ 里')
+  assert.equal(fs.readFileSync(docFile, 'utf8'), before, '存图不许碰正文')
+
+  // 存进来的图立刻出现在「图片清单」里，且可内嵌（面板据此提示"不用手动重传"）
+  const afterUpload = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=${session}&docKey=${docKey}` })
+  assert.equal(afterUpload.json.images.length, 0, '正文还没引用它，清单里就不该有')
+
+  // 越权与超限：都不是能写文件的入口
+  const badKey = await callRoute(handler, { method: 'POST', url: '/fishpai/api/upload', body: { sessionId: session, docKey: 'nope', mime: 'image/png', data: PNG_BYTES.toString('base64') } })
+  assert.equal(badKey.status, 400)
+  const tooBig = await callRoute(handler, {
+    method: 'POST',
+    url: '/fishpai/api/upload',
+    body: { sessionId: session, docKey, mime: 'image/png', data: Buffer.alloc(store.MAX_ASSET_BYTES + 1024).toString('base64') },
+  })
+  assert.equal(tooBig.status, 400)
+  assert.match(tooBig.json.error, /超过 5MB 上限/)
+  // 跨站：写操作的入口守卫照旧
+  const crossSite = await callRoute(handler, {
+    method: 'POST',
+    url: '/fishpai/api/upload',
+    headers: { origin: 'https://evil.example' },
+    body: { sessionId: session, docKey, mime: 'image/png', data: PNG_BYTES.toString('base64') },
+  })
+  assert.equal(crossSite.status, 403)
 })

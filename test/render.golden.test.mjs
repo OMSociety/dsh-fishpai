@@ -21,8 +21,10 @@ function readFixture(name) {
   return readFileSync(path.join(FIXTURES, name), 'utf8').replace(/\r\n/g, '\n')
 }
 
-test('golden 清单覆盖全部 13 套主题与全部 fixture', () => {
-  assert.equal(manifest.themes.length, 13)
+test('golden 清单覆盖全部主题与全部 fixture', () => {
+  // 不写死主题数量：删/加主题（那是 themes.js 里的数据）时只该重生成 golden，不该再改这里
+  assert.deepEqual(manifest.themes, themeCatalog().map((t) => t.key))
+  assert.ok(manifest.themes.length >= 8, `主题太少了：${manifest.themes.length}`)
   assert.ok(manifest.fixtures.length >= 4)
   const publishEntries = manifest.entries.filter((e) => e.mode === 'publish')
   assert.equal(publishEntries.length, manifest.themes.length * manifest.fixtures.length)

@@ -60,7 +60,7 @@ export function FishGlyph({ size = 16, className }: GlyphProps) {
 }
 
 /**
- * 13 套主题各自的图标，值是 `@deepseek-ai/dsh-client-ui-primitives` 的导出名。
+ * 每套主题各自的图标，值是 `@deepseek-ai/dsh-client-ui-primitives` 的导出名。
  *
  * 加主题时在这里补一行即可；`test/theme-info.test.mjs` 会检查"每套主题都有图标"，
  * 漏了会红（主题列表退化成没有图标也能用，但不该悄悄漏）。
@@ -70,8 +70,6 @@ const THEME_GLYPH: Record<string, string> = {
   elegant: 'IconSparkle16', // 优雅简约
   deep_read: 'IconThinkOutline16', // 深度阅读
   nyt: 'IconBrowseOutline16', // 纽约时报（版面）
-  ft: 'IconGaugeOutline16', // 金融时报（行情）
-  medium: 'IconEditOutline16', // Medium（长文写作）
   apple: 'IconLightOutline16', // Apple 极简（明亮、留白）
   claude: 'IconAgentPresetOutline16', // Claude（对话助手）
   sspai: 'IconPersonalizationOutline16', // 少数派（个性）

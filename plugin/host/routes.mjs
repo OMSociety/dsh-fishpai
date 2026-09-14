@@ -11,9 +11,12 @@
  *      sessionId **与** docKey；本机单用户场景下这条不是授权边界，同源校验才是。
  *   3. **revision 守卫**：写入必须带 `baseRevision`，不匹配返回 409 并回带服务端最新文本，
  *      绝不静默覆盖人的手改。
+ *   4. **唯一一处"写新文件"是 `POST /upload`**：粘贴进来的图片落在**文档同级的 `assets/`**，
+ *      文件名由宿主生成（时间戳 + 白名单扩展名），客户端给的名字只当作一段可读词，
+ *      不参与路径拼接；大小与格式都在 `store.saveAsset` 里卡。正文仍只能由 `/doc` 改。
  */
 import fs from 'node:fs'
-import { render as renderCore, themeCatalog } from '../core/render.mjs'
+import { render as renderCore, safeThemeKey, themeCatalog } from '../core/render.mjs'
 import { colorPresets } from '../core/runtime.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
 import { attachPlaceholdersToBlocks, extractPlaceholders, reanchorNotes } from '../core/notes.mjs'
@@ -158,7 +161,8 @@ function docPayload({ cwd, key }) {
       baseline: state.baseline ? { rev: state.baseline.rev, at: state.baseline.at, by: state.baseline.by } : null,
     },
     meta: {
-      theme: state.theme,
+      // 状态里的主题可能已经被移除（上游主题删过两套）：退回默认，别让文档打不开
+      theme: safeThemeKey(state.theme),
       color: state.color,
       font: state.font,
       fontSize: state.fontSize,
@@ -280,6 +284,16 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         return json(res, 200, { ok: true, docKey: key })
       }
 
+      if (route === 'POST /upload') {
+        // 面板上直接粘贴/拖进来的图片：存到**文档同级的 assets/**，回一个相对文档目录的 src，
+        // 面板把它当成 `![](assets/xxx.png)` 插进正文。正文一个字都不在这里改（改由人/模型写）。
+        const { cwd } = sessionOf(body, url)
+        const key = String(body.docKey || '')
+        const abs = docPathByKey(cwd, key)
+        const saved = store.saveAsset({ cwd, docPath: abs, name: body.name, mime: body.mime, data: body.data })
+        return json(res, 200, { ok: true, src: saved.src, path: saved.path, bytes: saved.bytes })
+      }
+
       if (route === 'POST /meta') {
         const { sessionId, cwd } = sessionOf(body, url)
         const key = String(body.docKey || '')
@@ -326,7 +340,7 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         const markdown = typeof body.markdown === 'string' ? body.markdown : readText(abs)
         const meta = { ...(state || {}), ...(body.meta || {}) }
         const common = {
-          theme: meta.theme,
+          theme: safeThemeKey(meta.theme),
           color: meta.color || undefined,
           font: meta.font,
           fontSize: meta.fontSize,
@@ -343,6 +357,9 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
             // 一行会被拆成多个矩形 → 被误判成"行高小于字体大小、文字重叠"。
             // 默认渲染路径（golden 守着的那条）一个字节都不动。
             wrapText: true,
+            // 同一条兼容层：微信的安全过滤按属性名过，`background` 简写不在名单里、
+            // `background-color` 才在 —— 不拆的话引用块的框、表头底色粘过去就没了。
+            wechatBackground: true,
             imageResolver: makeImageResolver({ cwd, docPath: abs }),
           })
           return json(res, 200, { ok: true, mode: 'publish', html: out.html, themeKey: out.themeKey, themeName: out.themeName })

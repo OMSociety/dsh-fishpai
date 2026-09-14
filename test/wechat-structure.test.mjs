@@ -11,6 +11,9 @@
  *
  * 修法：复制/导出时把文字包进 `<span>`（`wrapText`）——块级元素不再有**直接文字子节点**，
  * 那条规则就不再命中；这正是微信自己插入内容后的结构（`<span leaf="">`）。
+ * **已知边界**：`wrapText` 改的是 markdown-it 的 `text` 规则，代码块走 `fence` 规则、包不到，
+ * 而代码块天然多行，同一套"内容高度 ÷ 矩形数"照样算小——所以**带代码块的文章仍会被标出那一条**
+ * （上游形态也一样；面板里对此没有承诺，README 里写明了）。
  * 本文件检查的就是这条**结构性充分条件**，所以它不依赖浏览器，也不需要联网。
  */
 import test from 'node:test'
@@ -24,7 +27,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const FIXTURES = path.join(ROOT, 'test', 'fixtures')
 const manifest = JSON.parse(readFileSync(path.join(ROOT, 'test', 'golden', 'manifest.json'), 'utf8'))
 
-/** 官方兜底检测会看的块级标签（`collectLineHeightFallback` 的 blockTags）。 */
+/**
+ * 官方兜底检测会看的块级标签（`collectLineHeightFallback` 的 blockTags）+ 引用/表头。
+ * 故意**不含** `pre`/`code`：代码块里的文字包不到（见下面那条已知边界），
+ * 把它们算进来只会让这条测试常年红着，反而失去信号。
+ */
 const BLOCK = new Set(['p', 'div', 'section', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'td', 'th', 'blockquote'])
 const VOID = new Set(['br', 'hr', 'img', 'input', 'col', 'source'])
 
@@ -71,7 +78,7 @@ const readFixture = (name) => readFileSync(path.join(FIXTURES, name), 'utf8').re
 
 const publishEntries = manifest.entries.filter((e) => e.mode === 'publish')
 
-test('复制/导出的产物里，没有"直接文字 + 子元素"混排的块（13 主题 × 全部 fixture）', () => {
+test('复制/导出的产物里，没有"直接文字 + 子元素"混排的块（全部主题 × 全部 fixture）', () => {
   for (const entry of publishEntries) {
     const markdown = readFixture(entry.fixture)
     const { html } = render(markdown, { theme: entry.theme, ...entry.opts, wrapText: true })
@@ -98,8 +105,98 @@ test('兼容层是纯叠加：去掉它加的那层裸 span，就回到默认产
   }
 })
 
+/**
+ * `<pre>` / `<code>` 里**直接挂着的文字**（含空白）——这也是"代码块仍会被官方校验器标出"
+ * 的原因：那里的文字走 markdown-it 的 `fence` 规则（不是 `text` 规则），`wrapText` 包不到，
+ * 而代码块天然多行，于是同一套"内容高度 ÷ 矩形数"的算法照样算小（上游形态也一样，见 README）。
+ */
+function bareCodeTexts(html) {
+  const out = []
+  const source = String(html).replace(/<!--[\s\S]*?-->/g, '')
+  const stack = []
+  const tagRe = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)([^>]*)>/g
+  let cursor = 0
+  let m
+  while ((m = tagRe.exec(source)) !== null) {
+    const text = source.slice(cursor, m.index)
+    const top = stack[stack.length - 1]
+    if (text && (top === 'pre' || top === 'code')) out.push(text)
+    cursor = tagRe.lastIndex
+    const tag = m[2].toLowerCase()
+    if (m[1] === '/') {
+      for (let i = stack.length - 1; i >= 0; i--) {
+        if (stack[i] !== tag) continue
+        stack.splice(i, 1)
+        break
+      }
+    } else if (!VOID.has(tag) && !m[3].trimEnd().endsWith('/')) {
+      stack.push(tag)
+    }
+  }
+  return out
+}
+
+test('代码块不在 wrapText 的覆盖范围内（这是已知边界，不是漏做）', () => {
+  const markdown = readFixture('stress.md') // 含带高亮的 python 围栏 + 无语言围栏
+  const opts = { theme: 'default', publish: true, footnotes: true, macCodeBlock: true, fontSize: '16px' }
+  const plain = render(markdown, opts).html
+  const wrapped = render(markdown, { ...opts, wrapText: true }).html
+  assert.ok(bareCodeTexts(plain).length > 0)
+  assert.ok(bareCodeTexts(wrapped).length > 0, 'wrapText 只改 markdown-it 的 text 规则，碰不到 fence')
+  // 高亮 span 的样式不能被顺手改掉
+  assert.match(wrapped, /class="hljs-keyword" style="color: rgb\(198, 120, 221\);">def<\/span>/)
+})
+
 test('预览路径不加兼容层（预览 HTML 只用于面板 iframe，不进微信）', () => {
   const markdown = readFixture('stress.md')
   const preview = render(markdown, { theme: 'default', annotate: true }).html
   assert.doesNotMatch(preview, /<span>/)
+})
+
+// ── 底色兼容层：background 简写 → 微信肯保留的长写 ─────────────
+//
+// 微信的安全过滤是**按属性名**过的：`background-color` 在名单里，`background` 简写不在。
+// 实测表现：竹林主题的引用块（background: #f0f8f0）粘进公众号后，框和底色整条丢掉。
+
+test('底色兼容层：复制/导出的产物里没有裸的 background 简写（全部主题 × 全部 fixture）', () => {
+  let withBackground = 0
+  for (const entry of publishEntries) {
+    const markdown = readFixture(entry.fixture)
+    const { html } = render(markdown, { theme: entry.theme, ...entry.opts, wechatBackground: true })
+    const bare = [...html.matchAll(/style="([^"]*)"/g)].filter((m) => /(^|;)\s*background\s*:/.test(m[1]))
+    assert.deepEqual(bare.map((m) => m[1].slice(0, 60)), [], `${entry.file} 里还有裸的 background 简写（微信会整条丢掉）`)
+    if (/(^|;)\s*background-(color|image)\s*:/.test(html)) withBackground += 1
+  }
+  assert.ok(withBackground > 0, '至少要有主题真的带块级底色，否则这条测试等于没测到东西')
+})
+
+test('底色兼容层是纯规范化：只有 background 被拆成长写，别的字节一个都不动', () => {
+  const normalize = (html) => html.replace(/background(-color|-image)?:/g, 'BG:')
+  for (const fixture of manifest.fixtures) {
+    for (const theme of ['default', 'bamboo', 'claude', 'gradient']) {
+      const markdown = readFixture(fixture)
+      const opts = { theme, publish: true, footnotes: true, macCodeBlock: true, fontSize: '16px' }
+      const plain = render(markdown, opts).html
+      const safe = render(markdown, { ...opts, wechatBackground: true }).html
+      assert.equal(normalize(safe), normalize(plain), `${fixture}/${theme}：兼容层动了 background 以外的字节`)
+    }
+  }
+})
+
+test('底色兼容层：引用的框、表头底色在复制形态里确实是长写（竹林主题，实测的那一例）', () => {
+  const markdown = readFixture('stress.md')
+  const safe = render(markdown, { theme: 'bamboo', publish: true, wechatBackground: true }).html
+  assert.match(safe, /<blockquote style="[^"]*background-color: #f0f8f0/)
+  assert.match(safe, /<th style="[^"]*background-color: #f0f8f0/)
+  assert.match(safe, /background-color: #e8f5e9/, '行内代码的底色同样要留住')
+  // 渐变主题不能把 background-image 错拆成 background-color（那会变成一块纯色）
+  const gradient = render(markdown, { theme: 'gradient', publish: true, wechatBackground: true }).html
+  assert.match(gradient, /background-image: linear-gradient/)
+  assert.doesNotMatch(gradient, /background-color: linear-gradient/)
+})
+
+test('默认渲染路径不受底色兼容层影响（关着的时候一个字节不动）', () => {
+  const markdown = readFixture('reading-group.md')
+  const opts = { theme: 'bamboo', publish: true, footnotes: true, macCodeBlock: true, fontSize: '16px' }
+  assert.equal(render(markdown, { ...opts, wechatBackground: false }).html, render(markdown, opts).html)
 })

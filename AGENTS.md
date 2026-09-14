@@ -10,12 +10,18 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
 
 ## 不可违反的不变量
 
-1. **渲染字节级一致**。`plugin/core/render.mjs` 在 `annotate`／`imageResolver`／`wrapText` 都关闭时，
-   输出必须与 `test/golden/**` 逐字节相同。改渲染代码前先跑 `npm test`；golden 只能用
-   `npm run test:golden:regen` 重生成，且重生成必须说得清"为什么上游行为变了"。
-   **唯一允许的偏离是 `wrapText`**（复制/导出时把文字包进 `<span>`，让微信编辑器的结构校验
-   不再把"含行内元素的段落"误报成行高过小）：它只走 publish 那条路径，且必须是**纯叠加**的
-   （`test/wechat-structure.test.mjs` 守着这条性质），默认路径一个字节都不许动。
+1. **渲染字节级一致**。`plugin/core/render.mjs` 在 `annotate`／`imageResolver`／`wrapText`／
+   `wechatBackground` 都关闭时，输出必须与 `test/golden/**` 逐字节相同。改渲染代码前先跑 `npm test`；
+   golden 只能用 `npm run test:golden:regen` 重生成（**默认用冻结 oracle**），且重生成必须说得清
+   "为什么上游行为变了"。`plugin/vendor/themes.js` 是**数据**：上面说过的删/改主题就属于这一类，
+   重生成 golden 用默认 oracle 即可（oracle 读的是同一个文件，验证的是渲染逻辑没被带歪）。
+   **允许的两处偏离都只走复制/导出（publish）那条路径，且都由调用方显式开启**：
+   - `wrapText`：把文字包进 `<span>`，让微信的结构校验不再把"含行内元素的段落"误报成行高过小。
+     必须是**纯叠加**的（`test/wechat-structure.test.mjs` 守着），默认路径一个字节都不许动。
+   - `wechatBackground`：把 `background:` 简写拆成 `background-color:`／`background-image:`。
+     微信的安全过滤按属性名过，简写会整条被丢（引用块的框、表头底色实测会消失）。
+     必须是**纯规范化**（同一条测试守着"除了这几个属性名，别的字节一个都不动"）。
+   两条都**不要**改成默认开启，也不要用 `--from-core` 去"修"golden 失败。
 2. **上游那 8 个坑不许"修好"**（`legacy-site/DESIGN.md` 与 README 里有完整列表），典型的是：
    紧凑列表项内段落 token 的 `hidden=true` 必须跳过；代码块的 mac 结构嵌在 `pre>code` **内部**；
    站点默认 `sans`/`16px` 总会覆盖主题自带字体字号。与上游不一致 = bug。
@@ -44,6 +50,15 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
     **颜色只走 `currentColor` 与 `--dsw-alias-*` 令牌**，浅色/深色共用一套图，绝不硬编码颜色。
     取不到那个基线模块时必须降级（退回纯文字）而不是让插件整块加载不了。
     加了主题就往 `THEME_GLYPH` 补一行，`test/theme-info.test.mjs` 会检查不漏。
+12. **编辑器的快捷键与格式化动作只有一份实现**（`client/mdedit.ts`，纯函数）：
+    `SHORTCUTS` 一张表同时喂键盘匹配 `matchShortcut()`、界面上的速查表 `shortcutHint()` 与测试——
+    别在别处再抄一份键位或文案。编辑动作必须走 `document.execCommand('insertText')`
+    （退回受控赋值只在浏览器不支持时发生）：直接改 `value` 会让 `Ctrl+Z` 的原生撤销栈作废，
+    而"按了加粗发现手滑、想撤销"是最常见的动作。加动作/改键位只改这个文件，并补 `test/mdedit.test.mjs`。
+13. **粘贴进来的图片只落在文档同级的 `assets/`**：`POST /fishpai/api/upload` 是**唯一**一处写新文件的入口，
+    文件名由宿主生成（时间戳 + 按 MIME 定的白名单扩展名），客户端给的名字只当一段可读词、不参与路径拼接；
+    大小上限是 `store.mjs` 的 `MAX_ASSET_BYTES`（与内嵌上限共用一个常量，避免"存得进来却内嵌不了"）。
+    正文仍然只能由 `/doc` 改——存图不许顺手改字。
 
 ## 命令
 

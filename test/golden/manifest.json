@@ -7,8 +7,6 @@
     "elegant",
     "deep_read",
     "nyt",
-    "ft",
-    "medium",
     "apple",
     "claude",
     "sspai",
@@ -82,30 +80,6 @@
       "file": "edge.md.nyt.publish.html",
       "fixture": "edge.md",
       "theme": "nyt",
-      "mode": "publish",
-      "opts": {
-        "publish": true,
-        "footnotes": true,
-        "macCodeBlock": true,
-        "fontSize": "16px"
-      }
-    },
-    {
-      "file": "edge.md.ft.publish.html",
-      "fixture": "edge.md",
-      "theme": "ft",
-      "mode": "publish",
-      "opts": {
-        "publish": true,
-        "footnotes": true,
-        "macCodeBlock": true,
-        "fontSize": "16px"
-      }
-    },
-    {
-      "file": "edge.md.medium.publish.html",
-      "fixture": "edge.md",
-      "theme": "medium",
       "mode": "publish",
       "opts": {
         "publish": true,
@@ -259,30 +233,6 @@
       }
     },
     {
-      "file": "reading-group.md.ft.publish.html",
-      "fixture": "reading-group.md",
-      "theme": "ft",
-      "mode": "publish",
-      "opts": {
-        "publish": true,
-        "footnotes": true,
-        "macCodeBlock": true,
-        "fontSize": "16px"
-      }
-    },
-    {
-      "file": "reading-group.md.medium.publish.html",
-      "fixture": "reading-group.md",
-      "theme": "medium",
-      "mode": "publish",
-      "opts": {
-        "publish": true,
-        "footnotes": true,
-        "macCodeBlock": true,
-        "fontSize": "16px"
-      }
-    },
-    {
       "file": "reading-group.md.apple.publish.html",
       "fixture": "reading-group.md",
       "theme": "apple",
@@ -418,30 +368,6 @@
       "file": "stress.md.nyt.publish.html",
       "fixture": "stress.md",
       "theme": "nyt",
-      "mode": "publish",
-      "opts": {
-        "publish": true,
-        "footnotes": true,
-        "macCodeBlock": true,
-        "fontSize": "16px"
-      }
-    },
-    {
-      "file": "stress.md.ft.publish.html",
-      "fixture": "stress.md",
-      "theme": "ft",
-      "mode": "publish",
-      "opts": {
-        "publish": true,
-        "footnotes": true,
-        "macCodeBlock": true,
-        "fontSize": "16px"
-      }
-    },
-    {
-      "file": "stress.md.medium.publish.html",
-      "fixture": "stress.md",
-      "theme": "medium",
       "mode": "publish",
       "opts": {
         "publish": true,
@@ -595,30 +521,6 @@
       }
     },
     {
-      "file": "stress_real_img.md.ft.publish.html",
-      "fixture": "stress_real_img.md",
-      "theme": "ft",
-      "mode": "publish",
-      "opts": {
-        "publish": true,
-        "footnotes": true,
-        "macCodeBlock": true,
-        "fontSize": "16px"
-      }
-    },
-    {
-      "file": "stress_real_img.md.medium.publish.html",
-      "fixture": "stress_real_img.md",
-      "theme": "medium",
-      "mode": "publish",
-      "opts": {
-        "publish": true,
-        "footnotes": true,
-        "macCodeBlock": true,
-        "fontSize": "16px"
-      }
-    },
-    {
       "file": "stress_real_img.md.apple.publish.html",
       "fixture": "stress_real_img.md",
       "theme": "apple",
@@ -754,30 +656,6 @@
       "file": "test_input.md.nyt.publish.html",
       "fixture": "test_input.md",
       "theme": "nyt",
-      "mode": "publish",
-      "opts": {
-        "publish": true,
-        "footnotes": true,
-        "macCodeBlock": true,
-        "fontSize": "16px"
-      }
-    },
-    {
-      "file": "test_input.md.ft.publish.html",
-      "fixture": "test_input.md",
-      "theme": "ft",
-      "mode": "publish",
-      "opts": {
-        "publish": true,
-        "footnotes": true,
-        "macCodeBlock": true,
-        "fontSize": "16px"
-      }
-    },
-    {
-      "file": "test_input.md.medium.publish.html",
-      "fixture": "test_input.md",
-      "theme": "medium",
       "mode": "publish",
       "opts": {
         "publish": true,

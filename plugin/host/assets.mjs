@@ -9,10 +9,13 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { IMAGE_EXTS, mimeFor, resolveInCwd } from './store.mjs'
+import { IMAGE_EXTS, MAX_ASSET_BYTES, mimeFor, resolveInCwd } from './store.mjs'
 
-/** 单张图内嵌上限：超过就跳过（微信编辑器对大图本来也不友好）。 */
-export const MAX_EMBED_BYTES = 5 * 1024 * 1024
+/**
+ * 单张图内嵌上限：**与"能不能存进来"同一个上限**（`MAX_ASSET_BYTES`）。
+ * 两处各写一个数字的话，迟早出现"存得进来、却内嵌不了"的图，而面板只会说"需手动上传"。
+ */
+export const MAX_EMBED_BYTES = MAX_ASSET_BYTES
 
 function isRemote(src) {
   return /^(https?:|data:|blob:|\/\/)/i.test(String(src || ''))

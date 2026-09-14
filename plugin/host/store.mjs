@@ -18,6 +18,14 @@ export const DOC_EXTS = ['.md', '.markdown', '.txt']
 export const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp']
 export const STATE_VERSION = 1
 
+/** 粘贴进来的图落在这个子目录（与文档同级，跟着文档一起走）。 */
+export const ASSET_DIR = 'assets'
+/**
+ * 单张图片上限（存进来与内嵌进剪贴板共用一处定义）。
+ * 再大微信编辑器自己也吃不下，而且内嵌会让剪贴板内容胖到卡住，不如当场说清楚。
+ */
+export const MAX_ASSET_BYTES = 5 * 1024 * 1024
+
 const MIME = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -499,6 +507,72 @@ export function updateMeta({ cwd, docPath, meta }) {
     if (meta[field] !== undefined) next[field] = meta[field]
   }
   return writeState(cwd, key, next)
+}
+
+// ── 图片资产（面板上粘贴/拖进来的图）───────────────────────────
+
+const ASSET_MIME_EXT = {
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/bmp': '.bmp',
+}
+
+function stamp(at = new Date()) {
+  const p = (n) => String(n).padStart(2, '0')
+  return `${at.getFullYear()}${p(at.getMonth() + 1)}${p(at.getDate())}-${p(at.getHours())}${p(at.getMinutes())}${p(at.getSeconds())}`
+}
+
+/**
+ * 从文件名里取一段能认人的词。剪贴板里的图一律叫 `image.png` / `blob`，
+ * 拿它当名字等于没有名字，所以这类通用名换成 `paste`。
+ */
+function assetStem(name, ext) {
+  const base = path
+    .basename(String(name || ''), ext)
+    .replace(/[\\/:*?"<>|#\s]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 24)
+  if (!base || /^(image|blob|clipboard|untitled|screenshot|截图)$/i.test(base)) return 'paste'
+  return base
+}
+
+/**
+ * 存一张面板上粘贴（或拖入）的图片。
+ *
+ * 落点是**文档同级的 `assets/`**：这样 Markdown 里写的是 `assets/xxx.png` 这种相对路径，
+ * 文档搬走、进 Git、发给别人，图都跟着走（微信那边也能被内嵌成 base64 带过去）。
+ *
+ * @param {{cwd: string, docPath: string, name?: string, mime?: string, data?: string, maxBytes?: number}} p
+ *        `data` 是 base64（不含 `data:` 前缀）
+ * @returns {{src: string, path: string, bytes: number}} `src` 是相对**文档目录**的写法
+ */
+export function saveAsset({ cwd, docPath, name, mime, data, maxBytes = MAX_ASSET_BYTES }) {
+  const abs = resolveInCwd(cwd, docPath)
+  const buf = Buffer.from(String(data || ''), 'base64')
+  if (!buf.length) throw new Error('图片内容为空')
+  if (buf.length > maxBytes) {
+    throw new Error(`图片 ${(buf.length / 1024 / 1024).toFixed(1)}MB，超过 ${Math.round(maxBytes / 1024 / 1024)}MB 上限`)
+  }
+  const ext =
+    ASSET_MIME_EXT[String(mime || '').toLowerCase()] ||
+    IMAGE_EXTS.find((e) => e === path.extname(String(name || '')).toLowerCase())
+  if (!ext) throw new Error('只支持 PNG / JPEG / GIF / WebP / BMP 图片')
+
+  const dir = path.join(path.dirname(abs), ASSET_DIR)
+  const stem = assetStem(name, ext)
+  const base = `${stamp()}-${stem}`
+  let file = path.join(dir, `${base}${ext}`)
+  for (let n = 2; fs.existsSync(file); n++) file = path.join(dir, `${base}-${n}${ext}`)
+
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(file, buf)
+  // 落盘后再过一次守卫：挡住符号链接之类的意外，别让它变成"写文件"的新入口
+  const safe = resolveInCwd(cwd, file, { exts: IMAGE_EXTS })
+  return { src: path.relative(path.dirname(abs), safe).split(path.sep).join('/'), path: safe, bytes: buf.length }
 }
 
 // ── 批注 ───────────────────────────────────────────────────────

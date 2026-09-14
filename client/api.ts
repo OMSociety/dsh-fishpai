@@ -184,6 +184,16 @@ export const api = {
     call<{ ok: true }>(`/meta`, { method: 'POST', body: JSON.stringify({ sessionId, docKey, meta }) }),
 
   /**
+   * 面板上粘贴/拖进来的图片：宿主存到**文档同级的 `assets/`**，回一个相对文档目录的 `src`，
+   * 客户端把它写成 `![](assets/xxx.png)` 插进正文（正文的修改仍然只走 `/doc`）。
+   */
+  upload: (sessionId: string, docKey: string, payload: { name?: string; mime?: string; data: string }) =>
+    call<{ ok: true; src: string; path: string; bytes: number }>(`/upload`, {
+      method: 'POST',
+      body: JSON.stringify({ sessionId, docKey, ...payload }),
+    }),
+
+  /**
    * 预览渲染。宿主回带的 `blocks` / `notes` / `placeholders` / `images` **是跟着传进去的
    * markdown 走的**（不是磁盘上那份），面板据此在打字时就刷新块清单、批注锚点与图片提示。
    */

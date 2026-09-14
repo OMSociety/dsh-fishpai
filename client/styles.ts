@@ -43,6 +43,13 @@ export const CSS = `
 .fp-toolbar{display:flex;flex-direction:column;gap:4px;padding:6px 8px;border-bottom:1px solid var(--dsw-alias-border-l2);flex:none}
 .fp-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0}
 .fp-row .fp-spacer{flex:1 1 auto}
+/* 三个动作按钮是一组：窄到放不下时整体换行，而不是"复制到公众号"被单独挤到下一行 */
+.fp-actions{display:inline-flex;align-items:center;gap:4px;flex:none;margin-left:auto}
+/* 面板窄的时候收紧一点：让「导出 HTML / 复制到公众号」仍然留在第一行 */
+.fp-root[data-narrow="true"] .fp-toolbar{padding:6px 6px;gap:3px}
+.fp-root[data-narrow="true"] .fp-row{gap:3px}
+.fp-root[data-narrow="true"] .fp-btn{padding:2px 5px}
+.fp-root[data-narrow="true"] .fp-actions{gap:3px}
 .fp-select{
   font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2);
   border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:2px 4px;max-width:11em;
@@ -194,6 +201,33 @@ export const CSS = `
 .fp-root{position:relative}
 .fp-muted{color:var(--dsw-alias-label-secondary)}
 .fp-warn{color:var(--dsw-alias-state-warn-primary)}
+
+/* 快捷键速查表：挂在编辑器头上的小按钮 + 一块列表（内容和键盘处理同源） */
+.fp-keys-wrap{position:relative;display:inline-flex;flex:none}
+.fp-keys-btn{
+  font:inherit;font-size:11px;line-height:1;cursor:pointer;padding:3px 6px;border-radius:5px;
+  border:1px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-secondary);
+}
+.fp-keys-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}
+.fp-keys-btn[data-on="true"]{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}
+.fp-keys{
+  position:absolute;top:calc(100% + 4px);right:0;z-index:3;width:266px;max-height:60vh;overflow:auto;
+  padding:6px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);
+  background:var(--dsw-alias-bg-layer-1);box-shadow:0 8px 24px rgba(0,0,0,.18);
+  color:var(--dsw-alias-label-primary);font-size:11.5px;line-height:1.9;text-align:left;
+}
+.fp-keys-group{padding:2px 4px;color:var(--dsw-alias-label-secondary);font-size:11px}
+.fp-keys-row{display:flex;align-items:baseline;gap:8px;padding:0 4px}
+.fp-keys-row .fp-spacer{flex:1 1 auto}
+.fp-keys-note{
+  margin-top:4px;padding:5px 4px 1px;border-top:1px solid var(--dsw-alias-border-l2);
+  color:var(--dsw-alias-label-secondary);line-height:1.75;
+}
+.fp-kbd{
+  flex:none;font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Consolas,monospace);
+  font-size:10.5px;padding:1px 5px;border-radius:4px;white-space:nowrap;
+  border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);
+}
 `
 
 /** 幂等注入样式表（重复挂载只插一次；HMR 卸载由调用方决定是否移除）。 */

@@ -3,7 +3,7 @@
  *
  * 分两层：
  *   1. `classifyTheme` 对**合成主题**的规则边界（未来改规则时先在这里说明白）
- *   2. 真实 `themes.js` 语料的断言——它把"当前 13 个主题里谁有主题色、谁有微信风险"
+ *   2. 真实 `themes.js` 语料的断言——它把"当前主题里谁有主题色、谁有微信风险"
  *      钉成事实；上游改主题时这里会红，提醒复核，而不是让 UI 悄悄变错
  */
 import test from 'node:test'
@@ -64,12 +64,13 @@ test('真实语料：渐变文字与深底的主题被准确标出', () => {
 
 test('真实语料：wechatSafe 是其余两个 flag 的结果，且数量对得上', () => {
   const catalog = themeCatalog()
-  assert.equal(catalog.length, 13)
+  assert.equal(catalog.length, 11, '主题数量变了就要连 golden 一起重生成（见 AGENTS.md 不变量 1）')
+  assert.deepEqual(catalog.map((t) => t.key), ['default', 'tech', 'elegant', 'deep_read', 'nyt', 'apple', 'claude', 'sspai', 'bamboo', 'dark_night', 'gradient'])
   for (const t of catalog) {
     assert.equal(t.wechatSafe, !t.gradientText && !t.darkWrapper, `${t.key} 的 wechatSafe 与前两个 flag 不一致`)
   }
   const safe = catalog.filter((t) => t.wechatSafe)
-  assert.equal(safe.length, 10)
+  assert.equal(safe.length, 8)
   assert.ok(safe.some((t) => t.key === 'default'), '默认公众号必须在"适合公众号"一组里')
   assert.ok(!safe.some((t) => t.key === 'dark_night'))
 })

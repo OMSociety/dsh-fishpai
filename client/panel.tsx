@@ -7,7 +7,18 @@
 import * as React from 'react'
 import { useSyncExternalStore } from 'react'
 import { buildSrcdoc, type FishpaiStore } from './store'
-import { COPY_HINT, MOD_KEY } from './keys'
+import { COPY_HINT, IS_MAC, MOD_KEY } from './keys'
+import {
+  SHORTCUTS,
+  applyAction,
+  continueList,
+  indentSelection,
+  matchShortcut,
+  outdentSelection,
+  shortcutHint,
+  type EditAction,
+  type EditResult,
+} from './mdedit'
 import { CaretGlyph, FishGlyph, ThemeGlyph, TickGlyph } from './icons'
 import type { Block, DocMeta, Note, Placeholder, ThemeInfo } from './api'
 
@@ -107,6 +118,33 @@ function download(name: string, html: string): void {
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 4000)
+}
+
+/**
+ * 从剪贴板/拖拽里挑出图片文件。
+ *
+ * 只认图片：普通文本粘贴、拖一段文字进来都照旧交给浏览器，绝不拦。
+ * `items` 优先（截图就是从这里来的），老浏览器退回 `files`。
+ */
+function imageFiles(data: DataTransfer | null): File[] {
+  if (!data) return []
+  const out: File[] = []
+  const items = data.items
+  if (items) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (item.kind !== 'file' || !/^image\//i.test(item.type)) continue
+      const file = item.getAsFile()
+      if (file) out.push(file)
+    }
+  }
+  if (!out.length && data.files) {
+    for (let i = 0; i < data.files.length; i++) {
+      const file = data.files[i]
+      if (/^image\//i.test(file.type)) out.push(file)
+    }
+  }
+  return out
 }
 
 // ── 小组件 ─────────────────────────────────────────────────────
@@ -501,7 +539,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
   }
 
   return (
-    <div className="fp-root" ref={rootRef}>
+    <div className="fp-root" data-narrow={narrow ? 'true' : 'false'} ref={rootRef}>
       <div className="fp-toolbar">
         <div className="fp-row">
           <div className="fp-seg">
@@ -528,15 +566,21 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
             手机
           </Btn>
           <span className="fp-spacer" />
-          <Btn title="重新载入文档（有未保存的改动会先保存，不会丢字）" onClick={() => void store.actions.reloadSafely()}>
-            刷新
-          </Btn>
-          <Btn primary title="下载「复制到公众号」形态的自包含 HTML 文件（本地图片已内嵌 base64）" onClick={() => void onExport()}>
-            导出 HTML
-          </Btn>
-          <Btn primary title={`复制后直接粘进公众号编辑器（${COPY_HINT}）`} onClick={() => void onCopy()}>
-            复制到公众号
-          </Btn>
+          {/*
+            三个动作按钮包成一组：窄栏时整体换行（而不是"复制到公众号"被单独挤到下一行），
+            再配合 .fp-root[data-narrow] 收紧内边距——它们在 400 多像素的面板里也能待在第一行。
+          */}
+          <span className="fp-actions">
+            <Btn title="重新载入文档（有未保存的改动会先保存，不会丢字）" onClick={() => void store.actions.reloadSafely()}>
+              刷新
+            </Btn>
+            <Btn primary title="下载「复制到公众号」形态的自包含 HTML 文件（本地图片已内嵌 base64）" onClick={() => void onExport()}>
+              导出 HTML
+            </Btn>
+            <Btn primary title={`复制后直接粘进公众号编辑器（${COPY_HINT}）`} onClick={() => void onCopy()}>
+              复制到公众号
+            </Btn>
+          </span>
         </div>
 
         <div className="fp-row">
@@ -675,6 +719,8 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
             onCaret={(line) => store.actions.setCaret(line)}
             onSave={() => void store.actions.flush()}
             onCopy={() => void onCopy()}
+            upload={(file) => store.actions.uploadImage(file)}
+            toast={(text, kind) => store.actions.toast(text, kind)}
             currentBlock={state.blocks.find((b) => b.startLine <= state.caretLine && state.caretLine <= b.endLine) || null}
           />
         ) : null}
@@ -683,6 +729,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
             pane
             iframeRef={iframeRef}
             html={state.previewHtml}
+            imageMap={state.imageMap}
             mobile={state.meta.mobile}
             previewing={state.previewing}
             themeName={state.themeName}
@@ -747,6 +794,58 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
 
 // ── 编辑器 ─────────────────────────────────────────────────────
 
+/**
+ * 快捷键速查表。
+ *
+ * 内容全部来自 `SHORTCUTS`（与键盘处理同一份表），所以不存在"改了键、提示没改"；
+ * Tab / Enter / 粘贴这三条不是组合键、由编辑器直接处理，作为说明列在下面。
+ */
+function KeySheet(props: { wrapRef: React.RefObject<HTMLDivElement>; onClose: () => void }) {
+  const { wrapRef, onClose } = props
+  React.useEffect(() => {
+    const onDown = (event: MouseEvent) => {
+      if (!wrapRef.current || !wrapRef.current.contains(event.target as Node)) onClose()
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [wrapRef, onClose])
+
+  return (
+    <div className="fp-keys" role="dialog" aria-label="快捷键">
+      {(['编辑', '面板'] as const).map((group) => (
+        <div key={group}>
+          <div className="fp-keys-group">{group}</div>
+          {SHORTCUTS.filter((s) => s.group === group).map((spec) => (
+            <div className="fp-keys-row" key={spec.id}>
+              <span>{spec.label}</span>
+              <span className="fp-spacer" />
+              <kbd className="fp-kbd">{shortcutHint(spec, IS_MAC)}</kbd>
+            </div>
+          ))}
+        </div>
+      ))}
+      <div className="fp-keys-note">
+        <div>
+          <kbd className="fp-kbd">Tab</kbd> / <kbd className="fp-kbd">{IS_MAC ? '⇧Tab' : 'Shift+Tab'}</kbd> 缩进、反缩进（列表里正好用）
+        </div>
+        <div>
+          <kbd className="fp-kbd">Enter</kbd> 在列表或引用里自动接着写下一项；空条目再按一次就退出
+        </div>
+        <div>
+          截图或图片文件直接 <kbd className="fp-kbd">{IS_MAC ? '⌘V' : 'Ctrl+V'}</kbd> 粘进来，也可以拖进编辑器
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Editor(props: {
   pane?: boolean
   editorRef: React.RefObject<HTMLTextAreaElement>
@@ -755,10 +854,99 @@ function Editor(props: {
   onCaret: (line: number) => void
   onSave: () => void
   onCopy: () => void
+  /** 存一张粘贴/拖进来的图片，回它的相对路径（`assets/xxx.png`）。 */
+  upload: (file: File) => Promise<{ src: string }>
+  toast: (text: string, kind?: 'info' | 'error') => void
   currentBlock: Block | null
 }) {
-  const { editorRef, value } = props
+  const { editorRef } = props
+  const [sheet, setSheet] = React.useState(false)
+  const keysRef = React.useRef<HTMLDivElement | null>(null)
   const caretOf = (el: HTMLTextAreaElement) => el.value.slice(0, el.selectionStart || 0).split('\n').length
+
+  /**
+   * 所有编辑动作的落点：把 `[from, to)` 换成 `insert`，再把光标放到 `[start, end)`。
+   *
+   * 为什么用 `document.execCommand('insertText')` 而不是直接改 `value`：赋值会让浏览器
+   * 原生的撤销栈作废——"加粗手滑了想 Ctrl+Z"是最常见的动作，不能失灵。
+   * execCommand 走的是原生编辑路径，会照常发 `input` 事件，受控组件的状态一样能同步。
+   * 万不得已（老浏览器）才退回受控赋值：功能不变，只是那一笔不能原生撤销。
+   */
+  const applyEdit = (edit: EditResult) => {
+    const el = editorRef.current
+    if (!el) return
+    const current = el.value
+    const slice = current.slice(edit.from, edit.to)
+    if (edit.insert === slice && edit.start === edit.from && edit.end === edit.to) return // 空操作：不往撤销栈里塞垃圾
+    el.focus()
+    el.setSelectionRange(edit.from, edit.to)
+    let handled = false
+    try {
+      handled = document.execCommand('insertText', false, edit.insert)
+    } catch {
+      handled = false
+    }
+    if (!handled) props.onChange(current.slice(0, edit.from) + edit.insert + current.slice(edit.to))
+    requestAnimationFrame(() => {
+      if (editorRef.current !== el) return
+      el.setSelectionRange(edit.start, edit.end)
+      props.onCaret(caretOf(el))
+    })
+  }
+
+  /** 粘贴/拖入的图片：一张张存，存好一张插一张；存不下的当场说清楚，正文不动。 */
+  const insertImages = async (files: File[]) => {
+    const el = editorRef.current
+    if (!el) return
+    let saved = 0
+    for (const file of files) {
+      try {
+        const { src } = await props.upload(file)
+        const snippet = `![](${src})`
+        const at = el.selectionStart
+        applyEdit({ from: at, to: el.selectionEnd, insert: snippet, start: at + snippet.length, end: at + snippet.length })
+        saved += 1
+      } catch (error) {
+        props.toast(`图片没能存进来：${(error as Error).message}`, 'error')
+      }
+    }
+    if (saved) props.toast(`已插入 ${saved} 张图片（存在文档同级的 assets/ 里）`)
+  }
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const el = event.currentTarget
+    // Tab：列表/多行选区整体缩进一级，普通段落里就是插一段空白（保持原有手感）。
+    // Shift+Tab 一定要拦：不拦的话浏览器会把焦点挪走，人只会觉得"按了没反应"。
+    if (event.key === 'Tab') {
+      event.preventDefault()
+      const edit = event.shiftKey
+        ? outdentSelection(el.value, el.selectionStart, el.selectionEnd)
+        : indentSelection(el.value, el.selectionStart, el.selectionEnd)
+      if (edit) applyEdit(edit)
+      return
+    }
+    // 回车续列表：`- ` / `1. ` / `> ` 下一行自动接着来；空条目再按一次退出
+    if (event.key === 'Enter' && !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey) {
+      const edit = continueList(el.value, el.selectionStart, el.selectionEnd)
+      if (edit) {
+        event.preventDefault()
+        applyEdit(edit)
+      }
+      return
+    }
+    const hit = matchShortcut(event)
+    if (!hit) return
+    event.preventDefault()
+    if (hit.id === 'save') {
+      props.onSave()
+      return
+    }
+    if (hit.id === 'copy') {
+      props.onCopy()
+      return
+    }
+    applyEdit(applyAction(hit.id as EditAction, el.value, el.selectionStart, el.selectionEnd))
+  }
 
   return (
     <div className="fp-pane">
@@ -768,41 +956,47 @@ function Editor(props: {
         <span className="fp-muted">
           {props.currentBlock ? `${kindLabel(props.currentBlock.kind)} · 第 ${props.currentBlock.startLine} 行` : '未在块内'}
         </span>
+        <span className="fp-keys-wrap" ref={keysRef}>
+          <button
+            type="button"
+            className="fp-keys-btn"
+            data-on={sheet ? 'true' : undefined}
+            aria-expanded={sheet}
+            title="快捷键：加粗、标题、列表、粘贴图片…"
+            onClick={() => setSheet((open) => !open)}
+          >
+            快捷键
+          </button>
+          {sheet ? <KeySheet wrapRef={keysRef} onClose={() => setSheet(false)} /> : null}
+        </span>
       </div>
       <textarea
         ref={editorRef}
         className="fp-editor"
         spellCheck={false}
-        value={value}
+        value={props.value}
         onChange={(e) => {
           props.onChange(e.target.value)
           props.onCaret(caretOf(e.target))
         }}
         onClick={(e) => props.onCaret(caretOf(e.currentTarget))}
         onKeyUp={(e) => props.onCaret(caretOf(e.currentTarget))}
-        onKeyDown={(e) => {
-          const meta = e.metaKey || e.ctrlKey
-          if (meta && e.key.toLowerCase() === 's') {
-            e.preventDefault()
-            props.onSave()
-            return
-          }
-          if (meta && e.shiftKey && e.key.toLowerCase() === 'c') {
-            e.preventDefault()
-            props.onCopy()
-            return
-          }
-          if (e.key === 'Tab') {
-            e.preventDefault()
-            const el = e.currentTarget
-            const start = el.selectionStart
-            const end = el.selectionEnd
-            const next = `${value.slice(0, start)}  ${value.slice(end)}`
-            props.onChange(next)
-            requestAnimationFrame(() => {
-              el.selectionStart = el.selectionEnd = start + 2
-            })
-          }
+        onKeyDown={onKeyDown}
+        onPaste={(e) => {
+          const files = imageFiles(e.clipboardData)
+          if (!files.length) return // 文本粘贴照旧交给浏览器
+          e.preventDefault()
+          void insertImages(files)
+        }}
+        onDragOver={(e) => {
+          // 不 preventDefault 的话浏览器会拒绝这次 drop（"拖进来没反应"）
+          if (e.dataTransfer) e.preventDefault()
+        }}
+        onDrop={(e) => {
+          const files = imageFiles(e.dataTransfer)
+          if (!files.length) return
+          e.preventDefault()
+          void insertImages(files)
         }}
       />
     </div>
@@ -815,6 +1009,8 @@ function Preview(props: {
   pane?: boolean
   iframeRef: React.RefObject<HTMLIFrameElement>
   html: string
+  /** 本地图片的 data URI：预览 iframe 是沙箱 srcdoc，相对路径在它里面拿不到（见 store 的说明）。 */
+  imageMap: Record<string, string>
   mobile: boolean
   previewing: boolean
   themeName: string
@@ -836,7 +1032,7 @@ function Preview(props: {
             title="公众号预览"
             sandbox="allow-scripts"
             data-mobile={props.mobile ? 'true' : 'false'}
-            srcDoc={buildSrcdoc(props.html)}
+            srcDoc={buildSrcdoc(props.html, props.imageMap)}
             onLoad={props.onLoad}
           />
         ) : (

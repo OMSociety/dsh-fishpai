@@ -251,9 +251,9 @@ test('图标：主题图标用 DSH 内建的图标集（基线模块），鱼形
   // 自绘的鱼形标：16px 网格、currentColor（深浅色共用一套，不做两套图）
   assert.ok(source.includes('M2.1 8C3.2 5.6'), '鱼形标的路径要在产物里')
   assert.ok(source.includes('currentColor'), '图标颜色走 currentColor')
-  // 13 套主题的图标名必须都是内置图标的导出名
+  // 每套主题的图标名必须都是内置图标的导出名
   const names = [...source.matchAll(/'?(Icon[A-Za-z0-9]+Outline?\d+)'?/g)].map((m) => m[1])
-  assert.ok(names.length >= 13, `主题图标名没进产物？只找到 ${names.length} 个`)
+  assert.ok(names.length >= 11, `主题图标名没进产物？只找到 ${names.length} 个`)
   // 自绘 listbox：原生 <option> 里放不进 SVG，这是 emoji 换成图标的前提
   assert.ok(source.includes('fp-picker-btn') && source.includes('fp-menu-row'), '主题选择器与弹出列表')
   assert.ok(source.includes('"aria-selected"'), '主题列表要有 listbox/option 语义')
@@ -298,6 +298,34 @@ test('快捷键提示分系统：两套文案都在产物里，而键盘处理�
   assert.ok(source.includes('userAgentData') || source.includes('platform'), '平台判断要看 navigator')
   // 提示只是文案：真正处理键盘的地方必须同时接受 meta 与 ctrl
   assert.ok(source.includes('metaKey ||') && source.includes('ctrlKey'), '键盘处理要同时接受 meta 与 ctrl')
+})
+
+test('编辑器快捷键：动作表、速查表、原生撤销三样都要进产物', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  // 速查表内容来自 SHORTCUTS（与键盘匹配同源），所以文案必须在产物里
+  for (const copy of ['加粗', '斜体', '行内代码', '删除线', '一级标题', '正文（去掉标题）', '无序列表', '有序列表', '引用', '快捷键']) {
+    assert.ok(source.includes(copy), `快捷键速查表缺条目：${copy}`)
+  }
+  // 键盘落点：编辑动作走 execCommand('insertText')，赋值 value 会让 Ctrl+Z 失灵
+  assert.ok(source.includes('"insertText"'), '编辑动作要用原生 insertText 保住撤销栈')
+  assert.ok(source.includes('execCommand'), '执行入口')
+  // 回车续列表与 Tab 缩进（不是组合键，但属于"手感"的一部分）
+  assert.ok(source.includes('continueList') || source.includes('indentSelection'), '回车续列表 / Tab 缩进要进产物')
+  assert.ok(source.includes('fp-keys') && source.includes('fp-kbd'), '速查表的样式类')
+})
+
+test('粘贴图片：剪贴板/拖拽取图 → POST /upload → 插入 ![](assets/…)，且只认图片', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  assert.ok(source.includes('clipboardData'), '粘贴要读剪贴板')
+  assert.ok(source.includes('dataTransfer'), '拖进来的图片也要接')
+  assert.ok(source.includes('/upload'), '图片要交给宿主存下来')
+  assert.match(source, /!\[\]\(\$\{/, '正文里插的是 Markdown 图片语法')
+  assert.match(source, /image\\?\//, '只挑图片，普通文本粘贴照旧交给浏览器')
+  assert.ok(source.includes('超过') && source.includes('上限'), '超限要给一句人话，而不是等 413')
+  // 预览 iframe 是沙箱 srcdoc：本地图必须由面板取回来变成 data URI，相对路径在里面拿不到
+  assert.ok(source.includes('readAsDataURL'), '用 FileReader 转 data URI（blob: 在不透明源里取不到）')
+  assert.ok(source.includes('"/asset?"') || source.includes('/asset?'), '图片要从 /asset 取回')
+  assert.ok(source.includes('imageMap'), '预览要带上内联进来的图')
 })
 
 test('apply() 在右侧栏与 better-sidebar 都不存在时也安全，注册的东西可收回', async () => {

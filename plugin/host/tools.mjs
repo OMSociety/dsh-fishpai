@@ -9,7 +9,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { render as renderCore } from '../core/render.mjs'
+import { render as renderCore, safeThemeKey } from '../core/render.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
 import { diffBlocks } from '../core/diff.mjs'
 import { applyPatches } from '../core/patch.mjs'
@@ -405,7 +405,8 @@ export function registerTools(ctx, deps) {
       try {
         const { cwd, key, abs, state } = locate(deps, exec, args)
         const markdown = typeof args.markdown === 'string' ? args.markdown : readText(abs)
-        const theme = args.theme ? String(args.theme) : state.theme
+        // 主题名可能来自状态（那两套被移除的主题）或模型手写：认不出就退回默认，别让导出整个失败
+        const theme = safeThemeKey(args.theme ? String(args.theme) : state.theme)
         const out = renderCore(markdown, {
           theme,
           color: state.color || undefined,
@@ -414,10 +415,12 @@ export function registerTools(ctx, deps) {
           footnotes: state.footnotes !== false,
           macCodeBlock: state.macCodeBlock !== false,
           publish: args.publish !== false,
-          // 导出的成品是要粘进公众号的，所以跟面板的「复制到公众号」走同一条兼容层
-          // （把文字包进 <span>，避开微信结构校验对"含行内元素的段落"的误报）。
+          // 导出的成品是要粘进公众号的，所以跟面板的「复制到公众号」走同一条兼容层：
+          // ① 把文字包进 <span>，避开微信结构校验对"含行内元素的段落"的误报；
+          // ② 把 background 简写拆成微信肯保留的长写，否则引用块/表头底色会被丢。
           // publish:false（预览原样 HTML）时不加，保持与站点一致的原始形态。
           wrapText: args.publish !== false,
+          wechatBackground: args.publish !== false,
           imageResolver: args.embed_images === false ? undefined : makeImageResolver({ cwd, docPath: abs }),
         })
         const target = args.out_path

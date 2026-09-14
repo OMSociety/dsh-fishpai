@@ -25,6 +25,12 @@ export interface Toast {
   kind: 'info' | 'error'
 }
 
+/**
+ * 单张粘贴图片的大小上限。宿主那边（`plugin/host/store.mjs` 的 `MAX_ASSET_BYTES`）才是权威，
+ * 这里只是先拦一道，好给一句人话提示，而不是等一个 413。
+ */
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
 export interface FishpaiState {
   status: 'loading' | 'ready' | 'empty' | 'error'
   error: string | null
@@ -40,6 +46,15 @@ export interface FishpaiState {
   notes: Note[]
   placeholders: Placeholder[]
   images: ImageInfo[]
+  /**
+   * 预览要用的本地图片：`src` → data URI。
+   *
+   * 为什么在面板这一侧转：预览 iframe 是 `srcdoc` + 沙箱（不透明源），
+   * 里面写 `assets/x.png` 这种相对路径只会解析到 DSH 自己的地址、拿到 404，
+   * 而从那个源去请求 `/fishpai/api/asset` 又会被同源守卫挡掉（`Origin: null`）。
+   * 由面板（同源）取回来、以 data URI 塞进预览，是唯一不放松安全边界又能看见图的办法。
+   */
+  imageMap: Record<string, string>
   history: HistoryEntry[]
   /** 这个工作目录里已经打开过的鱼排文档（空面板上的「最近打开」用它）。 */
   docs: Array<{ key: string; path: string; title: string; revision: number; updatedAt: number }>
@@ -83,6 +98,7 @@ function initialState(sessionId: string): FishpaiState {
     notes: [],
     placeholders: [],
     images: [],
+    imageMap: {},
     history: [],
     docs: [],
     themes: [],
@@ -100,15 +116,34 @@ function initialState(sessionId: string): FishpaiState {
   }
 }
 
-/** 预览 iframe 的 srcdoc：内联主题样式已在 html 里，这里只补容器样式与滚动上报脚本。 */
-export function buildSrcdoc(html: string): string {
+const ENTITIES: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" }
+
+/** 属性值里的实体还原：Markdown 里的 `a&b.png` 在 HTML 里是 `a&amp;b.png`，两边要对得上。 */
+function decodeAttr(value: string): string {
+  return value.replace(/&(?:amp|lt|gt|quot|#39);/g, (m) => ENTITIES[m] || m)
+}
+
+/** 把预览 HTML 里本地图片的 `src` 换成面板取回来的 data URI（没取到的保持原样）。 */
+function inlineImages(html: string, imageMap: Record<string, string>): string {
+  if (!html || !Object.keys(imageMap).length) return html
+  return html.replace(/(<img\b[^>]*?\bsrc=")([^"]*)(")/g, (full, pre, src, post) => {
+    const hit = imageMap[src] || imageMap[decodeAttr(src)]
+    return hit ? `${pre}${hit}${post}` : full
+  })
+}
+
+/**
+ * 预览 iframe 的 srcdoc：内联主题样式已在 html 里，这里只补容器样式、滚动上报脚本，
+ * 以及本地图片的 data URI（见 `imageMap` 的说明）。
+ */
+export function buildSrcdoc(html: string, imageMap: Record<string, string> = {}): string {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
   html,body{margin:0;padding:0;background:#fff}
   fp-block{display:block;height:0;overflow:hidden}
   img{max-width:100%;height:auto}
-</style></head><body>${html}
+</style></head><body>${inlineImages(html, imageMap)}
 <script>
 (function(){
   var top=null;
@@ -133,6 +168,29 @@ export function buildSrcdoc(html: string): string {
   report();
 })();
 </script></body></html>`
+}
+
+/** Blob → data URI。预览 iframe 是不透明源，`blob:` URL 拿不过去，只能走 data URI。 */
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const Reader: any = (globalThis as any).FileReader
+    if (!Reader) return reject(new Error('这个浏览器不支持本地图片预览'))
+    const reader = new Reader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('图片读取失败'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+/** File → base64（不含 `data:` 前缀）。分块转换：一次 spread 整张大图会爆调用栈。 */
+async function fileToBase64(file: Blob): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  let binary = ''
+  const CHUNK = 0x8000
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)))
+  }
+  return btoa(binary)
 }
 
 /**
@@ -164,6 +222,32 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     }, kind === 'error' ? 5000 : 2600)
   }
 
+  // ── 预览里的本地图片 ───────────────────────────────────────
+  // 按文档缓存（同一篇文档里同一张图只取一次，之后每次重渲染都直接复用）；
+  // 取不到的记成空串，避免每次预览都白跑一趟请求。
+  const imageCache = new Map<string, Map<string, string>>()
+
+  async function ensureImages(images: ImageInfo[], docKey: string) {
+    const bucket = imageCache.get(docKey) || new Map<string, string>()
+    imageCache.set(docKey, bucket)
+    const wanted = images.filter((img) => img.embed && !bucket.has(img.src))
+    if (!wanted.length) return
+    await Promise.all(
+      wanted.map(async (img) => {
+        try {
+          const res = await fetch(api.assetUrl(state.sessionId, docKey, img.src))
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          bucket.set(img.src, await blobToDataUrl(await res.blob()))
+        } catch {
+          // 取不回来就让预览保持原样：正文一个字没动，复制/导出那条路仍会把它内嵌进去
+          bucket.set(img.src, '')
+        }
+      }),
+    )
+    if (state.docKey !== docKey) return // 期间换文档了：这份图不属于当前预览
+    patch({ imageMap: Object.fromEntries(bucket) })
+  }
+
   // ── 预览 ───────────────────────────────────────────────────
   // 预览是面板唯一的「当前正文」视图来源：块清单、批注锚点、行内占位、图片提示都跟着它走，
   // 所以打字时这些信息不会停在"打开文档的那一刻"。
@@ -175,6 +259,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
 
   async function refreshPreview(markdown: string, meta: DocMeta) {
     if (!state.docKey) return
+    const docKey = state.docKey
     const token = ++previewToken
     const epoch = notesEpoch
     patch({ previewing: true })
@@ -190,6 +275,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         themeName: res.themeName,
         previewing: false,
       })
+      void ensureImages(res.images, docKey)
     } catch (error) {
       if (token !== previewToken) return
       patch({ previewing: false, error: `预览渲染失败：${(error as Error).message}` })
@@ -263,11 +349,13 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       notes: res.notes,
       placeholders: res.placeholders,
       images: res.images,
+      imageMap: Object.fromEntries(imageCache.get(docKey) || []),
       history: res.history,
       conflict: null,
       external: null,
     })
     onDocLoaded?.(docKey)
+    void ensureImages(res.images, docKey)
     void refreshPreview(keep ? state.markdown : res.doc.markdown, res.meta)
   }
 
@@ -326,6 +414,21 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
 
     setCaret(line: number) {
       if (line !== state.caretLine) patch({ caretLine: line })
+    },
+
+    /**
+     * 把一张粘贴/拖进来的图片存到宿主（文档同级的 `assets/`），回它的相对路径。
+     *
+     * 这里**只存**、不插正文：插哪里由编辑器按当下的光标决定（上传期间人可能挪了光标），
+     * 而且这样"存失败"与"改正文"是两件事——图没存进来，正文一个字都不会被碰。
+     */
+    async uploadImage(file: File): Promise<{ src: string; bytes: number }> {
+      if (!state.docKey) throw new Error('还没有打开文档：先让模型 fishpai_open 一篇，或新建一篇')
+      if (file.size > MAX_UPLOAD_BYTES) {
+        throw new Error(`${(file.size / 1024 / 1024).toFixed(1)}MB 超过 ${MAX_UPLOAD_BYTES / 1024 / 1024}MB 上限，先压缩一下再粘`)
+      }
+      const data = await fileToBase64(file)
+      return api.upload(state.sessionId, state.docKey, { name: (file as any).name, mime: file.type, data })
     },
 
     /** 光标所在块（加批注、跳预览都用它）。 */

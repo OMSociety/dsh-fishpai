@@ -5,10 +5,12 @@
  * **默认参数下，输出与迁移前的实现逐字节相同**，由 `test/golden/**` 守着
  * （golden 由 `test/oracle/render.cjs` 生成，那是移植前的冻结实现）。
  *
- * 相对移植前新增两个能力，都**由调用方显式启用**，默认路径一个字节都不变
- * （`test/golden/**` 守的就是"两者都不生效"这条默认路径）：
- *   - `annotate: true`     在每个顶层块前插一个不可见的 `<fp-block data-b="ID">` 锚点（只给预览用）
- *   - `imageResolver`      把图片 src 换成 data URI（宿主实现读文件；只给复制/导出用）
+ * 相对移植前新增的能力，都**由调用方显式启用**，默认路径一个字节都不变
+ * （`test/golden/**` 守的就是"都不生效"这条默认路径）：
+ *   - `annotate: true`        在每个顶层块前插一个不可见的 `<fp-block data-b="ID">` 锚点（只给预览用）
+ *   - `imageResolver`         把图片 src 换成 data URI（宿主实现读文件；只给复制/导出用）
+ *   - `wrapText: true`        把文字包进 `<span>`（微信结构校验的兼容层；只给复制/导出用）
+ *   - `wechatBackground: true` 把 `background` 简写拆成微信肯保留的长写（同上）
  */
 import { resolveTheme, themes, FONT_MAP, hljsMap, read } from './runtime.mjs'
 import { createMd, makeStyler, collectBlocks } from './markdown.mjs'
@@ -254,7 +256,34 @@ export function simplifyForPublish(html) {
   return html
 }
 
-// ── 4. 预览锚点（annotate）─────────────────────────────────────
+// ── 4. 微信底色兼容（background 简写 → 长写）───────────────────
+/**
+ * 微信编辑器的安全过滤是**按属性名**过的：`background-color` 在名单里，`background` 简写不在。
+ * 于是主题里 `background: #f0f8f0` 这种写法粘进公众号后整条声明被丢掉——
+ * 实测表现：竹林主题的引用块框、表头底色、行内代码底色全没了（面板预览里明明有）。
+ *
+ * 所以复制/导出时把简写拆成微信肯保留的长写。这是**纯规范化**：一条声明里只有一个值时，
+ * `background: <颜色>` 与 `background-color: <颜色>`、`background: <渐变>` 与
+ * `background-image: <渐变>` 的渲染结果完全一样（`background-clip: text` 那类主题也不受影响）。
+ */
+export function splitBackgrounds(styleText) {
+  if (!styleText || !/\bbackground\s*:/.test(styleText)) return styleText
+  return styleText.replace(/(^|;)(\s*)background\s*:\s*([^;]+)/g, (decl, lead, space, value) => {
+    const v = value.trim()
+    if (!v) return decl
+    const prop = /gradient\(|url\(|image\(/i.test(v) ? 'background-image' : 'background-color'
+    return `${lead}${space}${prop}: ${v}`
+  })
+}
+
+/** 同上，作用在整段 HTML 的每个 `style="…"` 上（只给复制/导出那条路用）。 */
+export function splitBackgroundsInHtml(html) {
+  if (!html || !/\bbackground\s*:/.test(html)) return html
+  return html.replace(/\sstyle="([^"]*)"/g, (full, styleText) => ` style="${splitBackgrounds(styleText)}"`)
+}
+
+// ── 5. 预览锚点（annotate）─────────────────────────────────────
+
 /** 每个顶层块前插一个不可见锚点元素；只给预览的滚动同步与块高亮用，绝不进复制/导出结果。 */
 function renderWithAnchors(md, markdown, env) {
   const tokens = md.parse(markdown, env)
@@ -273,7 +302,7 @@ function renderWithAnchors(md, markdown, env) {
   return { html: md.renderer.render(out, md.options, env), blocks }
 }
 
-// ── 5. 图片内嵌（复制/导出用）──────────────────────────────────
+// ── 6. 图片内嵌（复制/导出用）──────────────────────────────────
 /** 用宿主给的解析器把 <img src> 换成 data URI；解析器返回 null 表示保持原样。 */
 function rewriteImages(html, resolver) {
   return html.replace(/<img\b([^>]*?)\bsrc="([^"]*)"([^>]*)>/g, (full, pre, src, post) => {
@@ -303,6 +332,7 @@ function rewriteImages(html, resolver) {
  * @param {boolean}[opts.simple]       站点「一键发布 14 平台」那条白名单路径
  * @param {boolean}[opts.annotate]     预览锚点（隐含 publish=false），默认 false
  * @param {boolean}[opts.wrapText]     把文字包进 `<span>`（微信结构校验的兼容层），默认 false
+ * @param {boolean}[opts.wechatBackground] 把 `background` 简写拆成微信肯保留的长写，默认 false
  * @param {(src:string)=>string|null} [opts.imageResolver] 图片内嵌解析器
  * @returns {{html: string, themeKey: string, themeName: string, blocks?: Array<object>}}
  */
@@ -343,6 +373,11 @@ export function render(markdownText, opts = {}) {
   if (opts.publish !== false && !opts.annotate) {
     body = prepareForPublish(body, { simple: !!opts.simple })
   }
+  // 微信底色兼容：放在最后（代码块 span 的内联色、图片补的样式都已就位），正文与 wrapper 一起规范化
+  if (opts.wechatBackground) {
+    body = splitBackgroundsInHtml(body)
+    wrapperStyle = splitBackgrounds(wrapperStyle)
+  }
 
   const html = `<div style="${wrapperStyle}">${body}</div>`
   const out = { html, themeKey: key, themeName: theme.name }
@@ -351,8 +386,16 @@ export function render(markdownText, opts = {}) {
 }
 
 /**
+ * 文档状态里存着的主题 key 可能已经不存在了（上游主题被移除、或状态是手改的）。
+ * 这种时候退回默认主题——**不要让一篇好好的文档因为一个主题名字打不开**。
+ * （`render()` 自己仍然对未知主题抛错：那是"调用方写错了"，必须当场说出来。）
+ */
+export function safeThemeKey(name) {
+  return resolveTheme(name) || 'default'
+}
+
+/**
  * 主题清单（面板、`GET /themes` 与技能共用）。
- *
  * 除名称之外还带上 `classifyTheme()` 算出来的能力标注：面板据此决定
  * 「主题色该不该显示」「要不要提醒这个主题粘进微信有风险」。
  */
@@ -367,7 +410,7 @@ export function themeCatalog() {
   }))
 }
 
-// ── 6. CLI（本地排查用；插件本身走 tools/routes）────────────────
+// ── 7. CLI（本地排查用；插件本身走 tools/routes）────────────────
 function main(argv) {
   const args = argv.slice(2)
   if (args.includes('--list')) {
