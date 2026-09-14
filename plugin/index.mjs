@@ -104,8 +104,14 @@ export function apply(ctx) {
       log('[fishpai] webServer 不可用，右侧栏面板将无法读写文档')
       return () => {}
     }
-    const handler = createApiHandler({ resolveCwd, log })
-    return webServer.register({ kind: 'prefix', path: API_PREFIX, handler })
+    try {
+      const handler = createApiHandler({ resolveCwd, log })
+      return webServer.register({ kind: 'prefix', path: API_PREFIX, handler })
+    } catch (error) {
+      // 路由注册失败不应把整个插件拖垮：工具（模型侧）仍然可用
+      log(`[fishpai] 路由注册失败：${error.message}`)
+      return () => {}
+    }
   }, 'fishpai: /fishpai/api 路由')
 
   // ── 3. 技能 ────────────────────────────────────────────────
