@@ -47,6 +47,40 @@ export const CSS = `
   font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2);
   border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:2px 4px;max-width:11em;
 }
+
+/* 主题选择器：自绘 listbox（原生 <option> 放不进图标）。图标全走 currentColor，
+   所以浅色/深色主题共用一套，不需要换图。 */
+.fp-picker{position:relative;display:inline-flex}
+.fp-picker-btn{
+  font:inherit;display:inline-flex;align-items:center;gap:5px;max-width:12em;cursor:pointer;
+  color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2);
+  border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:2px 6px;
+}
+.fp-picker-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.fp-picker-glyph{flex:none;color:var(--dsw-alias-label-secondary)}
+.fp-picker-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fp-picker-caret{flex:none;color:var(--dsw-alias-label-secondary)}
+.fp-menu{
+  position:absolute;top:calc(100% + 4px);left:0;z-index:40;min-width:12em;
+  max-height:min(60vh,340px);overflow:auto;padding:4px;
+  border:1px solid var(--dsw-alias-border-l2);border-radius:8px;
+  background:var(--dsw-alias-bg-layer-1);box-shadow:var(--dsw-shadow-lv3,0 4px 14px rgba(0,0,0,.28));
+}
+.fp-menu-group{padding:4px 6px 2px;font-size:11px;color:var(--dsw-alias-label-secondary)}
+.fp-menu-row{
+  display:flex;align-items:center;gap:6px;width:100%;text-align:left;font:inherit;cursor:pointer;
+  padding:3px 6px;border-radius:5px;border:0;background:transparent;color:var(--dsw-alias-label-primary);
+}
+.fp-menu-row[data-active="true"]{background:var(--dsw-alias-interactive-bg-hover)}
+.fp-menu-row[data-on="true"]{font-weight:500}
+.fp-menu-glyph{flex:none;color:var(--dsw-alias-label-secondary)}
+.fp-menu-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fp-menu-tick{flex:none;color:var(--dsw-alias-label-primary)}
+
+/* tab chip 里的标题：图标 + 文字 */
+.fp-title-label{display:inline-flex;align-items:center;gap:5px}
+.fp-title-glyph{flex:none;color:var(--dsw-alias-label-secondary)}
+
 .fp-swatches{display:flex;gap:3px;align-items:center}
 .fp-swatch{
   width:14px;height:14px;border-radius:50%;border:1px solid var(--dsw-alias-border-l2);cursor:pointer;padding:0;
@@ -123,9 +157,11 @@ export const CSS = `
   border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);
 }
 .fp-blank-mark{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dsw-alias-label-primary)}
+/* 品牌标：鱼形图标放在一块小方瓦里（图标本身用 currentColor，深浅色通吃） */
 .fp-blank-glyph{
-  width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;
-  font-size:12px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);
+  width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);
+  color:var(--dsw-alias-label-primary);
 }
 .fp-blank-line{font-size:12px;line-height:1.7;color:var(--dsw-alias-label-primary)}
 .fp-blank-line code{

@@ -14,6 +14,13 @@
   `POST /fishpai/api/active`（切换当前文档）。
 - 快捷键提示分系统显示：Mac 显示 `⌘` / `⌘⇧C`，其它平台显示 `Ctrl` / `Ctrl+Shift+C`。
   键盘处理一直同时接受 meta 与 ctrl，提示只是文案。
+- 图标：鱼排自己的**鱼形标**（自绘，16px 网格、`currentColor`）出现在标签页 chip 与
+  「新标签页」引导列表里（后者原先是没有 `icon` 时的立方体占位）。
+- 主题列表换成带图标的列表：13 套主题各有 16px 描边图标，取自 DSH 内建的图标集
+  （`@deepseek-ai/dsh-client-ui-primitives`，右侧栏画图标用的同一套），不再用 emoji。
+  原生 `<select>` 的 `<option>` 放不进 SVG，所以主题选择器改为自绘 listbox，
+  保留 ↑↓ / Enter / Esc 与点击外部关闭。
+  图标全部走 `currentColor` + `--dsw-alias-*` 令牌，**浅色与深色主题共用一套，不需要两套图**。
 
 ## [0.1.0] - 2026-09-15
 

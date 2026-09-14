@@ -27,12 +27,20 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
 9. **`package.json` 的 `dsh.client.inject` 是「包依赖边」，不是服务依赖**。它声明的是
    "这一行的 factory 到位前必须先到位的**包**"（DSH `dsh-client-modules` 的 `WebBootEntry`：
    "names package rows whose factories must arrive before this row materializes"），
-   名字对不上任何包行时被**静默忽略**。本包客户端只 `require('react')` / `react/jsx-runtime`
-   （两者都是 shell 的基线模块），所以这个字段留空；**服务依赖由 bundle 导出的 `inject` 决定**，
-   把 `slots` / `sessions` 这类服务名写进去是无效声明。`test/client.bundle.test.mjs` 有守卫。
+   名字对不上任何包行时被**静默忽略**。本包客户端只 require **shell 的基线模块**
+   （`react` / `react/jsx-runtime` / `@deepseek-ai/dsh-client-ui-primitives`）——基线模块与
+   `react` 同级、任何 bundle 都能直接 require，**不是图里的行**，所以这个字段留空；
+   **服务依赖由 bundle 导出的 `inject` 决定**，把 `slots` / `sessions` 这类服务名写进去是无效声明。
+   `test/client.bundle.test.mjs` 有守卫。
 10. **块 id 一律来自 `splitBlocks`**（`plugin/host/routes.mjs` 的 `liveSurface`）：批注锚点与
     `fishpai_write` 的 `block_id` 用的就是它。渲染器自己的 blocks 只服务于 HTML 里的
     `<fp-block data-b>` 锚点，随 `macCodeBlock` 等渲染选项变化，**不能**当成面板的块清单。
+11. **图标用 DSH 内建的那一套，不引第三方图标包**：主题图标取
+    `@deepseek-ai/dsh-client-ui-primitives` 的 `Icon*` 导出（右侧栏画图标用的同一套，画法一致），
+    鱼排自己的标在 `client/icons.tsx` 里按同一口径自绘（16px 网格、约 1.05 描边、圆角连接）。
+    **颜色只走 `currentColor` 与 `--dsw-alias-*` 令牌**，浅色/深色共用一套图，绝不硬编码颜色。
+    取不到那个基线模块时必须降级（退回纯文字）而不是让插件整块加载不了。
+    加了主题就往 `THEME_GLYPH` 补一行，`test/theme-info.test.mjs` 会检查不漏。
 
 ## 命令
 

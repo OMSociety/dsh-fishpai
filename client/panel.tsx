@@ -8,7 +8,8 @@ import * as React from 'react'
 import { useSyncExternalStore } from 'react'
 import { buildSrcdoc, type FishpaiStore } from './store'
 import { COPY_HINT, MOD_KEY } from './keys'
-import type { Block, DocMeta, Note, Placeholder } from './api'
+import { CaretGlyph, FishGlyph, ThemeGlyph, TickGlyph } from './icons'
+import type { Block, DocMeta, Note, Placeholder, ThemeInfo } from './api'
 
 type ViewMode = 'edit' | 'preview' | 'side'
 type Tab = 'notes' | 'todo' | 'blocks' | 'history'
@@ -129,6 +130,136 @@ function Btn(props: {
     >
       {props.children}
     </button>
+  )
+}
+
+/** 空白页卡片上的品牌行：鱼形标 + 名字。三种状态（载入中 / 载入失败 / 还没有文档）共用。 */
+function BlankMark() {
+  return (
+    <div className="fp-blank-mark">
+      <span className="fp-blank-glyph">
+        <FishGlyph size={15} />
+      </span>
+      <span>鱼排编辑器</span>
+    </div>
+  )
+}
+
+// ── 主题选择器 ─────────────────────────────────────────────────
+
+/**
+ * 为什么不用原生 `<select>`：`<option>` 里只能放文字，放不进 SVG——而那一串 emoji
+ * 既不好看，也和 DSH 自己的图标语言不搭。所以这里自己画一个 listbox：
+ * 每套主题一个 16px 描边图标（取自 DSH 内置图标集，`currentColor` 跟着深浅色走），
+ * 仍然保留键盘操作（↑↓ 移动 / Enter 选中 / Esc 关闭）与点击外部关闭。
+ *
+ * 图标取不到时（极老/裁剪过的 DSH 没有那个基线模块）自动退化成纯文字列表，功能不受影响。
+ */
+function ThemePicker(props: { themes: ThemeInfo[]; value: string; onPick: (key: string) => void }) {
+  const { themes, value } = props
+  const [open, setOpen] = React.useState(false)
+  const [active, setActive] = React.useState(0)
+  const wrapRef = React.useRef<HTMLDivElement | null>(null)
+
+  const groups = React.useMemo(
+    () => [
+      { label: '适合公众号', items: themes.filter((t) => t.wechatSafe) },
+      { label: '其它风格（微信可能掉样式）', items: themes.filter((t) => !t.wechatSafe) },
+    ],
+    [themes],
+  )
+  const flat = React.useMemo(() => groups.flatMap((g) => g.items), [groups])
+  const current = flat.find((t) => t.key === value) || null
+
+  // 点面板别处就收起来（不拦事件，只是关闭）
+  React.useEffect(() => {
+    if (!open) return
+    const onDown = (event: MouseEvent) => {
+      if (!wrapRef.current || !wrapRef.current.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  const openMenu = () => {
+    const index = flat.findIndex((t) => t.key === value)
+    setActive(index < 0 ? 0 : index)
+    setOpen(true)
+  }
+  const commit = (key: string | undefined) => {
+    if (key) props.onPick(key)
+    setOpen(false)
+  }
+
+  return (
+    <div className="fp-picker" ref={wrapRef}>
+      <button
+        type="button"
+        className="fp-picker-btn"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="主题"
+        title="主题：默认公众号是给微信做的；其它风格更适合导出 HTML"
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            setOpen(false)
+            return
+          }
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault()
+            if (!open) {
+              openMenu()
+              return
+            }
+            const step = event.key === 'ArrowDown' ? 1 : -1
+            setActive((index) => (flat.length ? (index + step + flat.length) % flat.length : 0))
+            return
+          }
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            if (!open) openMenu()
+            else commit(flat[active]?.key)
+          }
+        }}
+      >
+        <ThemeGlyph themeKey={value} size={14} className="fp-picker-glyph" />
+        <span className="fp-picker-label">{current ? current.name : value}</span>
+        <CaretGlyph className="fp-picker-caret" />
+      </button>
+
+      {open ? (
+        <div className="fp-menu" role="listbox" aria-label="主题">
+          {groups.map((group) => (
+            <div key={group.label}>
+              <div className="fp-menu-group">{group.label}</div>
+              {group.items.map((theme) => {
+                const index = flat.indexOf(theme)
+                const on = theme.key === value
+                return (
+                  <button
+                    key={theme.key}
+                    type="button"
+                    role="option"
+                    aria-selected={on}
+                    className="fp-menu-row"
+                    data-on={on ? 'true' : undefined}
+                    data-active={index === active ? 'true' : undefined}
+                    title={theme.desc}
+                    onMouseEnter={() => setActive(index)}
+                    onClick={() => commit(theme.key)}
+                  >
+                    <ThemeGlyph themeKey={theme.key} size={14} className="fp-menu-glyph" />
+                    <span className="fp-menu-name">{theme.name}</span>
+                    {on ? <TickGlyph className="fp-menu-tick" /> : null}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -303,10 +434,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
       <div className="fp-root" ref={rootRef}>
         <div className="fp-blank">
           <div className="fp-blank-card">
-            <div className="fp-blank-mark">
-              <span className="fp-blank-glyph">鱼</span>
-              <span>鱼排编辑器</span>
-            </div>
+            <BlankMark />
             <div className="fp-blank-line fp-muted">正在打开文档…</div>
             <div className="fp-loading-bar" />
           </div>
@@ -320,10 +448,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
       <div className="fp-root" ref={rootRef}>
         <div className="fp-blank">
           <div className="fp-blank-card">
-            <div className="fp-blank-mark">
-              <span className="fp-blank-glyph">鱼</span>
-              <span>鱼排编辑器</span>
-            </div>
+            <BlankMark />
             <div className="fp-blank-line">面板没能载入：{state.error}</div>
             <div className="fp-blank-actions">
               <Btn primary onClick={() => void store.actions.init()}>
@@ -341,10 +466,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
       <div className="fp-root" ref={rootRef}>
         <div className="fp-blank">
           <div className="fp-blank-card">
-            <div className="fp-blank-mark">
-              <span className="fp-blank-glyph">鱼</span>
-              <span>鱼排编辑器</span>
-            </div>
+            <BlankMark />
             <div className="fp-blank-line fp-muted">
               这个会话还没有鱼排文档。可以让模型调用 <code>fishpai_open</code> 打开一篇 Markdown，
               也可以自己先起一篇：
@@ -418,31 +540,11 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
         </div>
 
         <div className="fp-row">
-          <select
-            className="fp-select"
+          <ThemePicker
+            themes={state.themes}
             value={state.meta.theme}
-            title="主题：默认公众号是给微信做的；其它风格更适合导出 HTML"
-            onChange={(e) => void store.actions.setMeta({ theme: e.target.value })}
-          >
-            <optgroup label="适合公众号">
-              {state.themes
-                .filter((t) => t.wechatSafe)
-                .map((t) => (
-                  <option key={t.key} value={t.key}>
-                    {t.emoji} {t.name}
-                  </option>
-                ))}
-            </optgroup>
-            <optgroup label="其它风格（微信可能掉样式）">
-              {state.themes
-                .filter((t) => !t.wechatSafe)
-                .map((t) => (
-                  <option key={t.key} value={t.key}>
-                    {t.emoji} {t.name}
-                  </option>
-                ))}
-            </optgroup>
-          </select>
+            onPick={(key) => void store.actions.setMeta({ theme: key })}
+          />
 
           {/* 主题色只对用 {{PRIMARY}} 的主题有效（当前只有「默认公众号」）。用不上就不显示，别放个点了没反应的控件。 */}
           {currentTheme?.usesAccent ? (

@@ -14,6 +14,7 @@ import * as React from 'react'
 import { Panel } from './panel'
 import { createFishpaiStore, type FishpaiStore } from './store'
 import { ensureStyles } from './styles'
+import { FishGlyph } from './icons'
 import { api } from './api'
 
 export const name = 'dsh-fishpai'
@@ -88,8 +89,17 @@ export function apply(ctx: any): void {
     return React.createElement(Panel, { store, sessionId, visible: props?.visible })
   }
 
+  /**
+   * 标签页（tab chip）里的标题。鱼形标画在这里——官方右侧栏的 chip 内容就是本组件，
+   * 不注册它 chip 就只有一行字（没有图标位可填）。
+   */
   function Title() {
-    return React.createElement('span', { className: 'fp-title-label' }, '鱼排编辑器')
+    return React.createElement(
+      'span',
+      { className: 'fp-title-label' },
+      React.createElement(FishGlyph, { size: 14, className: 'fp-title-glyph' }),
+      '鱼排编辑器',
+    )
   }
 
   // ── 打开面板（两条通道共用）─────────────────────────────────
@@ -140,6 +150,8 @@ export function apply(ctx: any): void {
               order: 45,
               title: () => '鱼排编辑器',
               description: () => '公众号排版：Markdown + 实时预览 + 与模型来回改稿',
+              // 不给 icon 的话，新标签页的引导列表画一个默认的立方体占位（就是"看着像缺图标"的那个）
+              icon: FishGlyph,
             },
           ],
         }),
@@ -204,6 +216,8 @@ export function apply(ctx: any): void {
       const off = bs.registerTab({
         id: FALLBACK_TAB_ID,
         title: () => '鱼排编辑器',
+        // better-sidebar 的 TabDescriptor 支持 icon（它把它转交给原生右侧栏的引导页）
+        icon: (size: number) => React.createElement(FishGlyph, { size: size || 16 }),
         order: 40,
         single: true,
         component: (props: any) => React.createElement(PanelHost, props),

@@ -240,6 +240,26 @@ test('dsh.client 声明只写包依赖边，不写服务名', () => {
   }
 })
 
+test('图标：主题图标用 DSH 内建的图标集（基线模块），鱼形标是自绘的，取不到也不影响加载', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  // `@deepseek-ai/dsh-client-ui-primitives` 与 react 同级：是 shell 的基线模块
+  // （右侧栏自己画图标用的就是它），所以不需要在 dsh.client.inject 里声明包依赖边。
+  assert.ok(
+    source.includes('require("@deepseek-ai/dsh-client-ui-primitives")'),
+    '应当 require DSH 的图标模块（与自己手画一整套相比，这样才对得上内置图标的画法）',
+  )
+  // 自绘的鱼形标：16px 网格、currentColor（深浅色共用一套，不做两套图）
+  assert.ok(source.includes('M2.1 8C3.2 5.6'), '鱼形标的路径要在产物里')
+  assert.ok(source.includes('currentColor'), '图标颜色走 currentColor')
+  // 13 套主题的图标名必须都是内置图标的导出名
+  const names = [...source.matchAll(/'?(Icon[A-Za-z0-9]+Outline?\d+)'?/g)].map((m) => m[1])
+  assert.ok(names.length >= 13, `主题图标名没进产物？只找到 ${names.length} 个`)
+  // 自绘 listbox：原生 <option> 里放不进 SVG，这是 emoji 换成图标的前提
+  assert.ok(source.includes('fp-picker-btn') && source.includes('fp-menu-row'), '主题选择器与弹出列表')
+  assert.ok(source.includes('"aria-selected"'), '主题列表要有 listbox/option 语义')
+  assert.ok(!source.includes('optgroup'), '不再用原生 optgroup（它放不进图标）')
+})
+
 test('面板文案：改名与新增说明必须真的进产物（防"改了源码没重新构建"）', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   assert.ok(source.includes('"导出 HTML"'), '导出按钮文案应为「导出 HTML」')

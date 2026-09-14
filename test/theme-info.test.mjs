@@ -8,9 +8,13 @@
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { classifyTheme, wrapperBackground } from '../plugin/core/theme-info.mjs'
 import { themeCatalog } from '../plugin/core/render.mjs'
 
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const theme = (styles) => ({ name: 't', styles })
 
 test('usesAccent：{{PRIMARY}} 与 {{PRIMARY_BG}} 都算用了主题色', () => {
@@ -68,4 +72,21 @@ test('真实语料：wechatSafe 是其余两个 flag 的结果，且数量对得
   assert.equal(safe.length, 10)
   assert.ok(safe.some((t) => t.key === 'default'), '默认公众号必须在"适合公众号"一组里')
   assert.ok(!safe.some((t) => t.key === 'dark_night'))
+})
+
+test('每套主题都配了图标（面板的主题列表靠它，不许悄悄漏）', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'client', 'icons.tsx'), 'utf8')
+  const block = source.slice(source.indexOf('const THEME_GLYPH'), source.indexOf('/** 某套主题的图标'))
+  const mapped = new Map(
+    [...block.matchAll(/^\s{2}([a-z_]+):\s*'([A-Za-z0-9]+)'/gm)].map((m) => [m[1], m[2]]),
+  )
+  const keys = themeCatalog().map((t) => t.key)
+  assert.deepEqual(
+    [...mapped.keys()].sort(),
+    [...keys].sort(),
+    'THEME_GLYPH 的键要与主题清单一致（加了主题就补一个图标）',
+  )
+  for (const [key, name] of mapped) {
+    assert.match(name, /^Icon[A-Za-z0-9]+$/, `${key} 的图标名不像 DSH 内置图标：${name}`)
+  }
 })
