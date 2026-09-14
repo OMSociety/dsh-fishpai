@@ -41,6 +41,8 @@ export interface FishpaiState {
   placeholders: Placeholder[]
   images: ImageInfo[]
   history: HistoryEntry[]
+  /** 这个工作目录里已经打开过的鱼排文档（空面板上的「最近打开」用它）。 */
+  docs: Array<{ key: string; path: string; title: string; revision: number; updatedAt: number }>
   themes: ThemeInfo[]
   presets: Array<{ name: string; color: string }>
   sizes: string[]
@@ -82,6 +84,7 @@ function initialState(sessionId: string): FishpaiState {
     placeholders: [],
     images: [],
     history: [],
+    docs: [],
     themes: [],
     presets: [],
     sizes: ['14px', '15px', '16px', '17px', '18px'],
@@ -270,9 +273,12 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
 
   async function init() {
     try {
+      patch({ status: 'loading', error: null })
       const themes = await api.themes().catch(() => null)
       if (themes) patch({ themes: themes.themes, presets: themes.presets, sizes: themes.sizes })
       const st = await api.state(state.sessionId)
+      // 空面板上要列「最近打开」，所以这一份清单即使不打开文档也要留着
+      patch({ docs: Array.isArray(st.docs) ? st.docs : [] })
       if (!st.active) {
         patch({ status: 'empty' })
         return
@@ -286,6 +292,31 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
   // ── 对外动作 ───────────────────────────────────────────────
   const actions = {
     init,
+
+    /**
+     * 面板上自己起一篇（空文档 + 一行标题），不必等模型 `fishpai_open`。
+     * 宿主那边会把它落到 `.fishpai/docs/` 下，和模型建的是同一类普通 .md。
+     */
+    async createDoc() {
+      try {
+        const res = await api.createDoc(state.sessionId)
+        await loadDoc(res.docKey)
+        toast('新建了一篇空白文档，可以直接在编辑器里写')
+      } catch (error) {
+        toast(`新建文档失败：${(error as Error).message}`, 'error')
+      }
+    },
+
+    /** 从「最近打开」切一篇：只改这个会话的当前文档，不动模型留下的打开请求。 */
+    async openDocByKey(key: string) {
+      if (!key || key === state.docKey) return
+      try {
+        await api.activate(state.sessionId, key)
+        await loadDoc(key)
+      } catch (error) {
+        toast(`打开失败：${(error as Error).message}`, 'error')
+      }
+    },
 
     setMarkdown(text: string) {
       patch({ markdown: text, dirty: text !== state.savedMarkdown })

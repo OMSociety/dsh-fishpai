@@ -261,6 +261,25 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         })
       }
 
+      if (route === 'POST /doc') {
+        // 人在面板上自己起一篇（空文档 + 一个标题行）。与 fishpai_open 建的是同一类文件，
+        // 区别只在 by:'human'、baseline 保持 null（模型还没写过，就不编造"上次写入的版本"）。
+        const { sessionId, cwd } = sessionOf(body, url)
+        const created = store.createDoc({ cwd, title: body.title })
+        store.setActive(cwd, sessionId, created.key)
+        return json(res, 200, { ok: true, docKey: created.key, path: created.path })
+      }
+
+      if (route === 'POST /active') {
+        // 面板上从「最近打开」切一篇：只改这个会话的当前文档，不碰打开请求
+        //（打开请求归 /tab-opened，那是"模型刚 open 了一篇"的通道）
+        const { sessionId, cwd } = sessionOf(body, url)
+        const key = String(body.docKey || '')
+        docPathByKey(cwd, key) // 不存在就抛，回一个可读的 400
+        store.setActive(cwd, sessionId, key)
+        return json(res, 200, { ok: true, docKey: key })
+      }
+
       if (route === 'POST /meta') {
         const { sessionId, cwd } = sessionOf(body, url)
         const key = String(body.docKey || '')

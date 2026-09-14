@@ -166,6 +166,20 @@ export const api = {
       body: JSON.stringify({ sessionId, docKey, markdown, baseRevision, meta }),
     }),
 
+  /** 面板上自己起一篇空白文档（不必等模型 fishpai_open）。 */
+  createDoc: (sessionId: string, title?: string) =>
+    call<{ ok: true; docKey: string; path: string }>(`/doc`, {
+      method: 'POST',
+      body: JSON.stringify({ sessionId, title }),
+    }),
+
+  /** 把这个会话的当前鱼排文档切成另一篇（「最近打开」列表用）。 */
+  activate: (sessionId: string, docKey: string) =>
+    call<{ ok: true; docKey: string }>(`/active`, {
+      method: 'POST',
+      body: JSON.stringify({ sessionId, docKey }),
+    }),
+
   meta: (sessionId: string, docKey: string, meta: Partial<DocMeta>) =>
     call<{ ok: true }>(`/meta`, { method: 'POST', body: JSON.stringify({ sessionId, docKey, meta }) }),
 

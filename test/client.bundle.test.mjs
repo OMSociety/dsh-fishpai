@@ -261,6 +261,25 @@ test('面板文案：失败提示、批注定位、提示条分类必须真的�
   assert.ok(source.includes('data-kind'), '提示条要按 kind 区分类别（成功/失败一眼可分）')
 })
 
+test('空面板：载入中/失败/还没有文档三种状态共用一张卡片，且都有真能点的动作', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  for (const copy of ['鱼排编辑器', '正在打开文档…', '新建空白文档', '最近打开', '面板没能载入']) {
+    assert.ok(source.includes(copy), `空面板文案缺失：${copy}`)
+  }
+  assert.ok(source.includes('重试'), '载入失败要有重试')
+  assert.ok(source.includes('fp-blank-card') && source.includes('fp-docrow'), '空面板卡片的样式类应在产物里')
+  assert.ok(source.includes('fp-sweep'), '载入中的进度条动画')
+})
+
+test('快捷键提示分系统：两套文案都在产物里，而键盘处理始终 meta || ctrl', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  assert.ok(source.includes('"⌘"') && source.includes('"Ctrl"'), '修饰键提示应有 Mac / 非 Mac 两支')
+  assert.ok(source.includes('⌘⇧C') && source.includes('Ctrl+Shift+C'), '复制快捷键提示同样分两支')
+  assert.ok(source.includes('userAgentData') || source.includes('platform'), '平台判断要看 navigator')
+  // 提示只是文案：真正处理键盘的地方必须同时接受 meta 与 ctrl
+  assert.ok(source.includes('metaKey ||') && source.includes('ctrlKey'), '键盘处理要同时接受 meta 与 ctrl')
+})
+
 test('apply() 在右侧栏与 better-sidebar 都不存在时也安全，注册的东西可收回', async () => {
   const harness = loadBundle({ services: { sidebarRightTabs: undefined, sidebarRight: undefined, betterSidebar: undefined } })
   harness.apply()

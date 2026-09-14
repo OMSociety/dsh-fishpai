@@ -427,6 +427,43 @@ test('路由：render 预览带块锚点，publish 不带且与 core 一致', as
   assert.equal(publish.json.placeholders, undefined)
 })
 
+test('路由：面板自己新建空白文档（不编造 baseline），POST /active 能切换当前文档', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+
+  const created = await callRoute(handler, { method: 'POST', url: '/fishpai/api/doc', body: { sessionId: 's1' } })
+  assert.equal(created.status, 200)
+  const newKey = created.json.docKey
+  assert.ok(newKey && newKey !== opened.key)
+  assert.equal(path.dirname(created.json.path), path.join(cwd, '.fishpai', 'docs'), '落在 .fishpai/docs 下')
+  assert.equal(fs.readFileSync(created.json.path, 'utf8'), '# 未命名\n')
+
+  const state = store.readState(cwd, newKey)
+  assert.equal(state.updatedBy, 'human')
+  assert.equal(state.baseline, null, '模型还没写过，就不该编造一个"上次写入的版本"')
+
+  // 同名再来一篇：各占一个文件，不互相覆盖
+  const second = await callRoute(handler, { method: 'POST', url: '/fishpai/api/doc', body: { sessionId: 's1', title: '未命名' } })
+  assert.equal(second.status, 200)
+  assert.notEqual(second.json.path, created.json.path)
+
+  const st = await callRoute(handler, { method: 'GET', url: '/fishpai/api/state?sessionId=s1' })
+  assert.equal(st.json.active.key, second.json.docKey, '新建后应当自动切到新那篇')
+  assert.ok(st.json.docs.length >= 3, '三篇都应当出现在「最近打开」清单里')
+
+  const back = await callRoute(handler, { method: 'POST', url: '/fishpai/api/active', body: { sessionId: 's1', docKey: opened.key } })
+  assert.equal(back.status, 200)
+  const st2 = await callRoute(handler, { method: 'GET', url: '/fishpai/api/state?sessionId=s1' })
+  assert.equal(st2.json.active.key, opened.key, 'POST /active 应当把当前文档切回去')
+  assert.equal(st2.json.openRequest, null, '切换文档不该顺手造出打开请求')
+
+  const bogus = await callRoute(handler, { method: 'POST', url: '/fishpai/api/active', body: { sessionId: 's1', docKey: 'deadbeef' } })
+  assert.equal(bogus.status, 400)
+  assert.match(bogus.json.error, /没有这个文档/)
+})
+
 test('路由：Origin: null 的请求被拒（沙箱 iframe / data: 文档）', async () => {
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
@@ -740,4 +777,12 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   // 10) GET /asset —— 本地图片（这里没有图片，只验证路由存在且不 500）
   const asset = await callRoute(handler, { method: 'GET', url: `/fishpai/api/asset?sessionId=${session}&docKey=${docKey}&src=nope.png` })
   assert.equal(asset.status, 404)
+
+  // 11) POST /doc + POST /active —— 空面板上的「新建空白文档」与「最近打开」
+  const blank = await callRoute(handler, { method: 'POST', url: '/fishpai/api/doc', body: { sessionId: session } })
+  assert.equal(blank.status, 200)
+  assert.ok(blank.json.docKey)
+  const activated = await callRoute(handler, { method: 'POST', url: '/fishpai/api/active', body: { sessionId: session, docKey } })
+  assert.equal(activated.status, 200)
+  assert.equal(activated.json.docKey, docKey)
 })

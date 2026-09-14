@@ -393,6 +393,25 @@ function registerDoc(cwd, key, abs, markdown, state) {
   writeIndex(cwd, idx)
 }
 
+/**
+ * 人自己起一篇空白文档（面板上的「新建空白文档」）：落在 `<cwd>/.fishpai/docs/` 下，
+ * 与 `fishpai_open` 建的是同一类普通 .md，区别只在 `updatedBy: 'human'`。
+ *
+ * 故意**先落盘、再接管**：这样走的是 `openDoc` 的"接管既有文档"分支，baseline 保持 `null`。
+ * baseline 的语义是"模型上次写入的版本"——模型还没写过就不该编造一个；
+ * 若这里直接 `openDoc({created})`，baseline 会被写成 `by: 'human'`，模型下一次 read 会看到
+ * "你上次写入（by human）"这种自相矛盾的话。
+ */
+export function createDoc({ cwd, title = '未命名' }) {
+  ensureFishpaiLayout(cwd)
+  const clean = String(title || '').trim() || '未命名'
+  const markdown = `# ${clean}\n`
+  const abs = defaultDocPath(cwd, markdown)
+  fs.writeFileSync(abs, markdown, 'utf8')
+  const opened = openDoc({ cwd, docPath: abs, by: 'human' })
+  return { ...opened, markdown }
+}
+
 export function setActive(cwd, sessionId, key) {
   const idx = readIndex(cwd)
   idx.active[String(sessionId)] = key

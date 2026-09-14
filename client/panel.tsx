@@ -7,6 +7,7 @@
 import * as React from 'react'
 import { useSyncExternalStore } from 'react'
 import { buildSrcdoc, type FishpaiStore } from './store'
+import { COPY_HINT, MOD_KEY } from './keys'
 import type { Block, DocMeta, Note, Placeholder } from './api'
 
 type ViewMode = 'edit' | 'preview' | 'side'
@@ -294,21 +295,84 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
     if (added) setNoteDraft('')
   }
 
+  // ── 没有文档时的三种"空白页" ────────────────────────────────
+  // 一块空白面板最忌讳只有一行小字飘在中间：既看不出这是什么，也看不到下一步能做什么。
+  // 所以三种状态共用一张卡片：品牌行（这是什么）+ 一句话（现在什么情况）+ 真能点的动作。
   if (state.status === 'loading') {
     return (
       <div className="fp-root" ref={rootRef}>
-        <div className="fp-empty">正在打开鱼排…</div>
+        <div className="fp-blank">
+          <div className="fp-blank-card">
+            <div className="fp-blank-mark">
+              <span className="fp-blank-glyph">鱼</span>
+              <span>鱼排编辑器</span>
+            </div>
+            <div className="fp-blank-line fp-muted">正在打开文档…</div>
+            <div className="fp-loading-bar" />
+          </div>
+        </div>
       </div>
     )
   }
 
-  if (state.status === 'empty') {
+  if (state.status === 'error' && !state.docKey) {
     return (
       <div className="fp-root" ref={rootRef}>
-        <div className="fp-empty">
-          当前会话还没有鱼排文档。
-          <br />
-          让模型调用 <code>fishpai_open</code>（可以直接给一篇 Markdown），这里就会出现编辑与预览。
+        <div className="fp-blank">
+          <div className="fp-blank-card">
+            <div className="fp-blank-mark">
+              <span className="fp-blank-glyph">鱼</span>
+              <span>鱼排编辑器</span>
+            </div>
+            <div className="fp-blank-line">面板没能载入：{state.error}</div>
+            <div className="fp-blank-actions">
+              <Btn primary onClick={() => void store.actions.init()}>
+                重试
+              </Btn>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (state.status === 'empty' || !state.docKey) {
+    return (
+      <div className="fp-root" ref={rootRef}>
+        <div className="fp-blank">
+          <div className="fp-blank-card">
+            <div className="fp-blank-mark">
+              <span className="fp-blank-glyph">鱼</span>
+              <span>鱼排编辑器</span>
+            </div>
+            <div className="fp-blank-line fp-muted">
+              这个会话还没有鱼排文档。可以让模型调用 <code>fishpai_open</code> 打开一篇 Markdown，
+              也可以自己先起一篇：
+            </div>
+            <div className="fp-blank-actions">
+              <Btn primary onClick={() => void store.actions.createDoc()}>
+                新建空白文档
+              </Btn>
+            </div>
+            {state.docs.length ? (
+              <div className="fp-doclist">
+                <div className="fp-doclist-head">最近打开</div>
+                {state.docs.slice(0, 6).map((d) => (
+                  <button
+                    key={d.key}
+                    type="button"
+                    className="fp-docrow"
+                    title={d.path}
+                    onClick={() => void store.actions.openDocByKey(d.key)}
+                  >
+                    <span className="fp-docrow-title">{d.title || '未命名'}</span>
+                    <span className="fp-spacer" />
+                    <span className="fp-muted">{fmtTime(d.updatedAt)}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     )
@@ -348,7 +412,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
           <Btn primary title="下载「复制到公众号」形态的自包含 HTML 文件（本地图片已内嵌 base64）" onClick={() => void onExport()}>
             导出 HTML
           </Btn>
-          <Btn primary title="复制后直接粘进公众号编辑器（⌘⇧C）" onClick={() => void onCopy()}>
+          <Btn primary title={`复制后直接粘进公众号编辑器（${COPY_HINT}）`} onClick={() => void onCopy()}>
             复制到公众号
           </Btn>
         </div>
@@ -731,7 +795,7 @@ function Drawer(props: {
                 }}
               />
               <div className="fp-row">
-                <span className="fp-muted">⌘/Ctrl + Enter 添加</span>
+                <span className="fp-muted">{MOD_KEY} + Enter 添加</span>
                 <span className="fp-spacer" />
                 <Btn primary disabled={!props.noteDraft.trim()} onClick={props.onAddNote}>
                   添加批注

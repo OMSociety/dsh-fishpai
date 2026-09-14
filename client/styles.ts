@@ -113,6 +113,48 @@ export const CSS = `
 /* 失败提示要一眼分得出来：成功与失败的文案不同、停留时间也不同（5s / 2.6s），
    再给一层颜色，用户才不会把"复制失败"看成"已复制" */
 .fp-toast[data-kind="error"]{border-color:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary)}
+
+/* 没有文档时的空白页：一张居中的卡片。空面板只有一行小字飘在中间，既看不出是什么、
+   也看不出下一步能做什么——所以三种状态（载入中 / 载入失败 / 还没有文档）共用这张卡。 */
+.fp-blank{flex:1 1 auto;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:16px}
+.fp-blank-card{
+  width:100%;max-width:400px;display:flex;flex-direction:column;gap:10px;
+  padding:14px 16px;border-radius:10px;
+  border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);
+}
+.fp-blank-mark{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dsw-alias-label-primary)}
+.fp-blank-glyph{
+  width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);
+}
+.fp-blank-line{font-size:12px;line-height:1.7;color:var(--dsw-alias-label-primary)}
+.fp-blank-line code{
+  font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Consolas,monospace);
+  background:var(--dsw-alias-bg-layer-1);border-radius:4px;padding:0 4px;
+}
+.fp-blank-actions{display:flex;gap:6px;align-items:center}
+.fp-loading-bar{
+  height:2px;border-radius:2px;overflow:hidden;background:var(--dsw-alias-bg-layer-1);position:relative;
+}
+.fp-loading-bar::after{
+  content:"";position:absolute;top:0;bottom:0;width:40%;border-radius:2px;
+  background:var(--dsw-alias-label-secondary);opacity:.5;
+  animation:fp-sweep 1.2s ease-in-out infinite;
+}
+@keyframes fp-sweep{
+  0%{left:-40%}
+  100%{left:100%}
+}
+.fp-doclist{display:flex;flex-direction:column;gap:1px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px}
+.fp-doclist-head{font-size:11px;color:var(--dsw-alias-label-secondary);padding:0 6px 2px}
+.fp-docrow{
+  display:flex;align-items:baseline;gap:8px;width:100%;text-align:left;font:inherit;cursor:pointer;
+  padding:4px 6px;border-radius:6px;border:1px solid transparent;background:transparent;
+  color:var(--dsw-alias-label-primary);
+}
+.fp-docrow:hover{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l2)}
+.fp-docrow-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fp-docrow .fp-spacer{flex:1 1 auto}
 .fp-root{position:relative}
 .fp-muted{color:var(--dsw-alias-label-secondary)}
 .fp-warn{color:var(--dsw-alias-state-warn-primary)}
