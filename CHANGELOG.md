@@ -3,7 +3,19 @@
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [0.1.0] - 未发布
+## [未发布]
+
+### Added
+
+- 面板的空白状态（没有文档时）改成一张能用的卡片：品牌行 + 一句说明 + 真能点的动作。
+  载入中是走马灯；载入失败写明原因并可「重试」；还没有文档时可以「新建空白文档」，
+  也可以从「最近打开」里点开这个工作目录里已有的鱼排文档。
+  宿主配套新增 `POST /fishpai/api/doc`（新建，`baseline` 保持 `null`）与
+  `POST /fishpai/api/active`（切换当前文档）。
+- 快捷键提示分系统显示：Mac 显示 `⌘` / `⌘⇧C`，其它平台显示 `Ctrl` / `Ctrl+Shift+C`。
+  键盘处理一直同时接受 meta 与 ctrl，提示只是文案。
+
+## [0.1.0] - 2026-09-15
 
 首个版本。fork 自 [mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT），重构为 DSH 插件。
 
