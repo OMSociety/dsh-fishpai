@@ -185,6 +185,7 @@ npx tsx src/index.ts <导出的 article.html> --json    # isValid: true 即通�
 
 ## 🤝 支持
 
+- 效果图怎么来的：把 docs/promo-fishpai.md 按「复制到公众号」的形态渲染后截图（与面板同一个渲染路径）
 - 遇到问题或有排版需求：开 [Issue](https://github.com/OMSociety/dsh-fishpai/issues)，附上主题名与出问题的 Markdown 片段最有效
 - 想改主题或加一套自己的：主题定义集中在 `plugin/vendor/themes.js`，加完跑 `node scripts/regen-golden.mjs` 重生成 golden
 
