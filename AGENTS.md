@@ -24,6 +24,15 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
 6. **样式只用 `--dsw-alias-*` 主题变量**；旧名（`--dsw-text-secondary` 一类）在新版 DSH 里一个都不存在。
 7. **文件只能落在会话工作目录内**（`header.cwd`），并过扩展名白名单；不做任意路径读写。
 8. **绝不静默覆盖人的手改**：任何写入都要带 `base_revision`，不匹配就拒绝并回带最新 diff。
+9. **`package.json` 的 `dsh.client.inject` 是「包依赖边」，不是服务依赖**。它声明的是
+   "这一行的 factory 到位前必须先到位的**包**"（DSH `dsh-client-modules` 的 `WebBootEntry`：
+   "names package rows whose factories must arrive before this row materializes"），
+   名字对不上任何包行时被**静默忽略**。本包客户端只 `require('react')` / `react/jsx-runtime`
+   （两者都是 shell 的基线模块），所以这个字段留空；**服务依赖由 bundle 导出的 `inject` 决定**，
+   把 `slots` / `sessions` 这类服务名写进去是无效声明。`test/client.bundle.test.mjs` 有守卫。
+10. **块 id 一律来自 `splitBlocks`**（`plugin/host/routes.mjs` 的 `liveSurface`）：批注锚点与
+    `fishpai_write` 的 `block_id` 用的就是它。渲染器自己的 blocks 只服务于 HTML 里的
+    `<fp-block data-b>` 锚点，随 `macCodeBlock` 等渲染选项变化，**不能**当成面板的块清单。
 
 ## 命令
 
