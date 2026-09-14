@@ -279,6 +279,28 @@ export function registerTools(ctx, deps) {
         const current = readText(abs)
         const mode = String(args.mode)
 
+        // 先卡版本再看内容：版本不对时，块 id 也可能已经失效（人改了正文），
+        // 那种情况下报"找不到块"会误导模型，报"版本不匹配，请重新 read"才准确。
+        if (Number(args.base_revision) !== state.revision) {
+          const diff = diffBlocks(store.baselineContent(cwd, state), current)
+          const lines = [
+            `写入被拒绝：base_revision=${args.base_revision} 但当前是 ${state.revision}——文档在你 read 之后被改过。`,
+            '请重新 fishpai_read 拿到最新内容与块 id，再用新的 base_revision 提交，不要凭旧内容覆盖。',
+          ]
+          if (diff.entries.length) {
+            lines.push('自你上次写入以来，文档里发生的改动：')
+            for (const e of diff.entries.slice(0, 10)) {
+              if (e.status === 'rewritten') {
+                lines.push(`[整篇重写] ${e.summary}`)
+                continue
+              }
+              const where = e.blockId ? `块 ${e.blockId}` : '文档'
+              lines.push(`[${e.status}] ${where}${e.after !== undefined ? `：${clip(e.after, 200)}` : ''}`)
+            }
+          }
+          return err(lines.join('\n'))
+        }
+
         let next = current
         let applied = []
         let patchErrors = []

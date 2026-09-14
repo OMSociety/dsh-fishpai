@@ -184,11 +184,16 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
   }
 
   // ── 保存 ───────────────────────────────────────────────────
+  // 串行化：并发保存会拿着同一个 baseRevision 撞出 409，在界面上表现为"莫名冲突"。
+  let saveInFlight = false
+
   async function saveNow() {
     if (!state.docKey || !state.dirty) return
     // 冲突未决之前不再重试：否则用户每打一个字都会再撞一次 409
     if (state.conflict) return
+    if (saveInFlight) return // 在飞的那次结束后会因 dirty 自动再排一次
     const snapshotMarkdown = state.markdown
+    saveInFlight = true
     patch({ saving: true })
     try {
       const res = await api.save(state.sessionId, state.docKey, snapshotMarkdown, state.revision, state.meta)
@@ -200,14 +205,16 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         conflict: null,
         external: null,
       })
-      if (state.markdown !== snapshotMarkdown) scheduleSave()
     } catch (error) {
       if (error instanceof ConflictError) {
         patch({ saving: false, conflict: { revision: error.revision, markdown: error.markdown } })
         return
       }
       patch({ saving: false, error: `保存失败：${(error as Error).message}` })
+    } finally {
+      saveInFlight = false
     }
+    if (state.dirty && !state.conflict) scheduleSave()
   }
 
   const scheduleSave = () => {

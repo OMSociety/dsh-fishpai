@@ -418,6 +418,8 @@ test('端到端：write 用过期 revision 会被拒绝，并回带最新差异'
   const stale = await byName('fishpai_write').execute({ base_revision: 1, mode: 'replace', markdown: 'AI 的整篇新稿' }, exec)
   assert.equal(stale.isError, true)
   assert.match(stale.text, /写入被拒绝/)
+  assert.match(stale.text, /自你上次写入以来/, '被拒时应当回带"人改了什么"，而不是只说版本不对')
+  assert.match(stale.text, /人又加了一段/)
   assert.match(fs.readFileSync(docPath, 'utf8'), /人又加了一段/)
 })
 
