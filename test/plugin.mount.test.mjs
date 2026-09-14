@@ -44,9 +44,15 @@ function makeApp(cwd) {
   })
   app.provide('skills', {
     register(definition) {
-      skills.push(definition)
+      // 照真注册器的默认值补 invocation / provider（source 不补——那正是那个坑）
+      const stored = {
+        ...definition,
+        invocation: definition.invocation ?? { modelInvocable: true, userInvocable: true },
+        provider: definition.provider ?? 'runtime',
+      }
+      skills.push(stored)
       return () => {
-        const i = skills.indexOf(definition)
+        const i = skills.indexOf(stored)
         if (i >= 0) skills.splice(i, 1)
       }
     },
@@ -58,7 +64,6 @@ function makeApp(cwd) {
 const flush = async (times = 8) => {
   for (let i = 0; i < times; i++) await new Promise((resolve) => setTimeout(resolve, 0))
 }
-
 test('宿主插件能在真实 Cordis 里挂载，并注册四个工具、一条路由、一个技能', async () => {
   const fs = await import('node:fs')
   const os = await import('node:os')
@@ -82,6 +87,14 @@ test('宿主插件能在真实 Cordis 里挂载，并注册四个工具、一条
   assert.equal(skills[0].name, 'fishpai')
   assert.match(skills[0].description, /公众号/)
   assert.equal(skills[0].resourceBase.kind, 'directory')
+  // runtime 技能被 load 时会走 validateDefinition：source / provider / content 必须是字符串。
+  // 只给 name/description/content 时，技能在目录里看得见、一加载就报
+  // "loaded skill ... source must be a string"（注册器只补 provider，不补 source）。
+  assert.equal(typeof skills[0].source, 'string', 'source 必须显式给')
+  assert.equal(skills[0].source, 'bundled')
+  assert.equal(typeof skills[0].provider, 'string')
+  assert.equal(typeof skills[0].content, 'string')
+  assert.ok(skills[0].content.length > 100, '技能正文不能为空')
 
   // 真库这一侧：工具能跑通"新建 → 读"
   const open = registeredTools.find((t) => t.name === 'fishpai_open')
@@ -123,9 +136,15 @@ test('缺少 webServer 时照样挂载（工具与技能仍然可用）', async 
   const skills = []
   app.provide('skills', {
     register(definition) {
-      skills.push(definition)
+      // 照真注册器的默认值补 invocation / provider（source 不补——那正是那个坑）
+      const stored = {
+        ...definition,
+        invocation: definition.invocation ?? { modelInvocable: true, userInvocable: true },
+        provider: definition.provider ?? 'runtime',
+      }
+      skills.push(stored)
       return () => {
-        const i = skills.indexOf(definition)
+        const i = skills.indexOf(stored)
         if (i >= 0) skills.splice(i, 1)
       }
     },

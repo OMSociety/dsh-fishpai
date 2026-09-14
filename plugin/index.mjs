@@ -61,6 +61,11 @@ function registerSkill(ctx, log) {
       name: frontmatter.name || 'fishpai',
       description: frontmatter.description || '公众号排版（鱼排）',
       content: body.trim(),
+      // ⚠️ `source` **必须给**：runtime 技能的 register() 只校验 name/description，
+      // 但技能被 load 时会走 validateDefinition，那里要求 source / provider 都是字符串
+      // （provider 由注册器补默认值，source 不会）。漏了它，技能在目录里看得见、一加载就报
+      // "loaded skill ... source must be a string"。
+      source: 'bundled',
       resourceBase: { kind: 'directory', path: SKILL_DIR },
     })
     return typeof off === 'function' ? off : () => {}

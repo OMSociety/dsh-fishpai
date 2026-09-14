@@ -89,7 +89,7 @@ export function apply(ctx: any): void {
   }
 
   function Title() {
-    return React.createElement('span', { className: 'fp-title-label' }, '鱼排')
+    return React.createElement('span', { className: 'fp-title-label' }, '鱼排编辑器')
   }
 
   // ── 打开面板（两条通道共用）─────────────────────────────────
@@ -134,11 +134,11 @@ export function apply(ctx: any): void {
           id: TAB_ID,
           kind: TAB_KIND,
           priority: 'extension',
-          title: () => '鱼排',
+          title: () => '鱼排编辑器',
           guide: [
             {
               order: 45,
-              title: () => '鱼排排版台',
+              title: () => '鱼排编辑器',
               description: () => '公众号排版：Markdown + 实时预览 + 与模型来回改稿',
             },
           ],
@@ -203,7 +203,7 @@ export function apply(ctx: any): void {
       if (!bs || typeof bs.registerTab !== 'function') return
       const off = bs.registerTab({
         id: FALLBACK_TAB_ID,
-        title: () => '鱼排',
+        title: () => '鱼排编辑器',
         order: 40,
         single: true,
         component: (props: any) => React.createElement(PanelHost, props),

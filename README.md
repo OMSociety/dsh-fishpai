@@ -90,7 +90,7 @@ dsh plugin --profile web add github:OMSociety/dsh-fishpai#v0.1.0
 # 再启动 dsh web
 ```
 
-装好后右侧栏会多出「鱼排」入口（官方右侧栏的 + 菜单或引导页里也能找到它）。
+装好后右侧栏会多出「鱼排编辑器」入口（官方右侧栏的 + 菜单或引导页里也能找到它）。
 本插件零运行时依赖，不受 `minimumReleaseAge` 影响。
 
 ### 装完怎么验（人工 E2E 清单）

@@ -250,7 +250,7 @@ test('官方席位：注册 tab 类型与两个槽位，openRequest 到达时自
   assert.equal(tab.id, 'dsh-fishpai')
   assert.equal(tab.kind, 'fishpai')
   assert.equal(tab.priority, 'extension')
-  assert.equal(tab.title(), '鱼排')
+  assert.equal(tab.title(), '鱼排编辑器')
   assert.equal(tab.guide.length, 1)
   assert.match(tab.guide[0].title(), /鱼排/)
 
