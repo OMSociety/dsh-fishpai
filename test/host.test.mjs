@@ -522,3 +522,100 @@ test('工具在没有会话工作目录时给出可读错误而不是抛异常',
   assert.equal(result.isError, true)
   assert.match(result.text, /没有工作目录/)
 })
+
+test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在（跨边界对账）', async () => {
+  const cwd = tmpWorkspace()
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const session = 's1'
+
+  // tools 先建文档（模型侧入口）
+  const { tools, exec } = fakeHost(cwd)
+  const opened = await tools.find((t) => t.name === 'fishpai_open').execute({ markdown: ARTICLE, theme: 'sspai' }, exec)
+  const docKey = opened.doc_key
+
+  // 1) GET /themes —— 面板工具栏
+  const themes = await callRoute(handler, { method: 'GET', url: '/fishpai/api/themes' })
+  assert.equal(themes.status, 200)
+  assert.equal(themes.json.themes.length, 13)
+  assert.equal(themes.json.presets.length, 12)
+  assert.ok(themes.json.sizes.includes('17px'))
+
+  // 2) GET /state —— 轮询
+  const state = await callRoute(handler, { method: 'GET', url: `/fishpai/api/state?sessionId=${session}` })
+  assert.equal(state.status, 200)
+  assert.equal(state.json.active.key, docKey)
+  assert.equal(state.json.active.revision, 1)
+  assert.ok(state.json.openRequest, 'fishpai_open 之后应当有待处理的打开请求')
+  assert.ok(Array.isArray(state.json.docs))
+
+  // 3) POST /tab-opened —— 面板弹出后清请求
+  const tabOpened = await callRoute(handler, { method: 'POST', url: '/fishpai/api/tab-opened', body: { sessionId: session, docKey } })
+  assert.equal(tabOpened.status, 200)
+  const state2 = await callRoute(handler, { method: 'GET', url: `/fishpai/api/state?sessionId=${session}` })
+  assert.equal(state2.json.openRequest, null)
+
+  // 4) GET /doc —— 面板初始化
+  const doc = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=${session}&docKey=${docKey}` })
+  assert.equal(doc.status, 200)
+  for (const field of ['doc', 'meta', 'blocks', 'notes', 'placeholders', 'images', 'history', 'docs', 'active']) {
+    assert.ok(field in doc.json, `GET /doc 应当返回 ${field}`)
+  }
+  assert.equal(doc.json.meta.theme, 'sspai', 'fishpai_open 传的主题要落到状态里')
+  for (const field of ['key', 'path', 'title', 'markdown', 'revision', 'updatedAt', 'updatedBy', 'baseline']) {
+    assert.ok(field in doc.json.doc, `doc.${field} 缺失`)
+  }
+  assert.ok(doc.json.blocks.every((b) => typeof b.preview === 'string' && typeof b.id === 'string' && typeof b.startLine === 'number'))
+
+  // 5) PUT /doc —— 自动保存（带 meta）
+  const saved = await callRoute(handler, {
+    method: 'PUT',
+    url: '/fishpai/api/doc',
+    body: { sessionId: session, docKey, markdown: `${ARTICLE}\n新增一段。\n`, baseRevision: 1, meta: { fontSize: '17px' } },
+  })
+  assert.equal(saved.status, 200)
+  assert.equal(saved.json.revision, 2)
+
+  // 6) POST /render preview + publish —— 预览与复制
+  const preview = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: session, docKey, markdown: `${ARTICLE}\n新增一段。\n`, meta: { theme: 'sspai' }, mode: 'preview' } })
+  assert.equal(preview.status, 200)
+  assert.ok(Array.isArray(preview.json.blocks))
+  assert.match(preview.json.html, /<fp-block data-b="/)
+  const publish = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: session, docKey, markdown: `${ARTICLE}\n新增一段。\n`, mode: 'publish' } })
+  assert.equal(publish.status, 200)
+  assert.equal(typeof publish.json.html, 'string')
+
+  // 7) POST /notes add / update / remove
+  const blockId = doc.json.blocks[1].id
+  const added = await callRoute(handler, { method: 'POST', url: '/fishpai/api/notes', body: { sessionId: session, docKey, action: 'add', note: { blockId, text: '这里加个二维码' } } })
+  assert.equal(added.status, 200)
+  const note = added.json.notes.find((n) => n.text === '这里加个二维码')
+  assert.ok(note.id)
+  assert.ok(note.quote, '引用片段应由宿主按当前正文补全')
+  assert.equal(typeof note.blockIndex, 'number')
+  const resolved = await callRoute(handler, { method: 'POST', url: '/fishpai/api/notes', body: { sessionId: session, docKey, action: 'update', id: note.id, patch: { resolved: true } } })
+  assert.equal(resolved.status, 200)
+  assert.equal(resolved.json.notes.find((n) => n.id === note.id).resolved, true)
+  const removed = await callRoute(handler, { method: 'POST', url: '/fishpai/api/notes', body: { sessionId: session, docKey, action: 'remove', id: note.id } })
+  assert.equal(removed.status, 200)
+  assert.equal(removed.json.notes.length, 0)
+
+  // 8) POST /meta —— 样式开关
+  const meta = await callRoute(handler, { method: 'POST', url: '/fishpai/api/meta', body: { sessionId: session, docKey, meta: { mobile: true, color: '#10b981' } } })
+  assert.equal(meta.status, 200)
+  const after = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=${session}&docKey=${docKey}` })
+  assert.equal(after.json.meta.mobile, true)
+  assert.equal(after.json.meta.color, '#10b981')
+
+  // 9) POST /history list / stash / restore
+  const listed = await callRoute(handler, { method: 'POST', url: '/fishpai/api/history', body: { sessionId: session, docKey, action: 'list' } })
+  assert.equal(listed.status, 200)
+  assert.ok(listed.json.history.every((h) => typeof h.id === 'string'))
+  const stashed = await callRoute(handler, { method: 'POST', url: '/fishpai/api/history', body: { sessionId: session, docKey, action: 'stash', markdown: '草稿' } })
+  assert.equal(stashed.status, 200)
+  const restored = await callRoute(handler, { method: 'POST', url: '/fishpai/api/history', body: { sessionId: session, docKey, action: 'restore', id: stashed.json.entry.id } })
+  assert.equal(restored.status, 200)
+
+  // 10) GET /asset —— 本地图片（这里没有图片，只验证路由存在且不 500）
+  const asset = await callRoute(handler, { method: 'GET', url: `/fishpai/api/asset?sessionId=${session}&docKey=${docKey}&src=nope.png` })
+  assert.equal(asset.status, 404)
+})

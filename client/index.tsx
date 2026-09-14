@@ -77,6 +77,9 @@ export function apply(ctx: any): void {
 
   /** 面板组件：per-session 取同一个 store，保证开关面板不丢编辑状态。 */
   function PanelHost(props: any) {
+    // 优先用槽位给的 sessionId。拿不到时退回"界面上当前选中的会话"：这不只是兜底——
+    // 右侧栏本身就是 per-session 的（rightbar.session 按当前会话挂载），
+    // 所以"当前会话"与"这个面板所属会话"在实际产品里是同一个。
     const sessionId = props?.sessionId || currentSessionId(ctx)
     const store = React.useMemo(() => (sessionId ? storeFor(sessionId) : null), [sessionId])
     if (!sessionId || !store) {

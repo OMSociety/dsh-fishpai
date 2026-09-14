@@ -2,10 +2,13 @@
  * `/fishpai/api/*` HTTP 路由：浏览器侧唯一的读写入口。
  *
  * 安全边界（这是浏览器与文件系统之间唯一的一道门）：
- *   1. **同源校验**：`sec-fetch-site: cross-site` 直接拒；带 `Origin` 时必须与请求 Host 一致。
- *      写方法额外要求 `content-type: application/json`——跨站的简单请求会在浏览器侧先被拦下。
+ *   1. **同源校验**：`sec-fetch-site: cross-site` 直接拒；`Origin` 缺失视为同源，
+ *      但 `Origin: null`（沙箱 iframe / `data:` 文档）一律拒。写方法额外要求
+ *      `content-type: application/json`——跨站的简单请求会在浏览器侧先被拦下。
  *   2. **只认 docKey，不认路径**：客户端传索引里的键，宿主自己查出绝对路径，
  *      再用 `resolveInCwd` 复检（挡 `../`、挡符号链接逃逸、挡非白名单扩展名）。
+ *      docKey 必须存在于**该 sessionId 工作目录**的索引里，所以跨会话读要先知道对方的
+ *      sessionId **与** docKey；本机单用户场景下这条不是授权边界，同源校验才是。
  *   3. **revision 守卫**：写入必须带 `baseRevision`，不匹配返回 409 并回带服务端最新文本，
  *      绝不静默覆盖人的手改。
  */
