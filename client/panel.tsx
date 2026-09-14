@@ -30,6 +30,39 @@ function fmtTime(at: number): string {
   return `${d.getMonth() + 1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+/** 块的类型标签：编辑器头与「块」页签共用，不把 markdown-it 的英文 token 名丢给用户看。 */
+const KIND_LABEL: Record<string, string> = {
+  heading: '标题',
+  paragraph: '正文',
+  list: '列表',
+  blockquote: '引用',
+  table: '表格',
+  code: '代码块',
+  card: '信息卡片',
+  hr: '分隔线',
+  html: '原始 HTML',
+}
+
+function kindLabel(kind: string | null | undefined, fallback = '块'): string {
+  if (!kind) return fallback
+  return KIND_LABEL[kind] || kind
+}
+
+/**
+ * 两个"开关到底有没有用"的判断（只用来把无效控件置灰并说明原因）。
+ *
+ * 都是启发式：只在 markdown 里扫一眼，判错也只是提示不准，不影响功能。
+ * 外链要排掉图片语法（`![alt](url)` 不会转脚注），自动链接（裸 URL）也算。
+ */
+function hasExternalLinks(markdown: string): boolean {
+  if (/(?<!!)\[[^\]\n]*\]\(\s*(?:https?:)?\/\//.test(markdown)) return true
+  return /(^|[\s(])https?:\/\/\S+/.test(markdown)
+}
+
+function hasCodeBlocks(markdown: string): boolean {
+  return /^ {0,3}(?:```|~~~)/m.test(markdown)
+}
+
 // ── 剪贴板 ─────────────────────────────────────────────────────
 
 async function copyRich(html: string, plain: string): Promise<void> {
@@ -111,6 +144,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
   const editorRef = React.useRef<HTMLTextAreaElement | null>(null)
   const lastVisible = React.useRef<string | null>(null)
+  const noteInputRef = React.useRef<HTMLTextAreaElement | null>(null)
 
   React.useEffect(() => {
     void store.actions.init()
@@ -150,6 +184,10 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
   const showPreview = mode !== 'edit' || layout === 'side'
 
   const openNotes = state.notes.filter((n) => !n.resolved)
+  const currentTheme = state.themes.find((t) => t.key === state.meta.theme) || null
+  // 只用来把"点了没反应"的开关置灰并说明原因
+  const docHasLinks = hasExternalLinks(state.markdown)
+  const docHasCode = hasCodeBlocks(state.markdown)
 
   // ── 工具栏动作 ─────────────────────────────────────────────
   const onCopy = async () => {
@@ -219,14 +257,23 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
               并排
             </Btn>
           </div>
-          <Btn on={state.meta.mobile} onClick={() => store.actions.setMeta({ mobile: !state.meta.mobile })} title="按手机宽度预览（375px）">
+          <Btn
+            on={state.meta.mobile}
+            disabled={mode === 'edit'}
+            onClick={() => store.actions.setMeta({ mobile: !state.meta.mobile })}
+            title={
+              mode === 'edit'
+                ? '现在是「编辑」视图，看不到预览；切到「预览」或「并排」才看得出手机宽度的效果'
+                : '按手机宽度预览（375px）'
+            }
+          >
             手机
           </Btn>
           <span className="fp-spacer" />
-          <Btn title="重新载入文档" onClick={() => void store.actions.reload()}>
+          <Btn title="重新载入文档（有未保存的改动会先保存，不会丢字）" onClick={() => void store.actions.reloadSafely()}>
             刷新
           </Btn>
-          <Btn title="导出「复制到公众号」形态的 HTML 文件" onClick={() => void onExport()}>
+          <Btn primary title="下载「复制到公众号」形态的自包含 HTML 文件（本地图片已内嵌 base64）" onClick={() => void onExport()}>
             导出
           </Btn>
           <Btn primary title="复制后直接粘进公众号编辑器（⌘⇧C）" onClick={() => void onCopy()}>
@@ -238,36 +285,52 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
           <select
             className="fp-select"
             value={state.meta.theme}
-            title="主题"
+            title="主题：默认公众号是给微信做的；其它风格更适合导出 HTML"
             onChange={(e) => void store.actions.setMeta({ theme: e.target.value })}
           >
-            {state.themes.map((t) => (
-              <option key={t.key} value={t.key}>
-                {t.emoji} {t.name}
-              </option>
-            ))}
+            <optgroup label="适合公众号">
+              {state.themes
+                .filter((t) => t.wechatSafe)
+                .map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.emoji} {t.name}
+                  </option>
+                ))}
+            </optgroup>
+            <optgroup label="其它风格（微信可能掉样式）">
+              {state.themes
+                .filter((t) => !t.wechatSafe)
+                .map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.emoji} {t.name}
+                  </option>
+                ))}
+            </optgroup>
           </select>
 
-          <div className="fp-swatches" title="主题色">
-            {state.presets.map((p) => (
-              <button
-                key={p.color}
-                type="button"
-                className="fp-swatch"
-                style={{ background: p.color }}
-                data-on={state.meta.color === p.color ? 'true' : undefined}
-                title={`${p.name} ${p.color}`}
-                onClick={() => void store.actions.setMeta({ color: state.meta.color === p.color ? null : p.color })}
+          {/* 主题色只对用 {{PRIMARY}} 的主题有效（当前只有「默认公众号」）。用不上就不显示，别放个点了没反应的控件。 */}
+          {currentTheme?.usesAccent ? (
+            <div className="fp-swatches" title="主题色">
+              {state.presets.map((p) => (
+                <button
+                  key={p.color}
+                  type="button"
+                  className="fp-swatch"
+                  style={{ background: p.color }}
+                  data-on={state.meta.color === p.color ? 'true' : undefined}
+                  title={`${p.name} ${p.color}`}
+                  onClick={() => void store.actions.setMeta({ color: state.meta.color === p.color ? null : p.color })}
+                />
+              ))}
+              <input
+                className="fp-color"
+                type="color"
+                title="自定义主题色"
+                value={state.meta.color || '#4f6ef7'}
+                onChange={(e) => void store.actions.setMeta({ color: e.target.value })}
               />
-            ))}
-            <input
-              className="fp-color"
-              type="color"
-              title="自定义主题色"
-              value={state.meta.color || '#4f6ef7'}
-              onChange={(e) => void store.actions.setMeta({ color: e.target.value })}
-            />
-          </div>
+            </div>
+          ) : null}
 
           <select
             className="fp-select"
@@ -284,23 +347,34 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
 
           <Btn
             on={state.meta.footnotes}
-            title="正文外链转文末「参考资料」（微信正文不支持外链）"
+            disabled={!docHasLinks}
+            title={
+              docHasLinks
+                ? '正文外链转文末「参考资料」（微信正文不支持外链）'
+                : '正文里没有外链，这个开关现在不影响效果；它的作用是：把正文外链转成文末「参考资料」（微信正文不支持外链）'
+            }
             onClick={() => void store.actions.setMeta({ footnotes: !state.meta.footnotes })}
           >
             脚注
           </Btn>
           <Btn
             on={state.meta.macCodeBlock}
-            title="代码块用 mac 标题栏形态"
+            disabled={!docHasCode}
+            title={
+              docHasCode
+                ? '代码块用 mac 标题栏形态（红黄绿圆点 + 语言标签）'
+                : '正文里没有代码块，这个开关现在不影响效果；它的作用是：给代码块加 mac 标题栏形态'
+            }
             onClick={() => void store.actions.setMeta({ macCodeBlock: !state.meta.macCodeBlock })}
           >
-            代码框
+            Mac 代码框
           </Btn>
           <Btn
-            title="给光标所在段落留一条批注，模型下次读文档就能看到"
+            title="在下方「批注」里写一句给模型的话（会挂在光标所在段落上）"
             onClick={() => {
               setTab('notes')
-              setNoteDraft('')
+              // 不清空已有草稿，直接聚焦输入框——点了就能打字
+              requestAnimationFrame(() => noteInputRef.current?.focus())
             }}
           >
             ＋批注
@@ -308,11 +382,22 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
         </div>
       </div>
 
+      {currentTheme && !currentTheme.wechatSafe ? (
+        <div className="fp-banner" data-kind="warn">
+          <span>
+            {currentTheme.gradientText
+              ? `「${currentTheme.name}」用渐变文字（background-clip: text + 透明字色），微信编辑器可能丢掉渐变导致标题异常。`
+              : `「${currentTheme.name}」是深色底，粘进公众号会是一整块深色。`}
+            建议用「导出」拿 HTML，或换回「默认公众号」。
+          </span>
+        </div>
+      ) : null}
+
       {state.error ? (
         <div className="fp-banner" data-kind="error">
           <span>{state.error}</span>
           <span className="fp-spacer" />
-          <Btn onClick={() => void store.actions.reload()}>重试</Btn>
+          <Btn onClick={() => void store.actions.reloadSafely()}>重试</Btn>
         </div>
       ) : null}
 
@@ -377,10 +462,12 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
         history={state.history}
         noteDraft={noteDraft}
         setNoteDraft={setNoteDraft}
+        noteInputRef={noteInputRef}
         onAddNote={() => void onAddNote()}
         onResolve={(id) => void store.actions.updateNote(id, { resolved: true })}
         onRemove={(id) => void store.actions.removeNote(id)}
-        onJump={(line) => {          const el = editorRef.current
+        onJump={(line) => {
+          const el = editorRef.current
           if (!el) return
           const lines = state.markdown.split('\n')
           const offset = lines.slice(0, line - 1).reduce((acc, l) => acc + l.length + 1, 0)
@@ -401,7 +488,10 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
         <span className="fp-spacer" />
         {state.placeholders.length ? <span className="fp-warn">待补 {state.placeholders.length}</span> : null}
         {openNotes.length ? <span>批注 {openNotes.length}</span> : null}
-        <span className="fp-muted">{state.themeName}</span>
+        <span className="fp-muted" title={currentTheme ? currentTheme.desc : undefined}>
+          {state.themeName}
+          {currentTheme ? ` · ${currentTheme.wechatSafe ? '适合微信' : '导出 HTML 更稳'}` : ''}
+        </span>
       </div>
 
       {state.toast ? <div className="fp-toast">{state.toast.text}</div> : null}
@@ -430,7 +520,7 @@ function Editor(props: {
         <span>Markdown 源码</span>
         <span className="fp-spacer" />
         <span className="fp-muted">
-          {props.currentBlock ? `${props.currentBlock.kind} · 第 ${props.currentBlock.startLine} 行` : '未在块内'}
+          {props.currentBlock ? `${kindLabel(props.currentBlock.kind)} · 第 ${props.currentBlock.startLine} 行` : '未在块内'}
         </span>
       </div>
       <textarea
@@ -522,6 +612,7 @@ function Drawer(props: {
   history: Array<{ id: string; rev: number; at: number; by: string; chars: number; label: string | null }>
   noteDraft: string
   setNoteDraft: (v: string) => void
+  noteInputRef: React.RefObject<HTMLTextAreaElement>
   onAddNote: () => void
   onResolve: (id: string) => void
   onRemove: (id: string) => void
@@ -550,6 +641,7 @@ function Drawer(props: {
           <>
             <div className="fp-compose">
               <textarea
+                ref={props.noteInputRef}
                 placeholder="给光标所在段落留一条批注…（模型下次读文档时会看到）"
                 value={props.noteDraft}
                 onChange={(e) => props.setNoteDraft(e.target.value)}
@@ -608,9 +700,10 @@ function Drawer(props: {
         {props.tab === 'blocks' ? (
           props.blocks.map((b) => (
             <div className="fp-item" key={b.id}>
-              <div className="fp-item-head">
-                <span>{b.id}</span>
-                <span>{b.kind}</span>
+              {/* 块 id 是给模型用的哈希，人只需要知道"第几块、什么类型"；id 放 title 里供核对 */}
+              <div className="fp-item-head" title={`block_id: ${b.id}`}>
+                <span>第 {b.index + 1} 块</span>
+                <span>{kindLabel(b.kind)}</span>
                 <span>第 {b.startLine} 行</span>
                 <span className="fp-spacer" />
                 <Btn onClick={() => props.onJump(b.startLine)}>定位</Btn>

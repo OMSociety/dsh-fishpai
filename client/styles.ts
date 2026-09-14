@@ -28,6 +28,8 @@ export const CSS = `
   border-color:var(--dsw-alias-border-l2);
 }
 .fp-btn[disabled]{opacity:.5;cursor:default}
+/* 置灰的开关不该在悬停时又"亮"起来——那会让人以为还能点 */
+.fp-btn[disabled]:hover{color:var(--dsw-alias-label-secondary);background:transparent}
 .fp-btn-primary{
   color:var(--dsw-alias-label-primary-foreground);
   background:var(--dsw-alias-button-primary-fill);
@@ -100,6 +102,8 @@ export const CSS = `
   border:1px solid var(--dsw-alias-state-warn-primary);background:var(--dsw-alias-bg-layer-2);
 }
 .fp-banner[data-kind="error"]{border-color:var(--dsw-alias-state-error-primary)}
+/* 主题风险提示：与"有未保存改动""冲突"共用同一块区域，各自一行 */
+.fp-banner[data-kind="warn"]{border-color:var(--dsw-alias-state-warn-primary)}
 .fp-banner .fp-spacer{flex:1 1 auto}
 .fp-toast{
   position:absolute;left:8px;right:8px;bottom:34px;padding:5px 9px;border-radius:7px;font-size:11px;

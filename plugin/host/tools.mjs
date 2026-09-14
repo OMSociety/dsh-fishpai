@@ -119,7 +119,7 @@ export function registerTools(ctx, deps) {
       properties: {
         path: { type: 'string', description: '工作目录内的 .md 路径；省略则在 <工作目录>/.fishpai/docs/ 下按标题新建' },
         markdown: { type: 'string', description: '初始 Markdown。目标文件已存在时不会覆盖，只打开现状' },
-        theme: { type: 'string', description: '主题 key 或中文名，如 sspai / 少数派 / apple / Apple 极简；省略则 default' },
+        theme: { type: 'string', description: '主题 key 或中文名；省略则用 default（默认公众号，最适合粘进微信）。tech / gradient / dark_night 等风格更适合导出 HTML' },
       },
       required: [],
       additionalProperties: false,
@@ -366,7 +366,7 @@ export function registerTools(ctx, deps) {
   register({
     name: 'fishpai_render',
     description:
-      '把文档渲染成可直接粘贴进微信公众号编辑器的自包含 HTML 文件（内联样式、本地图片内嵌 base64），落在工作目录里。用于交付、预览或归档；日常发布仍由用户在侧栏点「复制到公众号」。',
+      '把文档渲染成可直接粘贴进微信公众号编辑器的自包含 HTML 文件（内联样式、本地图片内嵌 base64），落在工作目录里。用于交付、预览或归档；日常发布仍由用户在侧栏点「复制到公众号」或「导出」。',
     parameters: {
       type: 'object',
       properties: {

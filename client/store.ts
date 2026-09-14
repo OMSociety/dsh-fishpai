@@ -414,6 +414,27 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       if (state.docKey) await loadDoc(state.docKey)
     },
 
+    /**
+     * 「刷新」按钮走这条路：先落盘再重载。
+     * 直接 reload 会把用户还没保存的输入丢掉——这是那个按钮最容易咬人的地方。
+     */
+    async reloadSafely() {
+      if (!state.docKey) return
+      if (state.conflict) {
+        toast('先处理上方的冲突再刷新', 'error')
+        return
+      }
+      if (state.dirty) {
+        await saveNow()
+        if (state.dirty) {
+          toast('保存没成功，已取消刷新以免丢字', 'error')
+          return
+        }
+      }
+      await loadDoc(state.docKey)
+      toast('已重新载入')
+    },
+
     /** 采用外部版本（放弃自己的未保存改动）——换文档时切到新文档。 */
     async acceptExternal() {
       const target = state.external?.key || state.docKey

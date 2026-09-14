@@ -12,6 +12,7 @@
  */
 import { resolveTheme, themes, FONT_MAP, hljsMap, read } from './runtime.mjs'
 import { createMd, makeStyler, collectBlocks } from './markdown.mjs'
+import { classifyTheme } from './theme-info.mjs'
 
 // ── 1. 微信脚注：正文外链转上标 + 文末「参考资料」────────────────
 // 站点做法：把 <a> 换成 <span>，沿用该 <a> 已经拿到的主题链接样式（含 border-bottom），
@@ -348,7 +349,12 @@ export function render(markdownText, opts = {}) {
   return out
 }
 
-/** 主题清单（面板与技能共用）。 */
+/**
+ * 主题清单（面板、`GET /themes` 与技能共用）。
+ *
+ * 除名称之外还带上 `classifyTheme()` 算出来的能力标注：面板据此决定
+ * 「主题色该不该显示」「要不要提醒这个主题粘进微信有风险」。
+ */
 export function themeCatalog() {
   const THEMES = themes()
   return Object.entries(THEMES).map(([key, t]) => ({
@@ -356,6 +362,7 @@ export function themeCatalog() {
     name: t.name,
     emoji: t.emoji || '',
     desc: t.desc || '',
+    ...classifyTheme(t),
   }))
 }
 

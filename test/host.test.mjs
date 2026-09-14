@@ -539,6 +539,14 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   assert.equal(themes.json.themes.length, 13)
   assert.equal(themes.json.presets.length, 12)
   assert.ok(themes.json.sizes.includes('17px'))
+  // 每条都要带能力标注，否则面板没法判断"主题色该不该显示""要不要提醒微信风险"
+  for (const t of themes.json.themes) {
+    for (const flag of ['usesAccent', 'gradientText', 'darkWrapper', 'wechatSafe']) {
+      assert.equal(typeof t[flag], 'boolean', `${t.key} 缺少 ${flag}`)
+    }
+    assert.equal(t.wechatSafe, !t.gradientText && !t.darkWrapper)
+  }
+  assert.deepEqual(themes.json.themes.filter((t) => t.usesAccent).map((t) => t.key), ['default'])
 
   // 2) GET /state —— 轮询
   const state = await callRoute(handler, { method: 'GET', url: `/fishpai/api/state?sessionId=${session}` })

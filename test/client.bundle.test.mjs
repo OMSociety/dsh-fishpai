@@ -213,6 +213,18 @@ test('客户端 bundle 导出 name / inject / apply', () => {
   assert.equal(typeof exports.apply, 'function')
 })
 
+test('面板文案：改名与新增说明必须真的进产物（防"改了源码没重新构建"）', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  // 「导出」保持原名，但升级成主按钮；主题分组、风险提示、置灰说明都要在产物里
+  assert.ok(source.includes('"导出"'), '按钮文案应为「导出」')
+  assert.ok(!source.includes('"导出 HTML"'), '没有改成「导出 HTML」')
+  assert.ok(source.includes('适合公众号'), '主题分组标签')
+  assert.ok(source.includes('微信可能掉样式'), '风险分组标签')
+  assert.ok(source.includes('background-clip: text'), '主题风险提示要说明机制')
+  assert.ok(source.includes('Mac 代码框'), '代码块开关改名后应出现在产物里')
+  assert.ok(source.includes('没有外链') || source.includes('没有代码块'), '无效开关的说明文案')
+})
+
 test('apply() 在右侧栏与 better-sidebar 都不存在时也安全，注册的东西可收回', async () => {
   const harness = loadBundle({ services: { sidebarRightTabs: undefined, sidebarRight: undefined, betterSidebar: undefined } })
   harness.apply()

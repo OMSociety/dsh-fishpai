@@ -92,6 +92,14 @@ export interface ThemeInfo {
   name: string
   emoji: string
   desc: string
+  /** 该主题是否使用主题色（只有用到的主题才显示取色控件）。 */
+  usesAccent: boolean
+  /** 用渐变文字（background-clip: text + 透明字色）：微信编辑器可能重写掉。 */
+  gradientText: boolean
+  /** wrapper 是深色底：粘进公众号会是一整块深色。 */
+  darkWrapper: boolean
+  /** 综合判断：是否适合直接粘进公众号（= !gradientText && !darkWrapper）。 */
+  wechatSafe: boolean
 }
 
 export interface ThemesPayload {
