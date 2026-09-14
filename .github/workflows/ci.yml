@@ -16,7 +16,7 @@ jobs:
           node-version: '22'
 
       - name: Install dev tooling
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Renderer golden + core unit tests
         run: npm test
