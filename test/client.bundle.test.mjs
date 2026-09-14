@@ -213,6 +213,33 @@ test('客户端 bundle 导出 name / inject / apply', () => {
   assert.equal(typeof exports.apply, 'function')
 })
 
+/**
+ * `dsh.client.inject` 是「包依赖边」：声明"这一行的 factory 到位前，先等着这些**包**的
+ * factory 到位"（DSH 的 `WebBootEntry` 原话：names package rows whose factories must arrive
+ * before this row materializes）。**服务依赖由 bundle 导出的 `inject` 决定**。
+ *
+ * 写 `slots` / `sessions` 这类服务名是无效声明——运行时对不上任何包行，会被静默忽略。
+ * 这条守卫让"看起来对齐了源码、其实写错了字段"的改动当场变红。
+ */
+test('dsh.client 声明只写包依赖边，不写服务名', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
+  const decl = (pkg.dsh && pkg.dsh.client) || {}
+  assert.equal(decl.platform, 'web')
+
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  const required = new Set([...source.matchAll(/require\("([^"]+)"\)/g)].map((m) => m[1]))
+  for (const dep of decl.inject || []) {
+    const bare = dep.endsWith('/client') ? dep.slice(0, -7) : dep
+    assert.ok(
+      required.has(dep) || required.has(bare),
+      `dsh.client.inject 里的 "${dep}" 不是 bundle 依赖的包——要声明服务依赖请写进 client/index.tsx 的 inject`,
+    )
+  }
+  for (const dep of decl.external || []) {
+    assert.ok(required.has(dep), `dsh.client.external 里的 "${dep}" 没被 bundle require`)
+  }
+})
+
 test('面板文案：改名与新增说明必须真的进产物（防"改了源码没重新构建"）', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   assert.ok(source.includes('"导出 HTML"'), '导出按钮文案应为「导出 HTML」')
@@ -221,6 +248,17 @@ test('面板文案：改名与新增说明必须真的进产物（防"改了源�
   assert.ok(source.includes('background-clip: text'), '主题风险提示要说明机制')
   assert.ok(source.includes('Mac 代码框'), '代码块开关改名后应出现在产物里')
   assert.ok(source.includes('没有外链') || source.includes('没有代码块'), '无效开关的说明文案')
+})
+
+test('面板文案：失败提示、批注定位、提示条分类必须真的进产物', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  assert.ok(source.includes('可以改用旁边的「导出 HTML」拿文件'), '复制失败要指向另一个按钮')
+  assert.ok(source.includes('可以改用「复制到公众号」'), '导出失败要指向另一个按钮')
+  assert.ok(source.includes('文字还在输入框里'), '批注失败要说明文字没丢')
+  assert.ok(source.includes('正文还是空的'), '没有落点时要说清楚为什么没加上')
+  assert.ok(source.includes('"定位"'), '批注卡片要有「定位」按钮')
+  assert.ok(source.includes('引用片段已被改写'), '高亮不了时要说明原因')
+  assert.ok(source.includes('data-kind'), '提示条要按 kind 区分类别（成功/失败一眼可分）')
 })
 
 test('apply() 在右侧栏与 better-sidebar 都不存在时也安全，注册的东西可收回', async () => {

@@ -55,6 +55,21 @@ function realOrSelf(p) {
 }
 
 /**
+ * 路径容错：只写了名字、没写扩展名时补一个默认的（`.md` / `.html`）。
+ *
+ * 只补**完全没有扩展名**的情形——`a.bak`、`a.` 这类照旧报错，免得把一次笔误
+ * 变成"安静地新建了一个同名不同扩展名的文件"。补完仍要过 `resolveInCwd` 的白名单，
+ * 所以这不是放宽守卫，只是让「写个名字」这种最常见的写法不至于白跑一趟。
+ */
+export function withDefaultExt(target, dflt) {
+  const value = typeof target === 'string' ? target.trim() : ''
+  if (!value) return value
+  if (path.extname(value) !== '') return value
+  if (/[\\/]$/.test(value)) return value // 结尾是分隔符：像是想指目录，交给守卫报错
+  return `${value}${dflt}`
+}
+
+/**
  * 把一个可能是相对的路径解析到 `cwd` 之内，并拒绝越界与越权扩展名。
  *
  * 防的是：`../` 跳出工作目录、符号链接指向外部、以及从浏览器端点来的任意路径。

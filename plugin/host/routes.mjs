@@ -116,12 +116,35 @@ function publicBlock(b) {
   }
 }
 
+function publicHistory(history) {
+  return (history || []).map((h) => ({ id: h.id, rev: h.rev, at: h.at, by: h.by, chars: h.chars, label: h.label || null }))
+}
+
+/**
+ * 面板要显示的那一层「当前正文」：块、批注锚点、行内占位、图片清单。
+ *
+ * **块的 id 一律走 `splitBlocks`**：`fishpai_write` 的 block_id 与批注锚点用的就是它。
+ * 预览渲染器自己也返回 blocks，但那是给 HTML 锚点（`<fp-block data-b>`）用的，
+ * 且随 `macCodeBlock` 等渲染选项变化——把它当面板的块清单会让「块/第 N 块」与批注对不上号。
+ *
+ * `/doc` 与 `/render` 预览共用这一份，避免两处各算一套看起来一样、其实会漂移的视图。
+ */
+function liveSurface({ cwd, key, abs, markdown }) {
+  const blocks = splitBlocks(markdown)
+  const state = key ? store.readState(cwd, key) : null
+  return {
+    blocks: blocks.map(publicBlock),
+    notes: state ? reanchorNotes(state.notes, blocks) : [],
+    placeholders: attachPlaceholdersToBlocks(extractPlaceholders(markdown), blocks),
+    images: listLocalImages({ markdown, cwd, docPath: abs }),
+  }
+}
+
 function docPayload({ cwd, key }) {
   const abs = docPathByKey(cwd, key)
   const state = store.readState(cwd, key)
   if (!state) throw new Error(`文档状态缺失：${key}`)
   const markdown = readText(abs)
-  const blocks = splitBlocks(markdown)
   const index = store.readIndex(cwd)
   return {
     doc: {
@@ -143,11 +166,8 @@ function docPayload({ cwd, key }) {
       macCodeBlock: state.macCodeBlock !== false,
       mobile: !!state.mobile,
     },
-    blocks: blocks.map(publicBlock),
-    notes: reanchorNotes(state.notes, blocks),
-    placeholders: attachPlaceholdersToBlocks(extractPlaceholders(markdown), blocks),
-    images: listLocalImages({ markdown, cwd, docPath: abs }),
-    history: state.history.map((h) => ({ id: h.id, rev: h.rev, at: h.at, by: h.by, chars: h.chars, label: h.label || null })),
+    ...liveSurface({ cwd, key, abs, markdown }),
+    history: publicHistory(state.history),
     docs: index.docs,
     active: index.active,
   }
@@ -232,7 +252,13 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         })
         if (!saved.ok) return json(res, 409, { ok: false, conflict: true, revision: saved.revision, markdown: saved.markdown, key })
         store.setActive(cwd, sessionId, key)
-        return json(res, 200, { ok: true, revision: saved.state.revision, updatedAt: saved.state.updatedAt })
+        // 带历史一起回：每次写入都会留一份快照，面板的「历史」抽屉因此不用再手动刷新
+        return json(res, 200, {
+          ok: true,
+          revision: saved.state.revision,
+          updatedAt: saved.state.updatedAt,
+          history: publicHistory(saved.state.history),
+        })
       }
 
       if (route === 'POST /meta') {
@@ -251,12 +277,16 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         const abs = docPathByKey(cwd, key)
         const action = String(body.action || 'add')
         if (action === 'add') {
-          // 引用片段由宿主按当前正文补全：客户端只给块 id，避免"批注引用"与正文不一致
+          // 引用片段由宿主按当前正文补全：客户端只给块 id（旧了就用块序号兜底），
+          // 避免"批注引用"与正文不一致。命中块后把 id 归一化到它——留着已失效的旧 id，
+          // 只会让下一次重锚多绕一圈、并在人再改一次之后彻底失锚。
           const note = { ...(body.note || {}) }
           const blocks = splitBlocks(readText(abs))
           const block = blocks.find((b) => b.id === note.blockId) || blocks.find((b) => b.index === note.blockIndex)
-          if (!note.quote && block) note.quote = block.text.slice(0, 200)
-          if (!note.blockId && block) note.blockId = block.id
+          if (block) {
+            note.blockId = block.id
+            if (!note.quote) note.quote = block.text.slice(0, 200)
+          }
           if (!store.addNote({ cwd, docPath: abs, note })) return fail(res, 404, '文档状态缺失')
         } else if (action === 'update') {
           if (!store.updateNote({ cwd, docPath: abs, id: String(body.id || ''), patch: body.patch || {} })) return fail(res, 404, '批注不存在')
@@ -300,7 +330,9 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
           html: out.html,
           themeKey: out.themeKey,
           themeName: out.themeName,
-          blocks: out.blocks.map(publicBlock),
+          // 预览跟着本地正文走，所以块/占位/图片/批注锚点也一起回带——
+          // 面板因此不必等"保存 + 重载"才看得到自己刚写的东西。
+          ...liveSurface({ cwd, key, abs, markdown }),
         })
       }
 
@@ -312,7 +344,7 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         if (!state) return fail(res, 404, '文档状态缺失')
         const action = String(body.action || 'list')
         if (action === 'list') {
-          return json(res, 200, { ok: true, history: state.history.map((h) => ({ id: h.id, rev: h.rev, at: h.at, by: h.by, chars: h.chars, label: h.label || null })) })
+          return json(res, 200, { ok: true, history: publicHistory(state.history) })
         }
         if (action === 'stash') {
           // 把一段不落盘的文本存进历史：冲突时保住用户的未保存草稿，正文一个字不动

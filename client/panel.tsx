@@ -179,6 +179,74 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
     iframeRef.current?.contentWindow?.postMessage({ fishpai: 'reveal', id }, '*')
   }, [])
 
+  // ── 「定位」────────────────────────────────────────────────
+  // 预览模式下面板里根本没有编辑器（`editorRef.current === null`），旧写法会让「定位」
+  // 静默失败——点了没反应正是最让人困惑的控件。现在：先记住落点、把视图切到含编辑器的那一档，
+  // 等编辑器真的挂上（mode 变化后的那一次渲染）再落选择。
+  const [pendingJump, setPendingJump] = React.useState<{ start: number; end: number; line: number } | null>(null)
+
+  const applyJump = React.useCallback(
+    (target: { start: number; end: number; line: number }) => {
+      const el = editorRef.current
+      if (!el) return false
+      el.focus()
+      el.setSelectionRange(target.start, target.end)
+      store.actions.setCaret(target.line)
+      el.scrollTop = (target.start / Math.max(1, state.markdown.length)) * el.scrollHeight
+      return true
+    },
+    [store, state.markdown.length],
+  )
+
+  const jumpTo = React.useCallback(
+    (target: { start: number; end: number; line: number }) => {
+      if (applyJump(target)) return
+      setPendingJump(target)
+      setMode((current) => (current === 'preview' ? (narrow ? 'edit' : 'side') : current))
+    },
+    [applyJump, narrow],
+  )
+
+  React.useEffect(() => {
+    if (!pendingJump) return
+    if (applyJump(pendingJump)) setPendingJump(null)
+  }, [pendingJump, mode, applyJump])
+
+  /** 行号 → 文本偏移（textarea 的选择范围按字符偏移算）。 */
+  const lineOffset = (line: number): number => {
+    const lines = state.markdown.split('\n')
+    return lines.slice(0, Math.max(0, line - 1)).reduce((acc, l) => acc + l.length + 1, 0)
+  }
+
+  const jumpToLine = (line: number) => {
+    const offset = lineOffset(line)
+    jumpTo({ start: offset, end: offset, line })
+  }
+
+  /**
+   * 批注的「定位」：能高亮出引用片段就高亮（长段落里一眼看到说的是哪句）；
+   * 人把那句改写过了就退回它原来所在的块，并说明为什么没高亮；两条都不成立才报"找不到了"。
+   */
+  const jumpToNote = (note: Note) => {
+    const markdown = state.markdown
+    const quote = note.quote || ''
+    const start = quote ? markdown.indexOf(quote) : -1
+    if (start >= 0) {
+      jumpTo({ start, end: start + quote.length, line: markdown.slice(0, start).split('\n').length })
+      return
+    }
+    const block =
+      note.blockIndex === null || note.blockIndex === undefined
+        ? null
+        : state.blocks.find((b) => b.index === note.blockIndex) || state.blocks[note.blockIndex] || null
+    if (block) {
+      jumpToLine(block.startLine)
+      store.actions.toast('引用片段已被改写，已定位到它原来所在的块')
+      return
+    }
+    store.actions.toast('这条批注引用的文字已经不在正文里了', 'error')
+  }
+
   const layout: 'stack' | 'side' = mode === 'side' && !narrow ? 'side' : 'stack'
   const showEditor = mode !== 'preview'
   const showPreview = mode !== 'edit' || layout === 'side'
@@ -202,7 +270,8 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
       await copyRich(html, state.markdown)
       store.actions.toast('已复制到剪贴板：粘进公众号编辑器即可')
     } catch (error) {
-      store.actions.toast(`复制失败：${(error as Error).message}`, 'error')
+      // 复制失败时给出下一步：另一条路就在旁边，用户不必自己猜
+      store.actions.toast(`复制失败：${(error as Error).message}　可以改用旁边的「导出 HTML」拿文件`, 'error')
     }
   }
 
@@ -213,15 +282,16 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
       download(`${base}.html`, html)
       store.actions.toast(`已导出 ${base}.html`)
     } catch (error) {
-      store.actions.toast(`导出失败：${(error as Error).message}`, 'error')
+      store.actions.toast(`导出失败：${(error as Error).message}　可以改用「复制到公众号」`, 'error')
     }
   }
 
   const onAddNote = async () => {
     const text = noteDraft.trim()
     if (!text) return
-    await store.actions.addNote(text)
-    setNoteDraft('')
+    const added = await store.actions.addNote(text)
+    // 只有真的加上了才清空：失败或没有落点时，把用户刚写的字留在输入框里
+    if (added) setNoteDraft('')
   }
 
   if (state.status === 'loading') {
@@ -468,17 +538,8 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
         onAddNote={() => void onAddNote()}
         onResolve={(id) => void store.actions.updateNote(id, { resolved: true })}
         onRemove={(id) => void store.actions.removeNote(id)}
-        onJump={(line) => {
-          const el = editorRef.current
-          if (!el) return
-          const lines = state.markdown.split('\n')
-          const offset = lines.slice(0, line - 1).reduce((acc, l) => acc + l.length + 1, 0)
-          el.focus()
-          el.setSelectionRange(offset, offset)
-          store.actions.setCaret(line)
-          const ratio = offset / Math.max(1, state.markdown.length)
-          el.scrollTop = ratio * el.scrollHeight
-        }}
+        onJump={jumpToLine}
+        onJumpNote={jumpToNote}
         onRestore={(id, label) => void store.actions.restore(id, label)}
       />
 
@@ -509,7 +570,11 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
         </span>
       </div>
 
-      {state.toast ? <div className="fp-toast">{state.toast.text}</div> : null}
+      {state.toast ? (
+        <div className="fp-toast" data-kind={state.toast.kind}>
+          {state.toast.text}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -632,6 +697,7 @@ function Drawer(props: {
   onResolve: (id: string) => void
   onRemove: (id: string) => void
   onJump: (line: number) => void
+  onJumpNote: (note: Note) => void
   onRestore: (id: string, label: string) => void
 }) {
   const open = props.notes.filter((n) => !n.resolved)
@@ -685,6 +751,9 @@ function Drawer(props: {
                   </span>
                   <span>{fmtTime(n.at)}</span>
                   <span className="fp-spacer" />
+                  <Btn onClick={() => props.onJumpNote(n)} title="跳到引用它的那段并选中">
+                    定位
+                  </Btn>
                   {n.orphan ? null : <Btn onClick={() => props.onResolve(n.id)}>{n.resolved ? '已解决' : '标记解决'}</Btn>}
                   <Btn onClick={() => props.onRemove(n.id)}>删除</Btn>
                 </div>

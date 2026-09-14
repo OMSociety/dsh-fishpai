@@ -110,10 +110,12 @@ export const CSS = `
   background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);
   color:var(--dsw-alias-label-primary);box-shadow:var(--dsw-shadow-lv3,0 2px 8px rgba(0,0,0,.18));
 }
+/* 失败提示要一眼分得出来：成功与失败的文案不同、停留时间也不同（5s / 2.6s），
+   再给一层颜色，用户才不会把"复制失败"看成"已复制" */
+.fp-toast[data-kind="error"]{border-color:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary)}
 .fp-root{position:relative}
 .fp-muted{color:var(--dsw-alias-label-secondary)}
 .fp-warn{color:var(--dsw-alias-state-warn-primary)}
-.fp-err{color:var(--dsw-alias-state-error-primary)}
 `
 
 /** 幂等注入样式表（重复挂载只插一次；HMR 卸载由调用方决定是否移除）。 */

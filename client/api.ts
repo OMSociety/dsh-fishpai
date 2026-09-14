@@ -51,6 +51,14 @@ export interface Placeholder {
   blockIndex: number | null
 }
 
+/** 本地图片与「能不能内嵌」的判定（粘进公众号时要不要手动重传，看的就是它）。 */
+export interface ImageInfo {
+  src: string
+  status: string
+  size: number | null
+  embed: boolean
+}
+
 export interface HistoryEntry {
   /** 历史条目的稳定标识（同一 revision 可以有多条，比如冲突时保下来的草稿）。 */
   id: string
@@ -76,7 +84,7 @@ export interface DocPayload {
   blocks: Block[]
   notes: Note[]
   placeholders: Placeholder[]
-  images: Array<{ src: string; status: string; size: number | null; embed: boolean }>
+  images: ImageInfo[]
   history: HistoryEntry[]
 }
 
@@ -153,7 +161,7 @@ export const api = {
   doc: (sessionId: string, docKey: string) => call<{ ok: true } & DocPayload>(`/doc?${q({ sessionId, docKey })}`),
 
   save: (sessionId: string, docKey: string, markdown: string, baseRevision: number, meta?: Partial<DocMeta>) =>
-    call<{ ok: true; revision: number; updatedAt: number }>(`/doc`, {
+    call<{ ok: true; revision: number; updatedAt: number; history?: HistoryEntry[] }>(`/doc`, {
       method: 'PUT',
       body: JSON.stringify({ sessionId, docKey, markdown, baseRevision, meta }),
     }),
@@ -161,11 +169,18 @@ export const api = {
   meta: (sessionId: string, docKey: string, meta: Partial<DocMeta>) =>
     call<{ ok: true }>(`/meta`, { method: 'POST', body: JSON.stringify({ sessionId, docKey, meta }) }),
 
+  /**
+   * 预览渲染。宿主回带的 `blocks` / `notes` / `placeholders` / `images` **是跟着传进去的
+   * markdown 走的**（不是磁盘上那份），面板据此在打字时就刷新块清单、批注锚点与图片提示。
+   */
   renderPreview: (sessionId: string, docKey: string, markdown: string, meta: Partial<DocMeta>) =>
-    call<{ ok: true; html: string; themeName: string; blocks: Block[] }>(`/render`, {
-      method: 'POST',
-      body: JSON.stringify({ sessionId, docKey, markdown, meta, mode: 'preview' }),
-    }),
+    call<{ ok: true; html: string; themeName: string; blocks: Block[]; notes: Note[]; placeholders: Placeholder[]; images: ImageInfo[] }>(
+      `/render`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ sessionId, docKey, markdown, meta, mode: 'preview' }),
+      },
+    ),
 
   renderPublish: (sessionId: string, docKey: string, markdown: string, meta: Partial<DocMeta>) =>
     call<{ ok: true; html: string; themeName: string }>(`/render`, {

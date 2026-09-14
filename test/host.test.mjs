@@ -36,6 +36,19 @@ test('路径守卫：允许工作目录内的 .md，拒绝越界与非白名单�
   assert.throws(() => store.resolveInCwd(cwd, ''), /不能为空/)
 })
 
+test('路径容错：只写名字时补默认扩展名，写了扩展名（哪怕是别的）就原样交给守卫', () => {
+  const cwd = tmpWorkspace()
+  assert.equal(store.withDefaultExt('草稿', '.md'), '草稿.md')
+  assert.equal(store.withDefaultExt('docs/草稿', '.md'), 'docs/草稿.md')
+  assert.equal(store.withDefaultExt('a.MD', '.md'), 'a.MD', '已经写了扩展名就不动它（守卫自己折大小写判断）')
+  assert.equal(store.withDefaultExt('a.notes', '.md'), 'a.notes')
+  assert.equal(store.withDefaultExt('docs/', '.md'), 'docs/', '结尾是分隔符：像是想指目录，交给守卫报错')
+  assert.equal(store.withDefaultExt('   ', '.md'), '')
+  assert.equal(store.withDefaultExt('page', '.html'), 'page.html')
+  // 补出来的路径照样要过白名单，不是"绕过守卫的另一个入口"
+  assert.equal(store.resolveInCwd(cwd, store.withDefaultExt('草稿', '.md')), path.join(cwd, '草稿.md'))
+})
+
 test('路径守卫：符号链接指向外部时被拒（平台不支持建链接则跳过）', () => {
   const cwd = tmpWorkspace()
   const outside = tmpWorkspace()
@@ -378,6 +391,29 @@ test('路由：render 预览带块锚点，publish 不带且与 core 一致', as
   assert.match(preview.json.html, /<fp-block data-b="/)
   assert.ok(preview.json.blocks.length >= 3)
 
+  // 预览回带的必须是"面板要显示的一整套当前正文"：块 + 批注锚点 + 行内占位 + 图片，
+  // 缺一个面板就只能在"保存 + 重载"之后才看得到自己刚写的东西。
+  fs.writeFileSync(
+    path.join(cwd, 'pic.png'),
+    Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'),
+  )
+  const edited = `${ARTICLE}\n![图](./pic.png)\n\n<!-- 鱼排: 这里补一句 -->\n`
+  const live = await callRoute(handler, {
+    method: 'POST',
+    url: '/fishpai/api/render',
+    body: { sessionId: 's1', docKey: opened.key, markdown: edited, mode: 'preview' },
+  })
+  assert.equal(live.status, 200)
+  for (const field of ['blocks', 'notes', 'placeholders', 'images']) {
+    assert.ok(field in live.json, `预览响应应当带上 ${field}`)
+  }
+  // 关键：跟着**传进去的 markdown** 走，不是磁盘上那份（磁盘上还没有这段占位）
+  assert.equal(live.json.placeholders.length, 1)
+  assert.match(live.json.placeholders[0].text, /补一句/)
+  assert.equal(live.json.images.length, 1)
+  assert.equal(live.json.images[0].embed, true)
+  assert.equal(fs.readFileSync(path.join(cwd, 'a.md'), 'utf8'), ARTICLE, '预览不该动磁盘上的文档')
+
   const publish = await callRoute(handler, {
     method: 'POST',
     url: '/fishpai/api/render',
@@ -386,6 +422,9 @@ test('路由：render 预览带块锚点，publish 不带且与 core 一致', as
   assert.equal(publish.status, 200)
   assert.doesNotMatch(publish.json.html, /<fp-block/)
   assert.equal(publish.json.themeName, '默认公众号')
+  // publish 只管"粘进公众号的那份 HTML"，不该顺手回带面板状态
+  assert.equal(publish.json.blocks, undefined)
+  assert.equal(publish.json.placeholders, undefined)
 })
 
 test('路由：Origin: null 的请求被拒（沙箱 iframe / data: 文档）', async () => {
@@ -548,6 +587,24 @@ test('端到端：write 用过期 revision 会被拒绝，并回带最新差异'
   assert.match(fs.readFileSync(docPath, 'utf8'), /人又加了一段/)
 })
 
+test('工具：没写扩展名时自动补（.md / .html），写了别的扩展名仍然明确报错', async () => {
+  const cwd = tmpWorkspace()
+  const { tools, exec } = fakeHost(cwd)
+  const byName = (name) => tools.find((t) => t.name === name)
+
+  const opened = await byName('fishpai_open').execute({ path: '草稿', markdown: ARTICLE }, exec)
+  assert.equal(opened.isError, false, opened.text)
+  assert.ok(fs.existsSync(path.join(cwd, '草稿.md')), 'path 少写扩展名应当补成 .md')
+
+  const rendered = await byName('fishpai_render').execute({ out_path: '导出' }, exec)
+  assert.equal(rendered.isError, false, rendered.text)
+  assert.ok(fs.existsSync(path.join(cwd, '导出.html')), 'out_path 少写扩展名应当补成 .html')
+
+  const bad = await byName('fishpai_open').execute({ path: '草稿.bak', markdown: 'x' }, exec)
+  assert.equal(bad.isError, true)
+  assert.match(bad.text, /扩展名/)
+})
+
 test('工具在没有会话工作目录时给出可读错误而不是抛异常', async () => {
   const tools = []
   const ctx = { tools: { register: (t) => (tools.push(t), () => {}) }, sessions: { get: () => null } }
@@ -616,6 +673,13 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   })
   assert.equal(saved.status, 200)
   assert.equal(saved.json.revision, 2)
+  // 每次写入都留一份快照，顺手回带：面板的「历史」抽屉因此不用再手动刷新
+  assert.ok(Array.isArray(saved.json.history), 'PUT /doc 应当回带 history')
+  assert.ok(saved.json.history.length >= 1)
+  assert.equal(saved.json.history[0].rev, 1)
+  for (const field of ['id', 'rev', 'at', 'by', 'chars']) {
+    assert.ok(field in saved.json.history[0], `history.${field} 缺失`)
+  }
 
   // 6) POST /render preview + publish —— 预览与复制
   const preview = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: session, docKey, markdown: `${ARTICLE}\n新增一段。\n`, meta: { theme: 'sspai' }, mode: 'preview' } })
@@ -634,6 +698,22 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   assert.ok(note.id)
   assert.ok(note.quote, '引用片段应由宿主按当前正文补全')
   assert.equal(typeof note.blockIndex, 'number')
+
+  // 只给块序号也要能挂上：面板在"块 id 已经因为人改过正文而失效"时靠的就是这条兜底
+  const byIndex = await callRoute(handler, {
+    method: 'POST',
+    url: '/fishpai/api/notes',
+    body: { sessionId: session, docKey, action: 'add', note: { blockId: '已失效的旧id', blockIndex: doc.json.blocks[0].index, text: '按序号挂的批注' } },
+  })
+  assert.equal(byIndex.status, 200)
+  const indexed = byIndex.json.notes.find((n) => n.text === '按序号挂的批注')
+  assert.ok(indexed, '只给 blockIndex 也应当挂上')
+  assert.equal(indexed.orphan, false, '按序号命中就不该标成失锚')
+  assert.equal(indexed.blockIndex, doc.json.blocks[0].index)
+  assert.equal(indexed.blockId, doc.json.blocks[0].id, '命中块后应把已失效的旧 id 归一化掉')
+  assert.ok(indexed.quote, '命中后引用片段同样要补全')
+  await callRoute(handler, { method: 'POST', url: '/fishpai/api/notes', body: { sessionId: session, docKey, action: 'remove', id: indexed.id } })
+
   const resolved = await callRoute(handler, { method: 'POST', url: '/fishpai/api/notes', body: { sessionId: session, docKey, action: 'update', id: note.id, patch: { resolved: true } } })
   assert.equal(resolved.status, 200)
   assert.equal(resolved.json.notes.find((n) => n.id === note.id).resolved, true)

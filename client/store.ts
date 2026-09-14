@@ -13,6 +13,7 @@ import {
   type Block,
   type DocMeta,
   type HistoryEntry,
+  type ImageInfo,
   type Note,
   type Placeholder,
   type ThemeInfo,
@@ -38,13 +39,12 @@ export interface FishpaiState {
   blocks: Block[]
   notes: Note[]
   placeholders: Placeholder[]
-  images: Array<{ src: string; status: string; size: number | null; embed: boolean }>
+  images: ImageInfo[]
   history: HistoryEntry[]
   themes: ThemeInfo[]
   presets: Array<{ name: string; color: string }>
   sizes: string[]
   previewHtml: string
-  previewBlocks: Block[]
   themeName: string
   previewing: boolean
   saving: boolean
@@ -86,7 +86,6 @@ function initialState(sessionId: string): FishpaiState {
     presets: [],
     sizes: ['14px', '15px', '16px', '17px', '18px'],
     previewHtml: '',
-    previewBlocks: [],
     themeName: '',
     previewing: false,
     saving: false,
@@ -163,15 +162,31 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
   }
 
   // ── 预览 ───────────────────────────────────────────────────
+  // 预览是面板唯一的「当前正文」视图来源：块清单、批注锚点、行内占位、图片提示都跟着它走，
+  // 所以打字时这些信息不会停在"打开文档的那一刻"。
+  //
+  // 批注是唯一会被两条路同时写的东西（预览回带的 vs 加/删批注的），所以它单独带一个 epoch：
+  // 预览出发时记下号，回来时号变了就只更新正文相关的东西，不覆盖刚改完的批注。
   let previewToken = 0
+  let notesEpoch = 0
+
   async function refreshPreview(markdown: string, meta: DocMeta) {
     if (!state.docKey) return
     const token = ++previewToken
+    const epoch = notesEpoch
     patch({ previewing: true })
     try {
       const res = await api.renderPreview(state.sessionId, state.docKey, markdown, meta)
       if (token !== previewToken) return // 有更新的渲染在路上，丢掉这次
-      patch({ previewHtml: res.html, previewBlocks: res.blocks, themeName: res.themeName, previewing: false })
+      patch({
+        previewHtml: res.html,
+        blocks: res.blocks,
+        placeholders: res.placeholders,
+        images: res.images,
+        ...(epoch === notesEpoch ? { notes: res.notes } : {}),
+        themeName: res.themeName,
+        previewing: false,
+      })
     } catch (error) {
       if (token !== previewToken) return
       patch({ previewing: false, error: `预览渲染失败：${(error as Error).message}` })
@@ -204,6 +219,8 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         dirty: state.markdown !== snapshotMarkdown,
         conflict: null,
         external: null,
+        // 每次写入都会留一份快照，宿主顺手把它回带过来——「历史」抽屉不用再手动刷新
+        ...(res.history ? { history: res.history } : {}),
       })
     } catch (error) {
       if (error instanceof ConflictError) {
@@ -227,6 +244,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     if (!docKey) return
     const res = await api.doc(state.sessionId, docKey)
     const keep = opts.keepLocal && state.dirty && state.docKey === docKey
+    notesEpoch += 1
     patch({
       status: 'ready',
       error: null,
@@ -298,19 +316,38 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       void refreshPreview(state.markdown, meta)
     },
 
-    async addNote(text: string) {
+    /**
+     * 加一条批注。**返回是否真的加上了**——调用方据此决定要不要清空输入框：
+     * 没加上还把用户刚写的字抹掉，是这类面板最容易咬人的地方。
+     *
+     * 先落盘再取块：批注靠块 id / 块序号锚定，而宿主是按**磁盘上的正文**解析锚点的。
+     * 所以这里等保存完、再用同一次预览的块边界取块，锚点才和宿主看到的是同一份。
+     */
+    async addNote(text: string): Promise<boolean> {
+      if (!state.docKey) {
+        toast('还没有打开文档：先让模型 fishpai_open 一篇，再留批注', 'error')
+        return false
+      }
+      await saveNow()
+      await refreshPreview(state.markdown, state.meta)
       const block = actions.currentBlock()
-      if (!state.docKey || !block) return
+      if (!block) {
+        toast('正文还是空的：先在编辑器里写一段，再把批注挂上去', 'error')
+        return false
+      }
       try {
-        // 只给块 id：引用片段由宿主按当前正文补全，不会与正文不一致
+        // 引用片段由宿主按当前正文补全，不会与正文不一致；blockIndex 是块 id 失效时的兜底
         const res = await api.notes(state.sessionId, state.docKey, {
           action: 'add',
-          note: { blockId: block.id, text, author: 'human' },
+          note: { blockId: block.id, blockIndex: block.index, text, author: 'human' },
         })
+        notesEpoch += 1
         patch({ notes: res.notes })
         toast('批注已加；模型下次 fishpai_read 就能看到')
+        return true
       } catch (error) {
-        toast(`批注失败：${(error as Error).message}`, 'error')
+        toast(`批注失败：${(error as Error).message}　文字还在输入框里，可以直接重试`, 'error')
+        return false
       }
     },
 
@@ -318,6 +355,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       if (!state.docKey) return
       try {
         const res = await api.notes(state.sessionId, state.docKey, { action: 'update', id, patch: next })
+        notesEpoch += 1
         patch({ notes: res.notes })
       } catch (error) {
         toast(`批注更新失败：${(error as Error).message}`, 'error')
@@ -328,6 +366,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       if (!state.docKey) return
       try {
         const res = await api.notes(state.sessionId, state.docKey, { action: 'remove', id })
+        notesEpoch += 1
         patch({ notes: res.notes })
       } catch (error) {
         toast(`删除失败：${(error as Error).message}`, 'error')

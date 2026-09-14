@@ -113,11 +113,11 @@ export function registerTools(ctx, deps) {
   register({
     name: 'fishpai_open',
     description:
-      '在 DSH 右侧栏打开「鱼排」公众号排版台，并把它指向一篇 Markdown。传 markdown 会新建文档并写入；传 path 打开工作区里已有的 .md（已存在的文件不会被覆盖）。文档打开后请让用户在侧栏直接改字或加批注（也可用 <!-- 鱼排: … --> 留占位），然后用 fishpai_read 拿到块级 diff 与批注，再用 fishpai_write 局部改稿。',
+      '在 DSH 右侧栏打开「鱼排编辑器」公众号排版台，并把它指向一篇 Markdown。传 markdown 会新建文档并写入；传 path 打开工作区里已有的 .md（已存在的文件不会被覆盖）。文档打开后请让用户在侧栏直接改字或加批注（也可用 <!-- 鱼排: … --> 留占位），然后用 fishpai_read 拿到块级 diff 与批注，再用 fishpai_write 局部改稿。',
     parameters: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: '工作目录内的 .md 路径；省略则在 <工作目录>/.fishpai/docs/ 下按标题新建' },
+        path: { type: 'string', description: '工作目录内的 .md 路径（可省略扩展名，会自动补 .md）；省略则在 <工作目录>/.fishpai/docs/ 下按标题新建' },
         markdown: { type: 'string', description: '初始 Markdown。目标文件已存在时不会覆盖，只打开现状' },
         theme: { type: 'string', description: '主题 key 或中文名；省略则用 default（默认公众号，最适合粘进微信）。tech / gradient / dark_night 等风格更适合导出 HTML' },
       },
@@ -128,7 +128,9 @@ export function registerTools(ctx, deps) {
     async execute(args, exec) {
       try {
         const { sessionId, cwd } = sessionOf(deps, exec)
-        const docPath = args.path ? store.resolveInCwd(cwd, String(args.path)) : store.defaultDocPath(cwd, args.markdown)
+        const docPath = args.path
+          ? store.resolveInCwd(cwd, store.withDefaultExt(String(args.path), '.md'))
+          : store.defaultDocPath(cwd, args.markdown)
         const opened = store.openDoc({
           cwd,
           docPath,
@@ -141,9 +143,9 @@ export function registerTools(ctx, deps) {
 
         const rel = path.relative(cwd, opened.path).replace(/\\/g, '/')
         const lines = [
-          opened.created ? `已新建文档并打开鱼排：${rel}` : `已打开已有文档：${rel}`,
+          opened.created ? `已新建文档并打开「鱼排编辑器」：${rel}` : `已打开已有文档：${rel}`,
           `revision = ${opened.state.revision}，主题 = ${opened.state.theme}`,
-          '右侧栏的「鱼排」面板已弹出（若没看到请点右侧栏顶部的鱼排图标）。',
+          '右侧栏的「鱼排编辑器」面板已弹出（若没看到请点右侧栏顶部的鱼排图标）。',
         ]
         if (opened.markdownIgnored && !opened.created) {
           lines.push('注意：该文件已存在，你传入的 markdown 没有写入，避免覆盖用户内容。要改内容请用 fishpai_write。')
@@ -391,7 +393,7 @@ export function registerTools(ctx, deps) {
         doc_key: { type: 'string', description: '文档键；省略则用本会话当前打开的那一份' },
         markdown: { type: 'string', description: '直接渲染这段 Markdown（不读文件）；与 doc_key 二选一' },
         theme: { type: 'string', description: '主题 key 或中文名，覆盖文档当前设置' },
-        out_path: { type: 'string', description: '输出 HTML 路径（工作目录内）；省略则与文档同名的 .html' },
+        out_path: { type: 'string', description: '输出 HTML 路径（工作目录内；可省略扩展名，会自动补 .html）；省略则与文档同名的 .html' },
         embed_images: { type: 'boolean', description: '是否把本地图片内嵌成 base64，默认 true' },
         publish: { type: 'boolean', description: 'true（默认）=「复制到公众号」形态；false = 预览原样 HTML' },
       },
@@ -415,7 +417,7 @@ export function registerTools(ctx, deps) {
           imageResolver: args.embed_images === false ? undefined : makeImageResolver({ cwd, docPath: abs }),
         })
         const target = args.out_path
-          ? store.resolveInCwd(cwd, String(args.out_path), { exts: ['.html', '.htm'] })
+          ? store.resolveInCwd(cwd, store.withDefaultExt(String(args.out_path), '.html'), { exts: ['.html', '.htm'] })
           : store.resolveInCwd(cwd, path.join(path.dirname(abs), `${path.basename(abs, path.extname(abs))}.html`), { exts: ['.html', '.htm'] })
         fs.mkdirSync(path.dirname(target), { recursive: true })
         fs.writeFileSync(target, out.html, 'utf8')
