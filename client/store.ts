@@ -50,7 +50,7 @@ export interface FishpaiState {
   saving: boolean
   dirty: boolean
   conflict: { revision: number; markdown: string } | null
-  external: { revision: number } | null
+  external: { revision: number; reason: 'revision' | 'switch'; key?: string } | null
   caretLine: number
   toast: Toast | null
 }
@@ -334,12 +334,12 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       }
     },
 
-    async restore(rev: number) {
+    async restore(id: string, label: string) {
       if (!state.docKey) return
       try {
-        await api.history(state.sessionId, state.docKey, { action: 'restore', rev })
+        await api.history(state.sessionId, state.docKey, { action: 'restore', id })
         await loadDoc(state.docKey)
-        toast(`已回滚到 rev ${rev}`)
+        toast(`已回滚到 ${label}`)
       } catch (error) {
         if (error instanceof ConflictError) {
           patch({ conflict: { revision: error.revision, markdown: error.markdown } })
@@ -349,14 +349,26 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       }
     },
 
-    /** 冲突处理：保留我的（服务端最新文本会进历史）/ 采用服务端的。 */
+    /**
+     * 冲突处理。
+     * - `mine`    ：用我的覆盖（服务端那份留在历史里）
+     * - `theirs`  ：采用 AI 的版本——**先把我的草稿存进历史**，绝不静默丢字
+     */
     async resolveConflict(choice: 'mine' | 'theirs') {
       if (!state.conflict || !state.docKey) return
       const conflict = state.conflict
+      const draft = state.markdown
       if (choice === 'theirs') {
+        try {
+          await api.history(state.sessionId, state.docKey, { action: 'stash', markdown: draft, label: '冲突时我的版本' })
+        } catch (error) {
+          toast(`先把你的稿子存进历史失败：${(error as Error).message}`, 'error')
+          return // 存不下来就不覆盖，宁可停在冲突态
+        }
         patch({ markdown: conflict.markdown, savedMarkdown: conflict.markdown, revision: conflict.revision, conflict: null, dirty: false })
         schedulePreview()
-        toast('已采用 AI 的版本')
+        await actions.reload()
+        toast('已采用 AI 的版本；你的稿子已存进「历史」，点那一版可回滚取回')
         return
       }
       patch({ revision: conflict.revision, conflict: null })
@@ -372,25 +384,41 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       return res.html
     },
 
-    /** 轮询发现宿主的 revision 变了（AI 写的、或别的窗口写的）。 */
-    async onExternalRevision(rev: number) {
-      if (!state.docKey || rev <= state.revision) return
-      if (state.dirty) {
-        patch({ external: { revision: rev } })
+    /** 轮询发现宿主的当前文档变了（AI 写入 / 换了一篇 / 别的窗口写的）。 */
+    async onActiveDoc(key: string, revision: number) {
+      if (!key) return
+      if (state.docKey && key !== state.docKey) {
+        // 模型换文档了：有未保存改动就只提示，别把用户正在写的字换掉
+        if (state.dirty) {
+          patch({ external: { revision, reason: 'switch', key } })
+          return
+        }
+        await loadDoc(key)
+        toast('模型打开了另一篇文档')
         return
       }
-      await loadDoc(state.docKey)
-      toast(`AI 更新了文档（rev ${rev}）`)
+      if (!state.docKey) {
+        await loadDoc(key)
+        return
+      }
+      if (revision <= state.revision) return
+      if (state.dirty) {
+        patch({ external: { revision, reason: 'revision' } })
+        return
+      }
+      await loadDoc(key)
+      toast(`AI 更新了文档（rev ${revision}）`)
     },
 
     async reload() {
       if (state.docKey) await loadDoc(state.docKey)
     },
 
-    /** 采用外部版本（放弃自己的未保存改动）。 */
+    /** 采用外部版本（放弃自己的未保存改动）——换文档时切到新文档。 */
     async acceptExternal() {
-      if (!state.docKey) return
-      await loadDoc(state.docKey)
+      const target = state.external?.key || state.docKey
+      if (!target) return
+      await loadDoc(target)
     },
 
     toast,

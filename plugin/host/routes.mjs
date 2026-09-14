@@ -13,7 +13,6 @@ import fs from 'node:fs'
 import { render as renderCore, themeCatalog } from '../core/render.mjs'
 import { colorPresets } from '../core/runtime.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
-import { diffBlocks } from '../core/diff.mjs'
 import { attachPlaceholdersToBlocks, extractPlaceholders, reanchorNotes } from '../core/notes.mjs'
 import * as store from './store.mjs'
 import { listLocalImages, makeImageResolver, readAsset } from './assets.mjs'
@@ -36,7 +35,10 @@ export function sameOrigin(req) {
   if (!host) return false
   if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') return false
   const origin = req.headers.origin
-  if (origin === undefined || origin === 'null') return true
+  // 没有 Origin 的是非浏览器客户端或同源 GET；`null` 只可能来自沙箱 iframe / data: 文档，
+  // 属于不可信上下文，绝不能与"没有 Origin"混为一谈。
+  if (origin === undefined) return true
+  if (origin === 'null') return false
   try {
     return new URL(origin).host === host
   } catch {
@@ -48,16 +50,19 @@ function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = []
     let size = 0
+    let overflowed = false
     req.on('data', (c) => {
+      if (overflowed) return // 超限后继续把流读干，好让 413 有机会回出去
       size += c.length
       if (size > MAX_BODY) {
-        reject(new Error('请求体过大'))
-        req.destroy?.()
+        overflowed = true
+        chunks.length = 0
         return
       }
       chunks.push(c)
     })
     req.on('end', () => {
+      if (overflowed) return reject(new OversizeError())
       if (!chunks.length) return resolve({})
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')))
@@ -67,6 +72,13 @@ function readBody(req) {
     })
     req.on('error', reject)
   })
+}
+
+/** 请求体超过上限：单独一个类型，好回 413 而不是 400。 */
+export class OversizeError extends Error {
+  constructor() {
+    super(`请求体超过 ${Math.round(MAX_BODY / 1024 / 1024)}MB 上限`)
+  }
 }
 
 function readText(abs) {
@@ -132,7 +144,7 @@ function docPayload({ cwd, key }) {
     notes: reanchorNotes(state.notes, blocks),
     placeholders: attachPlaceholdersToBlocks(extractPlaceholders(markdown), blocks),
     images: listLocalImages({ markdown, cwd, docPath: abs }),
-    history: state.history.map((h) => ({ rev: h.rev, at: h.at, by: h.by, chars: h.chars })),
+    history: state.history.map((h) => ({ id: h.id, rev: h.rev, at: h.at, by: h.by, chars: h.chars, label: h.label || null })),
     docs: index.docs,
     active: index.active,
   }
@@ -297,10 +309,16 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         if (!state) return fail(res, 404, '文档状态缺失')
         const action = String(body.action || 'list')
         if (action === 'list') {
-          return json(res, 200, { ok: true, history: state.history.map((h) => ({ rev: h.rev, at: h.at, by: h.by, chars: h.chars })) })
+          return json(res, 200, { ok: true, history: state.history.map((h) => ({ id: h.id, rev: h.rev, at: h.at, by: h.by, chars: h.chars, label: h.label || null })) })
+        }
+        if (action === 'stash') {
+          // 把一段不落盘的文本存进历史：冲突时保住用户的未保存草稿，正文一个字不动
+          const stashed = store.stash({ cwd, docPath: abs, markdown: String(body.markdown ?? ''), by: 'human', label: body.label })
+          if (!stashed) return fail(res, 404, '文档状态缺失')
+          return json(res, 200, { ok: true, entry: stashed.entry, revision: stashed.revision })
         }
         if (action === 'restore') {
-          const found = store.readHistoryEntry(cwd, key, Number(body.rev))
+          const found = store.readHistoryEntry(cwd, key, body.id !== undefined ? body.id : Number(body.rev))
           if (!found) return fail(res, 404, '找不到这一版历史')
           const saved = store.saveDoc({ cwd, docPath: abs, markdown: found.content, baseRevision: state.revision, by: 'human' })
           if (!saved.ok) return json(res, 409, { ok: false, conflict: true, revision: saved.revision, markdown: saved.markdown, key })
@@ -322,20 +340,11 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         return json(res, 200, { ok: true })
       }
 
-      if (route === 'POST /diff') {
-        const { cwd } = sessionOf(body, url)
-        const key = String(body.docKey || '')
-        const abs = docPathByKey(cwd, key)
-        const state = store.readState(cwd, key)
-        const baseline = store.baselineContent(cwd, state)
-        const current = typeof body.markdown === 'string' ? body.markdown : readText(abs)
-        return json(res, 200, { ok: true, ...diffBlocks(baseline, current) })
-      }
-
       return fail(res, 404, `未知接口：${route}`)
     } catch (error) {
       const message = error && error.message ? error.message : String(error)
       log(`[fishpai] ${route} 失败: ${message}`)
+      if (error instanceof OversizeError) return fail(res, 413, message)
       return fail(res, 400, message)
     }
   }

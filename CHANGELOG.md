@@ -11,7 +11,7 @@
 
 - 宿主侧工具 `fishpai_open` / `fishpai_read` / `fishpai_write` / `fishpai_render`：
   打开文档、读块级 diff 与批注、按 `base_revision` 局部改稿、导出可粘贴的 HTML。
-- 宿主侧 `/fishpai/api/*` 路由与文档存储（`.fishpai/` 下的 state/history），路径限定在会话工作目录内。
+- 宿主侧 `/fishpai/api/*` 路由与文档存储（`.fishpai/` 下的 `docs/` 文档、`state/` 状态与 `history/` 快照），路径限定在会话工作目录内。
 - 客户端右侧栏面板：Markdown 源码 + 公众号实时预览、13 主题与 12 预设色、字号、
   微信脚注与 mac 代码块开关、手机 375px 预览、复制到公众号、导出 HTML。
 - 块级批注与行内占位（`<!-- 鱼排: … -->`），供模型读取人改了什么、想要什么。

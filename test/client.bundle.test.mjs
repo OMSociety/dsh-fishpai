@@ -20,7 +20,13 @@ const BUNDLE = path.join(ROOT, 'lib', 'client.js')
 
 const ALLOWED_EXTERNALS = [/^react$/, /^react\//, /^react-dom$/, /^react-dom\//, /^@deepseek-ai\//]
 
-/** 在独立的 vm realm 里加载 bundle —— 与浏览器一样，它是"另一份全局环境"。 */
+/**
+ * 在独立的 vm realm 里加载 bundle —— 与浏览器一样，它是"另一份全局环境"。
+ *
+ * `inject` **必须异步触发回调**：cordis 的 `ctx.inject(deps, cb)` 是
+ * `this.plugin({apply: cb})`，而 Fiber._reload 里先 `await Promise.resolve()` 才跑 apply。
+ * 桩里同步触发会掩盖"双通道同时注册"这类真实竞态（曾经就漏过一次）。
+ */
 function loadBundle(options = {}) {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   let registration = null
@@ -31,6 +37,8 @@ function loadBundle(options = {}) {
   const registeredSlots = []
   const opened = []
   const fetchCalls = []
+  const closedTabs = []
+  const pendingInject = []
 
   const documentStub = {
     querySelector: () => null,
@@ -61,12 +69,21 @@ function loadBundle(options = {}) {
   const sidebarRight = {
     openTab: (kind) => opened.push(kind),
   }
+  const betterSidebar = {
+    registerTab: (descriptor) => {
+      tabsFallback.push(descriptor)
+      return () => closedTabs.push(descriptor.id)
+    },
+    openTab: (target) => opened.push(target && target.type),
+  }
+  const tabsFallback = []
   const sessions = { list: { getSnapshot: () => ({ current: 's1' }) } }
   const serviceTable = {
     slots,
     sessions,
     sidebarRightTabs,
     sidebarRight,
+    betterSidebar,
     ...(options.services || {}),
   }
 
@@ -117,6 +134,21 @@ function loadBundle(options = {}) {
   assert.ok(registration, 'bundle 必须通过 window.__ModuleLoader__.load 注册')
   const exports = registration.factory(stub)
 
+  /** 按真实时序（微任务）触发注入回调；`reverse` 用来验证"回退先到"也能被官方拆掉。 */
+  const fireInject = (run) => {
+    if (options.fireOrder === 'reverse') {
+      pendingInject.push(run)
+      if (pendingInject.length === 1) {
+        setTimeout(() => {
+          for (const task of pendingInject.reverse()) task()
+          pendingInject.length = 0
+        }, 0)
+      }
+      return
+    }
+    queueMicrotask(run)
+  }
+
   const ctx = {
     slots,
     effect: (fn) => {
@@ -125,11 +157,13 @@ function loadBundle(options = {}) {
     inject: (deps, callback) => {
       const available = deps.every((d) => serviceTable[d] !== undefined)
       if (available) {
-        const inner = callback({
-          get: (key) => serviceTable[key],
-          ...serviceTable,
+        fireInject(() => {
+          const inner = callback({
+            get: (key) => serviceTable[key],
+            ...serviceTable,
+          })
+          if (typeof inner === 'function') effects.push(inner)
         })
-        if (typeof inner === 'function') effects.push(inner)
       }
       return { dispose() {} }
     },
@@ -148,6 +182,8 @@ function loadBundle(options = {}) {
     registeredSlots,
     opened,
     fetchCalls,
+    fallbackTabs: tabsFallback,
+    closedTabs,
     apply: () => exports.apply(ctx),
   }
 }
@@ -177,13 +213,15 @@ test('客户端 bundle 导出 name / inject / apply', () => {
   assert.equal(typeof exports.apply, 'function')
 })
 
-test('apply() 在右侧栏与 better-sidebar 都不存在时也安全，注册的东西可收回', () => {
+test('apply() 在右侧栏与 better-sidebar 都不存在时也安全，注册的东西可收回', async () => {
   const harness = loadBundle({ services: { sidebarRightTabs: undefined, sidebarRight: undefined, betterSidebar: undefined } })
   harness.apply()
+  await flush()
 
   assert.ok(harness.appended.length >= 1, '样式应被注入一次')
   assert.equal(harness.registeredTabs.length, 0, '没有官方席位就不该注册 tab 类型')
   assert.equal(harness.registeredSlots.length, 0)
+  assert.equal(harness.fallbackTabs.length, 0)
   assert.equal(harness.effects.length, 2, '样式 + 轮询两个 effect')
   assert.equal(harness.timers.length, 1, '应挂一个轮询')
   for (const dispose of harness.effects) if (typeof dispose === 'function') dispose()
@@ -204,6 +242,7 @@ test('官方席位：注册 tab 类型与两个槽位，openRequest 到达时自
     },
   })
   harness.apply()
+  await flush()
 
   // 注册契约
   assert.equal(harness.registeredTabs.length, 1)
@@ -219,47 +258,61 @@ test('官方席位：注册 tab 类型与两个槽位，openRequest 到达时自
   assert.deepEqual(keys, ['sidebar.right.pane.tab#dsh-fishpai', 'sidebar.right.pane.tab.title#dsh-fishpai'])
   for (const slot of harness.registeredSlots) assert.equal(typeof slot.component, 'function')
 
-  // effect 挂载时会立刻轮询一次：openRequest 应当被消费，并且面板被打开
+  // effect 挂载时会立刻轮询一次：openRequest 应当被消费，并且面板被打开。
+  // 主动再驱动一次轮询，免得测试依赖"微任务与 fetch 的先后"这种偶然顺序。
+  await flush()
+  harness.timers[0]()
   await flush()
   assert.ok(harness.opened.length >= 1, '收到 openRequest 应自动打开面板')
   assert.ok(
     harness.opened.every((k) => k === 'fishpai'),
-    `打开的面板类型应始终是 fishpai，实际：${JSON.stringify(harness.opened)}`,
+    `打开的面板类型应始终是 fishpai（而不是回退 tab），实际：${JSON.stringify(harness.opened)}`,
   )
   const tabOpened = harness.fetchCalls.find((c) => String(c.url).includes('/tab-opened'))
   assert.ok(tabOpened, '应回调 /tab-opened 清掉打开请求')
   assert.match(String(tabOpened.init.body), /"docKey":"k1"/)
 })
 
-test('回退通道：只有 better-sidebar 时注册它的 tab', () => {
-  const tabs = []
-  const betterSidebar = {
-    registerTab: (descriptor) => {
-      tabs.push(descriptor)
-      return () => {}
-    },
-    openTab: () => {},
-  }
-  const harness = loadBundle({ services: { sidebarRightTabs: undefined, sidebarRight: undefined, betterSidebar } })
+test('回退通道：只有 better-sidebar 时注册它的 tab', async () => {
+  const harness = loadBundle({ services: { sidebarRightTabs: undefined, sidebarRight: undefined } })
   harness.apply()
+  await flush()
 
-  assert.equal(tabs.length, 1)
-  assert.equal(tabs[0].id, 'dsh-fishpai:editor')
-  assert.equal(tabs[0].single, true)
-  assert.equal(typeof tabs[0].component, 'function')
+  assert.equal(harness.fallbackTabs.length, 1)
+  assert.equal(harness.fallbackTabs[0].id, 'dsh-fishpai:editor')
+  assert.equal(harness.fallbackTabs[0].single, true)
+  assert.equal(typeof harness.fallbackTabs[0].component, 'function')
 })
 
-test('官方席位在场时不再注册 better-sidebar 的 tab（避免出现两个鱼排）', () => {
-  const tabs = []
-  const betterSidebar = {
-    registerTab: (descriptor) => {
-      tabs.push(descriptor)
-      return () => {}
-    },
-    openTab: () => {},
-  }
-  const harness = loadBundle({ services: { betterSidebar } })
+test('官方席位在场时不再注册 better-sidebar 的 tab（回调是异步的，不能靠"回头再看"判断）', async () => {
+  const harness = loadBundle()
   harness.apply()
+  await flush()
+
   assert.equal(harness.registeredTabs.length, 1, '官方席位应就位')
-  assert.equal(tabs.length, 0, '不应重复注册 better-sidebar tab')
+  assert.equal(harness.fallbackTabs.length, 0, '不应重复注册 better-sidebar tab')
+})
+
+test('回退席位先到、官方后到：官方到位后必须把回退拆掉，最终只剩一个鱼排', async () => {
+  const harness = loadBundle({
+    fireOrder: 'reverse',
+    fetchImpl: (url) => {
+      if (String(url).startsWith('/fishpai/api/state')) {
+        return { ok: true, cwd: 'C:/ws', active: { key: 'k1', path: 'a.md', title: 't', revision: 1 }, openRequest: { key: 'k1', at: 1 }, docs: [] }
+      }
+      return { ok: true }
+    },
+  })
+  harness.apply()
+  await flush()
+
+  assert.equal(harness.fallbackTabs.length, 1, '回退席位应先在 better-sidebar 里注册过')
+  assert.equal(harness.registeredTabs.length, 1, '官方席位随后也应注册')
+  assert.deepEqual(harness.closedTabs, ['dsh-fishpai:editor'], '官方到位后必须撤销回退席位')
+
+  await flush()
+  harness.timers[0]()
+  await flush()
+  assert.ok(harness.opened.length >= 1, '轮询应能打开面板')
+  assert.ok(harness.opened.every((k) => k === 'fishpai'), `应走官方通道，实际：${JSON.stringify(harness.opened)}`)
 })

@@ -5,9 +5,10 @@
  * **默认参数下，输出与迁移前的实现逐字节相同**，由 `test/golden/**` 守着
  * （golden 由 `test/oracle/render.cjs` 生成，那是移植前的冻结实现）。
  *
- * 相对移植前新增两个能力，且都默认关闭：
- *   - `annotate: true`   在每个顶层块前插一个不可见的 `<fp-block data-b="ID">` 锚点（只给预览用）
- *   - `imageResolver`    把图片 src 换成 data URI（宿主实现读文件；只给复制/导出用）
+ * 相对移植前新增两个能力，都**由调用方显式启用**，默认路径一个字节都不变
+ * （`test/golden/**` 守的就是"两者都不生效"这条默认路径）：
+ *   - `annotate: true`     在每个顶层块前插一个不可见的 `<fp-block data-b="ID">` 锚点（只给预览用）
+ *   - `imageResolver`      把图片 src 换成 data URI（宿主实现读文件；只给复制/导出用）
  */
 import { resolveTheme, themes, FONT_MAP, hljsMap, read } from './runtime.mjs'
 import { createMd, makeStyler, collectBlocks } from './markdown.mjs'
@@ -305,7 +306,7 @@ function rewriteImages(html, resolver) {
  */
 export function render(markdownText, opts = {}) {
   const key = resolveTheme(opts.theme)
-  if (!key) throw new Error(`未知主题: ${opts.theme}（可用 /fishpai/themes 查看）`)
+  if (!key) throw new Error(`未知主题: ${opts.theme}（可用 GET /fishpai/api/themes 查看，或在面板里选）`)
   const THEMES = themes()
   const theme = THEMES[key]
   const styles = makeStyler(theme, opts.color)

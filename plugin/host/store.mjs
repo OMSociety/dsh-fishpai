@@ -97,9 +97,19 @@ export function resolveInCwd(cwd, target, opts = {}) {
   return resolved
 }
 
-/** 文档键：同一路径在不同大小写写法下必须落到同一份状态。 */
+/**
+ * 文档键：同一路径在大小写不敏感的平台上必须落到同一份状态。
+ *
+ * 只在 Windows 上折成小写——Linux/macOS 上 `Notes.md` 与 `notes.md` 是**两份文件**，
+ * 无条件小写会把它们的 state / baseline / 批注串在一起。Windows 侧真正保证一致的是
+ * `canonicalCwd` + `realpath` 给出的规范大小写，这里的折写只是兜底。
+ */
 export function docKey(absPath) {
-  return createHash('sha1').update(path.resolve(absPath).toLowerCase()).digest('hex').slice(0, 12)
+  const abs = path.resolve(absPath)
+  return createHash('sha1')
+    .update(process.platform === 'win32' ? abs.toLowerCase() : abs)
+    .digest('hex')
+    .slice(0, 12)
 }
 
 // ── 目录与状态读写 ──────────────────────────────────────────────
@@ -250,11 +260,13 @@ export function defaultDocPath(cwd, markdown) {
 // ── 历史 ───────────────────────────────────────────────────────
 
 function pushHistory(cwd, key, state, content, rev, by) {
-  const rel = path.join('.fishpai', 'history', key, `${String(rev).padStart(4, '0')}-${by || 'system'}-${Date.now()}.md`)
+  const at = Date.now()
+  const id = `${String(rev).padStart(4, '0')}-${at.toString(36)}`
+  const rel = path.join('.fishpai', 'history', key, `${id}-${by || 'system'}.md`)
   const abs = path.join(cwd, rel)
   fs.mkdirSync(path.dirname(abs), { recursive: true })
   fs.writeFileSync(abs, content, 'utf8')
-  const entry = { rev, at: Date.now(), by: by || 'system', file: rel.replace(/\\/g, '/'), chars: content.length }
+  const entry = { id, rev, at, by: by || 'system', file: rel.replace(/\\/g, '/'), chars: content.length }
   state.history.unshift(entry)
   // 只留最近 50 份，避免无限膨胀
   for (const dropped of state.history.splice(50)) {
@@ -267,14 +279,36 @@ function pushHistory(cwd, key, state, content, rev, by) {
   return entry
 }
 
-export function readHistoryEntry(cwd, key, rev) {
+/**
+ * 取回某一版历史内容。
+ * @param {string|number} ref 历史条目 id（推荐）或 revision（兼容旧客户端）
+ */
+export function readHistoryEntry(cwd, key, ref) {
   const state = readState(cwd, key)
   if (!state) return null
-  const entry = state.history.find((h) => h.rev === Number(rev))
+  const byId = state.history.find((h) => h.id === String(ref))
+  const entry = byId || state.history.find((h) => h.rev === Number(ref))
   if (!entry) return null
   const abs = path.join(cwd, entry.file)
   if (!fs.existsSync(abs)) return null
   return { entry, content: fs.readFileSync(abs, 'utf8') }
+}
+
+/**
+ * 把一段**不落盘**的文本存进历史（冲突时保住用户的未保存草稿）。
+ *
+ * 为什么不走 saveDoc：那会把文档正文替换成草稿，等于用"保命"换了"覆盖 AI 的版本"。
+ * 这里只写 history + 列表，正文一个字都不动。
+ */
+export function stash({ cwd, docPath, markdown, by = 'human', label }) {
+  const abs = resolveInCwd(cwd, docPath)
+  const key = docKey(abs)
+  const state = readState(cwd, key)
+  if (!state) return null
+  const entry = pushHistory(cwd, key, state, String(markdown ?? ''), state.revision, by)
+  if (label) entry.label = label
+  writeState(cwd, key, state)
+  return { entry, revision: state.revision }
 }
 
 export function baselineContent(cwd, state) {
@@ -312,15 +346,18 @@ export function openDoc({ cwd, docPath, markdown, theme, by = 'ai' }) {
   }
 
   if (!state) {
+    // 接管一篇已经存在的文档：**不**编造 baseline。
+    // baseline 的语义是"模型上次写入的版本"，模型还没写过它就不存在；
+    // 若这里拿当前内容当 baseline，模型会以为"人什么都没改"，把最贵的那个信号抹掉。
     const content = fs.readFileSync(abs, 'utf8')
     state = defaultState(abs)
     state.revision = 1
     state.updatedBy = 'human'
     if (theme) state.theme = theme
-    state.baseline = { rev: 1, at: Date.now(), by: 'human', file: pushHistory(cwd, key, state, content, 1, 'human').file }
+    state.baseline = null
     state = writeState(cwd, key, state)
     registerDoc(cwd, key, abs, content, state)
-    return { key, path: abs, state, markdown: content, created: false, markdownIgnored: markdown !== undefined }
+    return { key, path: abs, state, markdown: content, created: false, markdownIgnored: markdown !== undefined, adopted: true }
   }
 
   const content = fs.readFileSync(abs, 'utf8')
@@ -398,9 +435,8 @@ export function saveDoc({ cwd, docPath, markdown, baseRevision, by = 'human', me
   if (by === 'ai') {
     // AI 写入即刷新 baseline：下一次 read 看到的就是"人在这之后改了什么"
     state.baseline = { rev: state.revision, at: Date.now(), by, file: pushHistory(cwd, key, state, markdown, state.revision, by).file }
-  } else if (!state.baseline) {
-    state.baseline = { rev: state.revision, at: Date.now(), by, file: pushHistory(cwd, key, state, markdown, state.revision, by).file }
   }
+  // 人的写入**不**动 baseline（没有 baseline 时也不凭空造一个）——那正是"人改了什么"的来源
 
   state = writeState(cwd, key, state)
   registerDoc(cwd, key, abs, markdown, state)

@@ -65,8 +65,9 @@ test/                   渲染 golden、站点剪贴板对照、块/diff/批注/
 
 ## 与墨排一致的验证
 
-`plugin/core/render.mjs` 是上游渲染管线的 ESM 移植，**关掉预览锚点与图片内嵌时，输出与迁移前的
-`render.js` 逐字节相同**（`test/golden/**`，由迁移前的冻结实现 `test/oracle/render.cjs` 生成——两份独立代码互为对照）。
+`plugin/core/render.mjs` 是上游渲染管线的 ESM 移植，**在预览锚点（`annotate`）与图片内嵌（`imageResolver`）
+都不生效时，输出与迁移前的 `render.js` 逐字节相同**（`test/golden/**`，由迁移前的冻结实现 `test/oracle/render.cjs` 生成——
+两份独立代码互为对照）。面板的预览与复制会显式开这两个能力，默认路径始终保持一致。
 
 在此之上，`test/site-parity.test.mjs` 用**从墨排线上站点抓下来的真实剪贴板内容**
 （`test/golden/site-clip.default.html`）做金标准，规范化后逐字符比对本地输出——所以"与墨排一致"这句话

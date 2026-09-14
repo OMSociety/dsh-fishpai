@@ -52,10 +52,13 @@ export interface Placeholder {
 }
 
 export interface HistoryEntry {
+  /** 历史条目的稳定标识（同一 revision 可以有多条，比如冲突时保下来的草稿）。 */
+  id: string
   rev: number
   at: number
   by: string
   chars: number
+  label: string | null
 }
 
 export interface DocPayload {
@@ -169,15 +172,9 @@ export const api = {
     }),
 
   history: (sessionId: string, docKey: string, payload: Record<string, unknown>) =>
-    call<{ ok: true; revision?: number; history?: HistoryEntry[] }>(`/history`, {
+    call<{ ok: true; revision?: number; history?: HistoryEntry[]; entry?: HistoryEntry }>(`/history`, {
       method: 'POST',
       body: JSON.stringify({ sessionId, docKey, ...payload }),
-    }),
-
-  diff: (sessionId: string, docKey: string, markdown: string) =>
-    call<{ ok: true; entries: any[]; stats: any; rewritten: boolean }>(`/diff`, {
-      method: 'POST',
-      body: JSON.stringify({ sessionId, docKey, markdown }),
     }),
 
   tabOpened: (sessionId: string, docKey: string) =>

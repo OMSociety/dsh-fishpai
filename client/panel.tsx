@@ -126,9 +126,12 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
     return () => ro.disconnect()
   }, [])
 
-  // 预览 iframe 的滚动上报：换内容后把位置还原回去
+  // 预览 iframe 的滚动上报：换内容后把位置还原回去。
+  // 只认我们自己那个 iframe（它是 sandbox 出来的不透明源，origin 为 null），
+  // 免得文档里嵌的别的 iframe 发消息影响滚动。
   React.useEffect(() => {
     const onMessage = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow) return
       const data = event.data
       if (data && data.fishpai === 'visible') lastVisible.current = data.id || null
     }
@@ -246,7 +249,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
           </select>
 
           <div className="fp-swatches" title="主题色">
-            {state.presets.slice(0, 8).map((p) => (
+            {state.presets.map((p) => (
               <button
                 key={p.color}
                 type="button"
@@ -315,18 +318,24 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
 
       {state.external ? (
         <div className="fp-banner">
-          <span>AI 更新了文档（rev {state.external.revision}），你这里有没保存的改动。</span>
+          <span>
+            {state.external.reason === 'switch'
+              ? '模型打开了另一篇文档，你这里有没保存的改动。'
+              : `AI 更新了文档（rev ${state.external.revision}），你这里有没保存的改动。`}
+          </span>
           <span className="fp-spacer" />
-          <Btn onClick={() => void store.actions.acceptExternal()}>看 AI 的版本</Btn>
+          <Btn onClick={() => void store.actions.acceptExternal()}>
+            {state.external.reason === 'switch' ? '切到新文档' : '看 AI 的版本'}
+          </Btn>
           <Btn onClick={() => void store.actions.flush()}>保留我的</Btn>
         </div>
       ) : null}
 
       {state.conflict ? (
         <div className="fp-banner">
-          <span>文档已被改动（服务端 rev {state.conflict.revision}），你的编辑没有丢失。</span>
+          <span>文档已被改动（服务端 rev {state.conflict.revision}），你的编辑还在编辑器里。</span>
           <span className="fp-spacer" />
-          <Btn onClick={() => void store.actions.resolveConflict('theirs')}>看 AI 的版本</Btn>
+          <Btn onClick={() => void store.actions.resolveConflict('theirs')}>采用 AI 的（先把我的存进历史）</Btn>
           <Btn primary onClick={() => void store.actions.resolveConflict('mine')}>
             用我的覆盖
           </Btn>
@@ -342,6 +351,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
             onChange={(text) => store.actions.setMarkdown(text)}
             onCaret={(line) => store.actions.setCaret(line)}
             onSave={() => void store.actions.flush()}
+            onCopy={() => void onCopy()}
             currentBlock={state.blocks.find((b) => b.startLine <= state.caretLine && state.caretLine <= b.endLine) || null}
           />
         ) : null}
@@ -370,8 +380,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
         onAddNote={() => void onAddNote()}
         onResolve={(id) => void store.actions.updateNote(id, { resolved: true })}
         onRemove={(id) => void store.actions.removeNote(id)}
-        onJump={(line) => {
-          const el = editorRef.current
+        onJump={(line) => {          const el = editorRef.current
           if (!el) return
           const lines = state.markdown.split('\n')
           const offset = lines.slice(0, line - 1).reduce((acc, l) => acc + l.length + 1, 0)
@@ -381,7 +390,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
           const ratio = offset / Math.max(1, state.markdown.length)
           el.scrollTop = ratio * el.scrollHeight
         }}
-        onRestore={(rev) => void store.actions.restore(rev)}
+        onRestore={(id, label) => void store.actions.restore(id, label)}
       />
 
       <div className="fp-status">
@@ -409,6 +418,7 @@ function Editor(props: {
   onChange: (text: string) => void
   onCaret: (line: number) => void
   onSave: () => void
+  onCopy: () => void
   currentBlock: Block | null
 }) {
   const { editorRef, value } = props
@@ -443,6 +453,7 @@ function Editor(props: {
           }
           if (meta && e.shiftKey && e.key.toLowerCase() === 'c') {
             e.preventDefault()
+            props.onCopy()
             return
           }
           if (e.key === 'Tab') {
@@ -508,14 +519,14 @@ function Drawer(props: {
   notes: Note[]
   placeholders: Placeholder[]
   blocks: Block[]
-  history: Array<{ rev: number; at: number; by: string; chars: number }>
+  history: Array<{ id: string; rev: number; at: number; by: string; chars: number; label: string | null }>
   noteDraft: string
   setNoteDraft: (v: string) => void
   onAddNote: () => void
   onResolve: (id: string) => void
   onRemove: (id: string) => void
   onJump: (line: number) => void
-  onRestore: (rev: number) => void
+  onRestore: (id: string, label: string) => void
 }) {
   const open = props.notes.filter((n) => !n.resolved)
   return (
@@ -558,7 +569,13 @@ function Drawer(props: {
             {props.notes.map((n) => (
               <div className="fp-item" key={n.id} data-orphan={n.orphan ? 'true' : undefined}>
                 <div className="fp-item-head">
-                  <span>{n.orphan ? '锚点已失效' : `第 ${n.blockId || '?'} 块`}</span>
+                  <span>
+                    {n.orphan
+                      ? '锚点已失效'
+                      : n.blockIndex === null || n.blockIndex === undefined
+                        ? '第 ? 块'
+                        : `第 ${n.blockIndex + 1} 块`}
+                  </span>
                   <span>{fmtTime(n.at)}</span>
                   <span className="fp-spacer" />
                   {n.orphan ? null : <Btn onClick={() => props.onResolve(n.id)}>{n.resolved ? '已解决' : '标记解决'}</Btn>}
@@ -608,13 +625,14 @@ function Drawer(props: {
             <div className="fp-empty">还没有历史版本。</div>
           ) : (
             props.history.map((h) => (
-              <div className="fp-item" key={h.rev}>
+              <div className="fp-item" key={h.id}>
                 <div className="fp-item-head">
                   <span>rev {h.rev}</span>
                   <span>{h.by === 'ai' ? '模型' : h.by === 'human' ? '你' : h.by}</span>
                   <span>{fmtTime(h.at)}</span>
+                  {h.label ? <span>{h.label}</span> : null}
                   <span className="fp-spacer" />
-                  <Btn onClick={() => props.onRestore(h.rev)}>回滚到这一版</Btn>
+                  <Btn onClick={() => props.onRestore(h.id, `rev ${h.rev}${h.label ? `（${h.label}）` : ''}`)}>回滚到这一版</Btn>
                 </div>
               </div>
             ))

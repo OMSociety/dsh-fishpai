@@ -18,6 +18,8 @@ export const REWRITE_RATIO = 0.6
 export const REWRITE_MIN_BLOCKS = 12
 /** 折叠后最多保留的改写样本数。 */
 export const REWRITE_SAMPLES = 8
+/** LCS 的规模上限（单元格数）：超了就降级成按位置比对，避免阻塞宿主。 */
+export const MAX_DP_CELLS = 4_000_000
 
 export { similarity }
 
@@ -25,7 +27,7 @@ export { similarity }
 function alignByLcs(a, b) {
   const n = a.length
   const m = b.length
-  // dp[i][j] = LCS 长度（i/j 从末尾起算），只保留两行以省内存
+  // dp[i][j] = LCS 长度；O(n·m) 时间与内存（调用方用 MAX_DP_CELLS 兜住规模）
   const dp = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1))
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
@@ -50,6 +52,27 @@ function alignByLcs(a, b) {
   }
   while (i < n) ops.push({ op: 'delete', a: a[i++] })
   while (j < m) ops.push({ op: 'insert', b: b[j++] })
+  return ops
+}
+
+/**
+ * 超大文档的降级对齐：不做 LCS，直接按位置比。
+ *
+ * 会漏判"中间插了一段"导致的整体位移，但换来的是 O(n) 而不是 O(n·m) 的宿主阻塞。
+ * 文章级文档（几百块以内）永远走 LCS 那条路。
+ */
+function alignByPosition(a, b) {
+  const ops = []
+  const max = Math.max(a.length, b.length)
+  for (let i = 0; i < max; i++) {
+    const x = a[i]
+    const y = b[i]
+    if (x && y && x.hash === y.hash) ops.push({ op: 'equal', a: x, b: y })
+    else {
+      if (x) ops.push({ op: 'delete', a: x })
+      if (y) ops.push({ op: 'insert', b: y })
+    }
+  }
   return ops
 }
 
@@ -78,7 +101,9 @@ export function diffBlocks(baselineMarkdown, currentMarkdown, opts = {}) {
   const limit = opts.limit ?? 40
   const before = splitBlocks(baselineMarkdown || '')
   const after = splitBlocks(currentMarkdown || '')
-  const ops = alignByLcs(before, after)
+  // O(n·m) 的 DP 兜底：文章级文档几十到几百块，永不触发；真遇到怪文档就降级，别卡住宿主事件循环
+  const degraded = (before.length + 1) * (after.length + 1) > MAX_DP_CELLS
+  const ops = degraded ? alignByPosition(before, after) : alignByLcs(before, after)
 
   const entries = []
   const stats = {
@@ -150,6 +175,7 @@ export function diffBlocks(baselineMarkdown, currentMarkdown, opts = {}) {
     truncated: entries.length > payload.length,
     stats,
     rewritten,
+    degraded,
   }
 }
 

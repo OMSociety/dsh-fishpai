@@ -77,7 +77,11 @@ function locate(deps, exec, args = {}) {
   const entry = store.readIndex(cwd).docs[key]
   if (!entry) throw new Error(`没有这个文档：${key}`)
   const abs = store.resolveInCwd(cwd, entry.path)
-  return { sessionId, cwd, key, abs }
+  const state = store.readState(cwd, key)
+  if (!state) {
+    throw new Error(`文档状态缺失（.fishpai/state 可能被清理过）：${key}。请重新 fishpai_open 这篇文档。`)
+  }
+  return { sessionId, cwd, key, abs, state }
 }
 
 function readText(abs) {
@@ -173,8 +177,7 @@ export function registerTools(ctx, deps) {
     output: { schema: OUT_SCHEMA, render: renderText },
     async execute(args, exec) {
       try {
-        const { cwd, key, abs } = locate(deps, exec, args)
-        const state = store.readState(cwd, key)
+        const { cwd, key, abs, state } = locate(deps, exec, args)
         const markdown = readText(abs)
         const blocks = splitBlocks(markdown)
         const baseline = store.baselineContent(cwd, state)
@@ -187,11 +190,20 @@ export function registerTools(ctx, deps) {
         const out = []
         out.push(`文档：${store.docTitle(markdown, abs)}`)
         out.push(`路径：${path.relative(cwd, abs).replace(/\\/g, '/')}　revision = ${state.revision}　共 ${blocks.length} 块`)
-        out.push(`你上次写入：rev ${state.baseline ? state.baseline.rev : '—'} @ ${fmtTime(state.baseline ? state.baseline.at : null)}（by ${state.baseline ? state.baseline.by : '—'}）`)
+        const hasBaseline = !!state.baseline
+        if (hasBaseline) {
+          out.push(`你上次写入：rev ${state.baseline.rev} @ ${fmtTime(state.baseline.at)}（by ${state.baseline.by}）`)
+        } else {
+          out.push('⚠ 这篇文档还没有基线（你还没写入过，或 .fishpai 状态被清理过）——"人改了什么"无法计算，请按下面的全文与批注处理。')
+        }
 
-        const changed = diff.entries.filter((e) => e.status !== 'rewritten' || true)
+        const changed = diff.entries
         if (!changed.length) {
-          out.push('自你上次写入以来，用户没有改动正文。')
+          out.push(
+            hasBaseline
+              ? '自你上次写入以来，用户没有改动正文。'
+              : '（没有基线，因此不显示正文差异；人留下的批注与行内占位见下。）',
+          )
         } else {
           out.push(`用户改动：${diff.stats.changed} 处改写 / ${diff.stats.added} 处新增 / ${diff.stats.removed} 处删除（共 ${diff.stats.blocksAfter} 块）`)
           for (const e of diff.entries) {
@@ -274,8 +286,7 @@ export function registerTools(ctx, deps) {
     output: { schema: OUT_SCHEMA, render: renderText },
     async execute(args, exec) {
       try {
-        const { cwd, key, abs } = locate(deps, exec, args)
-        const state = store.readState(cwd, key)
+        const { cwd, key, abs, state } = locate(deps, exec, args)
         const current = readText(abs)
         const mode = String(args.mode)
 
@@ -372,8 +383,7 @@ export function registerTools(ctx, deps) {
     output: { schema: OUT_SCHEMA, render: renderText },
     async execute(args, exec) {
       try {
-        const { cwd, key, abs } = locate(deps, exec, args)
-        const state = store.readState(cwd, key)
+        const { cwd, key, abs, state } = locate(deps, exec, args)
         const markdown = typeof args.markdown === 'string' ? args.markdown : readText(abs)
         const theme = args.theme ? String(args.theme) : state.theme
         const out = renderCore(markdown, {

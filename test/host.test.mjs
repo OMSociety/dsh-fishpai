@@ -71,6 +71,33 @@ test('打开已存在的文档不会覆盖内容，并明确告诉调用方 mark
   assert.equal(fs.readFileSync(opened.path, 'utf8'), ARTICLE)
 })
 
+test('接管既有文档时不编造 baseline：模型还没写过，就不该假装"人什么都没改"', () => {
+  const cwd = tmpWorkspace()
+  fs.writeFileSync(path.join(cwd, 'exists.md'), ARTICLE)
+  const opened = store.openDoc({ cwd, docPath: 'exists.md', by: 'ai' })
+  assert.equal(opened.state.baseline, null, '接管既有文件时 baseline 必须为空')
+
+  // 人接着改一笔，baseline 仍为空——模型的第一次 read 会明确说"还没有基线"
+  const saved = store.saveDoc({ cwd, docPath: 'exists.md', markdown: `${ARTICLE}\n人加了一句。\n`, baseRevision: 1, by: 'human' })
+  assert.equal(saved.ok, true)
+  assert.equal(saved.state.baseline, null)
+
+  // 模型写一次之后才有基线，其后人的改动才会变成 diff
+  const ai = store.saveDoc({ cwd, docPath: 'exists.md', markdown: `${ARTICLE}\n人加了一句。\n模型也加了一句。\n`, baseRevision: 2, by: 'ai' })
+  assert.equal(ai.ok, true)
+  assert.ok(ai.state.baseline, '模型写入后就该有基线了')
+  assert.equal(store.baselineContent(cwd, ai.state), `${ARTICLE}\n人加了一句。\n模型也加了一句。\n`)
+})
+
+test('docKey：Windows 上大小写视为同一份状态（其它平台区分大小写）', () => {
+  const cwd = tmpWorkspace()
+  const upper = path.join(cwd, 'Notes.md')
+  const lower = path.join(cwd, 'notes.md')
+  const same = store.docKey(upper) === store.docKey(lower)
+  assert.equal(same, process.platform === 'win32', `platform=${process.platform} 时大小写归一应当 ${process.platform === 'win32'}`)
+  assert.equal(store.docKey(upper), store.docKey(path.join(cwd, '.', 'Notes.md')), '同一路径的不同写法必须同一个 key')
+})
+
 test('revision 守卫：baseRevision 不匹配就拒绝，且盘上内容不变', () => {
   const cwd = tmpWorkspace()
   store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
@@ -194,16 +221,24 @@ test('同源守卫：跨站与伪造 Origin 一律拒绝', () => {
   assert.equal(sameOrigin({ headers: { host: '127.0.0.1:3080', origin: 'http://127.0.0.1:3080' } }), true)
   assert.equal(sameOrigin({ headers: { host: '127.0.0.1:3080', origin: 'https://evil.example' } }), false)
   assert.equal(sameOrigin({ headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'cross-site' } }), false)
+  // `Origin: null` 只可能来自沙箱 iframe / data: 文档，是不可信上下文，不能当"没有 Origin"
+  assert.equal(sameOrigin({ headers: { host: '127.0.0.1:3080', origin: 'null' } }), false)
   assert.equal(sameOrigin({ headers: {} }), false)
 })
 
 /** 最小 req/res 桩，够跑通路由分支。 */
-function callRoute(handler, { method, url, body, headers = {} }) {
-  const payload = body === undefined ? [] : [Buffer.from(JSON.stringify(body), 'utf8')]
+function callRoute(handler, { method, url, body, raw, headers = {} }) {
+  const hasBody = raw !== undefined || body !== undefined
+  const payload = raw !== undefined ? [raw] : body === undefined ? [] : [Buffer.from(JSON.stringify(body), 'utf8')]
   const req = {
     method,
     url,
-    headers: { host: '127.0.0.1:3080', origin: 'http://127.0.0.1:3080', ...(body === undefined ? {} : { 'content-type': 'application/json' }), ...headers },
+    headers: {
+      host: '127.0.0.1:3080',
+      origin: 'http://127.0.0.1:3080',
+      ...(hasBody ? { 'content-type': 'application/json' } : {}),
+      ...headers,
+    },
     on(event, cb) {
       if (event === 'data') for (const p of payload) cb(p)
       if (event === 'end') cb()
@@ -317,6 +352,62 @@ test('路由：render 预览带块锚点，publish 不带且与 core 一致', as
   assert.equal(publish.status, 200)
   assert.doesNotMatch(publish.json.html, /<fp-block/)
   assert.equal(publish.json.themeName, '默认公众号')
+})
+
+test('路由：Origin: null 的请求被拒（沙箱 iframe / data: 文档）', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const res = await callRoute(handler, {
+    method: 'GET',
+    url: `/fishpai/api/doc?sessionId=s1&docKey=${opened.key}`,
+    headers: { origin: 'null' },
+  })
+  assert.equal(res.status, 403)
+})
+
+test('路由：超过 8MB 的请求体回 413 而不是断连', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const res = await callRoute(handler, {
+    method: 'PUT',
+    url: '/fishpai/api/doc',
+    // 超大 JSON：走 readBody 的 overflow 分支
+    raw: Buffer.from(JSON.stringify({ sessionId: 's1', docKey: opened.key, baseRevision: 1, markdown: 'x'.repeat(9 * 1024 * 1024) })),
+  })
+  assert.equal(res.status, 413)
+  assert.match(res.json.error, /上限/)
+})
+
+test('路由：history 的 stash 把草稿存成历史，且可按 id 回滚', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+
+  const stash = await callRoute(handler, {
+    method: 'POST',
+    url: '/fishpai/api/history',
+    body: { sessionId: 's1', docKey: opened.key, action: 'stash', markdown: '我还没保存的稿子', label: '冲突时我的版本' },
+  })
+  assert.equal(stash.status, 200)
+  assert.ok(stash.json.entry.id)
+  assert.equal(fs.readFileSync(path.join(cwd, 'a.md'), 'utf8'), ARTICLE, 'stash 不能动正文')
+
+  const doc = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=s1&docKey=${opened.key}` })
+  const entry = doc.json.history.find((h) => h.id === stash.json.entry.id)
+  assert.ok(entry, '历史列表里应能按 id 找到草稿')
+  assert.equal(entry.label, '冲突时我的版本')
+
+  const restore = await callRoute(handler, {
+    method: 'POST',
+    url: '/fishpai/api/history',
+    body: { sessionId: 's1', docKey: opened.key, action: 'restore', id: stash.json.entry.id },
+  })
+  assert.equal(restore.status, 200)
+  assert.equal(fs.readFileSync(path.join(cwd, 'a.md'), 'utf8'), '我还没保存的稿子')
 })
 
 // ── 工具契约 + 端到端 ──────────────────────────────────────────

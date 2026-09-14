@@ -90,13 +90,21 @@ export function apply(ctx: any): void {
   }
 
   // ── 打开面板（两条通道共用）─────────────────────────────────
-  let openPanel: (() => void) | null = null
+  // 官方就位就用官方，否则用回退。两条通道都可能先到，所以这里只保存"各自的打开方式"，
+  // 由 openPanel() 现取——避免谁先注册谁说话。
+  let openOfficial: (() => void) | null = null
+  let openFallback: (() => void) | null = null
+  const openPanel = () => {
+    const open = openOfficial || openFallback
+    if (!open) throw new Error('右侧栏通道尚未就绪')
+    open()
+  }
 
   const openIfRequested = (sessionId: string, docKey: string) => {
     try {
       openPanel?.()
     } catch (error) {
-      console.warn('[dsh-fishpai] 打开面板失败，20 秒后随下一次轮询重试：', error)
+      console.warn('[dsh-fishpai] 打开面板失败，下一次轮询会重试：', error)
       return false
     }
     storeFor(sessionId)
@@ -105,7 +113,11 @@ export function apply(ctx: any): void {
   }
 
   // ── 通道一：官方右侧栏 ──────────────────────────────────────
-  let nativeDisposer: (() => void) | null = null
+  // 注意：`ctx.inject(deps, cb)` 的回调**不是同步执行**的（cordis 在 Fiber._reload 里先
+  // `await Promise.resolve()` 再跑 apply），所以任何"回头再看 nativeDisposer 是否为空"的
+  // 判断都必然落空。正确做法是两条通道都挂，官方一到就把回退席位拆掉。
+  let officialReady = false
+  let disposeFallbackTab: (() => void) | null = null
   let seatHandle: any = null
   try {
     seatHandle = ctx.inject(['sidebarRightTabs', 'sidebarRight'], (injected: any) => {
@@ -145,60 +157,66 @@ export function apply(ctx: any): void {
       }
 
       if (sidebarRight && typeof sidebarRight.openTab === 'function') {
-        openPanel = () => sidebarRight.openTab(TAB_KIND)
+        openOfficial = () => sidebarRight.openTab(TAB_KIND)
       }
 
-      nativeDisposer = () => {
-        for (const dispose of disposers.reverse()) {
+      officialReady = true
+      // 官方席位到位就把回退席位拆掉——否则用户会看到两个「鱼排」
+      if (disposeFallbackTab) {
+        try {
+          disposeFallbackTab()
+        } catch {
+          /* 拆不掉也不影响官方席位 */
+        }
+        disposeFallbackTab = null
+        openFallback = null
+      }
+
+      const dispose = () => {
+        for (const off of disposers.reverse()) {
           try {
-            dispose()
+            off()
           } catch {
             /* 卸载失败不影响其它通道 */
           }
         }
-        nativeDisposer = null
+        officialReady = false
+        openOfficial = null
       }
-      return nativeDisposer
+      return dispose
     })
   } catch (error) {
     console.warn('[dsh-fishpai] 官方右侧栏席位注入失败：', error)
   }
 
-  // ── 通道二：better-sidebar 回退（仅在官方席位缺席时）─────────
-  let fallbackDisposer: (() => void) | null = null
-  if (!nativeDisposer) {
-    try {
-      const handle = ctx.inject(['betterSidebar'], (injected: any) => {
-        const bs = pick(injected, 'betterSidebar')
-        if (!bs || typeof bs.registerTab !== 'function') return
-        if (nativeDisposer) return // 官方席位已就位，不重复注册
-        const off = bs.registerTab({
-          id: FALLBACK_TAB_ID,
-          title: () => '鱼排',
-          order: 40,
-          single: true,
-          component: (props: any) => React.createElement(PanelHost, props),
-        })
-        openPanel = () => bs.openTab({ type: FALLBACK_TAB_ID })
-        fallbackDisposer = () => {
-          try {
-            off()
-          } catch {
-            /* 忽略 */
-          }
-        }
-        return off
+  // ── 通道二：better-sidebar 回退 ─────────────────────────────
+  // 无条件挂上：官方席位是异步到位的，无法在此之前判断它到底会不会来。
+  // 回退席位只服务"官方席位不存在"的环境；官方一到，上面的回调会把它拆掉。
+  let fallbackHandle: any = null
+  try {
+    fallbackHandle = ctx.inject(['betterSidebar'], (injected: any) => {
+      if (officialReady) return // 官方席位已就位，不重复注册
+      const bs = pick(injected, 'betterSidebar')
+      if (!bs || typeof bs.registerTab !== 'function') return
+      const off = bs.registerTab({
+        id: FALLBACK_TAB_ID,
+        title: () => '鱼排',
+        order: 40,
+        single: true,
+        component: (props: any) => React.createElement(PanelHost, props),
       })
-      if (handle && typeof handle.dispose === 'function') {
-        const inner = fallbackDisposer
-        fallbackDisposer = () => {
-          inner?.()
-          handle.dispose()
+      openFallback = () => bs.openTab({ type: FALLBACK_TAB_ID })
+      disposeFallbackTab = () => {
+        try {
+          off()
+        } catch {
+          /* 忽略 */
         }
       }
-    } catch (error) {
-      console.warn('[dsh-fishpai] better-sidebar 回退注入失败：', error)
-    }
+      return off
+    })
+  } catch (error) {
+    console.warn('[dsh-fishpai] better-sidebar 回退注入失败：', error)
   }
 
   // ── 轮询：唯一的"宿主 → 页面"推送 ───────────────────────────
@@ -206,6 +224,7 @@ export function apply(ctx: any): void {
     let stopped = false
     let warned = false
     let lastRevision = -1
+    let lastKey: string | null = null
     let lastSession = ''
     const tick = async () => {
       if (stopped || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return
@@ -216,18 +235,21 @@ export function apply(ctx: any): void {
         warned = false
         if (sessionId !== lastSession) {
           lastSession = sessionId
+          lastKey = null
           lastRevision = -1
         }
         if (st.openRequest && st.openRequest.key) {
           openIfRequested(sessionId, st.openRequest.key)
         }
+        const activeKey = st.active ? st.active.key : null
         const revision = st.active ? st.active.revision : -1
-        if (revision !== lastRevision) {
-          const previous = lastRevision
-          lastRevision = revision
-          const store = stores.get(sessionId)
-          if (store && previous !== -1 && revision > previous) void store.actions.onExternalRevision(revision)
-        }
+        const firstPoll = lastKey === null && lastRevision === -1
+        const switched = activeKey !== lastKey || revision !== lastRevision
+        lastKey = activeKey
+        lastRevision = revision
+        // 不仅看 revision：模型可能换了一篇文档（fishpai_open 另一篇），此时 key 会变
+        const store = stores.get(sessionId)
+        if (store && switched && !firstPoll && activeKey) void store.actions.onActiveDoc(activeKey, revision)
       } catch (error) {
         // 宿主刚起来时路由可能还没注册：每个"未就绪期"只报一次，别每 3 秒刷屏
         if (!warned) {
@@ -242,7 +264,8 @@ export function apply(ctx: any): void {
       stopped = true
       clearInterval(timer)
       seatHandle?.dispose?.()
-      fallbackDisposer?.()
+      fallbackHandle?.dispose?.()
+      disposeFallbackTab?.()
       for (const store of stores.values()) store.dispose()
       stores.clear()
     }
