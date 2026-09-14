@@ -97,6 +97,7 @@ function publicBlock(b) {
     startLine: b.startLine,
     endLine: b.endLine,
     hash: b.hash,
+    preview: b.text.split('\n')[0].slice(0, 60),
   }
 }
 
@@ -235,7 +236,13 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         const abs = docPathByKey(cwd, key)
         const action = String(body.action || 'add')
         if (action === 'add') {
-          if (!store.addNote({ cwd, docPath: abs, note: body.note || {} })) return fail(res, 404, '文档状态缺失')
+          // 引用片段由宿主按当前正文补全：客户端只给块 id，避免"批注引用"与正文不一致
+          const note = { ...(body.note || {}) }
+          const blocks = splitBlocks(readText(abs))
+          const block = blocks.find((b) => b.id === note.blockId) || blocks.find((b) => b.index === note.blockIndex)
+          if (!note.quote && block) note.quote = block.text.slice(0, 200)
+          if (!note.blockId && block) note.blockId = block.id
+          if (!store.addNote({ cwd, docPath: abs, note })) return fail(res, 404, '文档状态缺失')
         } else if (action === 'update') {
           if (!store.updateNote({ cwd, docPath: abs, id: String(body.id || ''), patch: body.patch || {} })) return fail(res, 404, '批注不存在')
         } else if (action === 'remove') {

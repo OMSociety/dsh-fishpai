@@ -34,25 +34,52 @@
 
 ```
 plugin/index.mjs        宿主入口：注册工具 + /fishpai/api 路由 + fishpai 技能
-plugin/core/            渲染内核（ESM，零依赖）：render / blocks / diff / notes
-plugin/host/            工具契约、HTTP 路由、文档存储与路径守卫
+plugin/core/            渲染内核（ESM，零依赖）
+  runtime.mjs             vendor 资产的 vm 顶层求值（themes.js 不挂 window，必须这样取）
+  markdown.mjs            与站点一致的所有渲染规则 + 顶层块切分（块的 id 是内容寻址的）
+  render.mjs              渲染主流程（annotate 预览锚点 / imageResolver 图片内嵌，均默认关闭）
+  diff.mjs                块级 diff（LCS 对齐 + 改写配对 + 大改折叠）
+  notes.mjs               行内占位抽取 + 批注重锚（id → hash → 引用包含度 → orphan）
+  patch.mjs               按块 id 的局部改稿（replace / insert_after / delete）
+plugin/host/            宿主侧：工具契约、HTTP 路由、文档存储、图片
 plugin/vendor/          上游 themes.js + markdown-it 14.1.0 + highlight.js 11.9.0 + hljs-map.json
-client/                 客户端源码（TSX，esbuild 打成 lib/client.js）
+client/                 客户端源码（TSX → esbuild 打成 lib/client.js）
 lib/client.js           客户端 bundle（入库；dsh plugin add 不做构建）
 skills/fishpai/         鱼排技能：教模型怎么选主题、怎么按块改稿
 legacy-site/            上游 SPA 原样留存，便于本地起站复核渲染一致性
-test/                   渲染 golden、块模型、diff、存储、工具契约
+test/                   渲染 golden、站点剪贴板对照、块/diff/批注/补丁、宿主红线、bundle 形态
 ```
+
+## 面板里能做什么
+
+- **源码 + 实时预览**：打字 300ms 后预览跟着变；栏位够宽就左右并排，窄了自动单栏（编辑/预览 切换）
+- **13 套主题 · 12 个预设色 · 自定义取色 · 字号 · 微信脚注开关 · mac 代码块开关**
+- **手机宽度预览**（375px），看公众号里的真实观感
+- **复制到公众号**：写 `text/html` + `text/plain` 双格式；本地图片（相对路径的磁盘图）会先内嵌成 base64，
+  粘进编辑器不丢图（微信仍要求你在编辑器里重新上传一次，这是平台限制）
+- **导出 HTML**：自包含文件，可直接归档或交给别人
+- **批注**：光标放在某段上点「＋批注」，模型下次 `fishpai_read` 就会看到「哪一块、要怎样」；
+  也可以直接在正文里写 `<!-- 鱼排: 这里补个过渡 -->`
+- **历史回滚**：每次写入留快照，面板里一键回到任何一版
+- **自动保存**（800ms 防抖）与 **冲突不丢字**：模型和你同时改时，面板给你「用我的覆盖 / 看 AI 的版本」
 
 ## 与墨排一致的验证
 
-`plugin/core/render.mjs` 是上游渲染管线的 ESM 移植，**关掉预览注解与图片内嵌时，输出与迁移前的
-`render.js` 逐字节相同**；而 `render.js` 已与墨排线上站点做过两轮对照：
+`plugin/core/render.mjs` 是上游渲染管线的 ESM 移植，**关掉预览锚点与图片内嵌时，输出与迁移前的
+`render.js` 逐字节相同**（`test/golden/**`，由迁移前的冻结实现 `test/oracle/render.cjs` 生成——两份独立代码互为对照）。
 
-- 真实预览 DOM：13 主题 × 覆盖标题/引用/嵌套列表/表格/代码块/信息卡片/脚注的样本，全部一致
-- 真实剪贴板：点站点「复制到公众号」后的 `text/html`，规范化后零差异
+在此之上，`test/site-parity.test.mjs` 用**从墨排线上站点抓下来的真实剪贴板内容**
+（`test/golden/site-clip.default.html`）做金标准，规范化后逐字符比对本地输出——所以"与墨排一致"这句话
+在仓库内、离线就能复验，不依赖站点是否还在线。`legacy-site/` 留着上游原始站点，需要时可本地起站复跑对照。
 
-仓库内的回归测试把这些结论固化为字节级快照；`legacy-site/` 保留原始站点，需要时可本地起站复跑对照。
+## 开发
+
+```powershell
+npm install        # 只有 devDependencies（esbuild / typescript / @types/react）
+npm test           # 渲染 golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + bundle 形态
+npm run typecheck  # 客户端 TSX 类型检查
+npm run build      # 重新打包 lib/client.js（改完客户端必须跑，并提交产物）
+```
 
 ## 安装
 
@@ -61,6 +88,9 @@ test/                   渲染 golden、块模型、diff、存储、工具契约
 dsh plugin --profile web add github:OMSociety/dsh-fishpai#v0.1.0
 # 再启动 dsh web
 ```
+
+装好后右侧栏会多出「鱼排」入口（官方右侧栏的 + 菜单或引导页里也能找到它）。
+本插件零运行时依赖，不受 `minimumReleaseAge` 影响。
 
 ## 许可
 

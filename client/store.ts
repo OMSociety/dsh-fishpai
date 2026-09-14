@@ -1,0 +1,411 @@
+/**
+ * 面板状态机：把"文档 + 保存 + 预览 + 批注 + 冲突"收在一个可订阅对象里，
+ * React 侧只用 `useSyncExternalStore` 读快照 + 调动作，不自己管请求时序。
+ *
+ * 三条时序纪律：
+ *   1. **预览跟手**：打字 300ms 后用**本地文本**重新渲染（不等人保存），所见即所排。
+ *   2. **保存防抖 800ms**，且一定带 `baseRevision`；409 不丢内容，转成界面上的冲突条。
+ *   3. **AI 改过就提示**：轮询发现 revision 变了，干净时静默重载，有未保存改动时只挂提示，绝不吞掉人的输入。
+ */
+import {
+  api,
+  ConflictError,
+  type Block,
+  type DocMeta,
+  type HistoryEntry,
+  type Note,
+  type Placeholder,
+  type ThemeInfo,
+} from './api'
+
+export interface Toast {
+  id: number
+  text: string
+  kind: 'info' | 'error'
+}
+
+export interface FishpaiState {
+  status: 'loading' | 'ready' | 'empty' | 'error'
+  error: string | null
+  sessionId: string
+  docKey: string | null
+  path: string
+  title: string
+  markdown: string
+  savedMarkdown: string
+  revision: number
+  meta: DocMeta
+  blocks: Block[]
+  notes: Note[]
+  placeholders: Placeholder[]
+  images: Array<{ src: string; status: string }>
+  history: HistoryEntry[]
+  themes: ThemeInfo[]
+  presets: Array<{ name: string; color: string }>
+  sizes: string[]
+  previewHtml: string
+  previewBlocks: Block[]
+  themeName: string
+  previewing: boolean
+  saving: boolean
+  dirty: boolean
+  conflict: { revision: number; markdown: string } | null
+  external: { revision: number } | null
+  caretLine: number
+  toast: Toast | null
+}
+
+const DEFAULT_META: DocMeta = {
+  theme: 'default',
+  color: null,
+  font: 'sans',
+  fontSize: '16px',
+  footnotes: true,
+  macCodeBlock: true,
+  mobile: false,
+}
+
+function initialState(sessionId: string): FishpaiState {
+  return {
+    status: 'loading',
+    error: null,
+    sessionId,
+    docKey: null,
+    path: '',
+    title: '',
+    markdown: '',
+    savedMarkdown: '',
+    revision: 0,
+    meta: { ...DEFAULT_META },
+    blocks: [],
+    notes: [],
+    placeholders: [],
+    images: [],
+    history: [],
+    themes: [],
+    presets: [],
+    sizes: ['14px', '15px', '16px', '17px', '18px'],
+    previewHtml: '',
+    previewBlocks: [],
+    themeName: '',
+    previewing: false,
+    saving: false,
+    dirty: false,
+    conflict: null,
+    external: null,
+    caretLine: 1,
+    toast: null,
+  }
+}
+
+/** 预览 iframe 的 srcdoc：内联主题样式已在 html 里，这里只补容器样式与滚动上报脚本。 */
+export function buildSrcdoc(html: string): string {
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  fp-block{display:block;height:0;overflow:hidden}
+  img{max-width:100%;height:auto}
+</style></head><body>${html}
+<script>
+(function(){
+  var top=null;
+  function report(){
+    var marks=document.querySelectorAll('fp-block');
+    var best=null;
+    for(var i=0;i<marks.length;i++){
+      var r=marks[i].getBoundingClientRect();
+      if(r.top<=8){best=marks[i].getAttribute('data-b')}
+      else if(best===null){best=marks[i].getAttribute('data-b');break}
+    }
+    if(report.last!==best){report.last=best;parent.postMessage({fishpai:'visible',id:best},'*')}
+  }
+  addEventListener('scroll',report,{passive:true});
+  addEventListener('message',function(e){
+    var d=e.data;
+    if(!d||d.fishpai!=='reveal')return;
+    var el=document.querySelector('fp-block[data-b="'+d.id+'"]');
+    if(el&&el.nextElementSibling)el.nextElementSibling.scrollIntoView({block:'start'});
+    else if(el)el.scrollIntoView({block:'start'});
+  });
+  report();
+})();
+</script></body></html>`
+}
+
+/**
+ * 建一个面板状态机。
+ * @param sessionId 当前会话（面板与文档都按会话隔离）
+ * @param onDocLoaded 文档就绪时的回调（把 docKey 上报给外层，供轮询/打开使用）
+ */
+export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: string) => void) {
+  let state = initialState(sessionId)
+  const listeners = new Set<() => void>()
+  let toastSeq = 0
+  let saveTimer: ReturnType<typeof setTimeout> | null = null
+  let previewTimer: ReturnType<typeof setTimeout> | null = null
+
+  const emit = () => {
+    for (const fn of listeners) fn()
+  }
+  const patch = (next: Partial<FishpaiState>) => {
+    state = { ...state, ...next }
+    emit()
+  }
+  const toast = (text: string, kind: 'info' | 'error' = 'info') => {
+    toastSeq += 1
+    const id = toastSeq
+    patch({ toast: { id, text, kind } })
+    // 提示自己会消失，不需要用户去关
+    setTimeout(() => {
+      if (state.toast && state.toast.id === id) patch({ toast: null })
+    }, kind === 'error' ? 5000 : 2600)
+  }
+
+  // ── 预览 ───────────────────────────────────────────────────
+  let previewToken = 0
+  async function refreshPreview(markdown: string, meta: DocMeta) {
+    if (!state.docKey) return
+    const token = ++previewToken
+    patch({ previewing: true })
+    try {
+      const res = await api.renderPreview(state.sessionId, state.docKey, markdown, meta)
+      if (token !== previewToken) return // 有更新的渲染在路上，丢掉这次
+      patch({ previewHtml: res.html, previewBlocks: res.blocks, themeName: res.themeName, previewing: false })
+    } catch (error) {
+      if (token !== previewToken) return
+      patch({ previewing: false, error: `预览渲染失败：${(error as Error).message}` })
+    }
+  }
+
+  const schedulePreview = () => {
+    if (previewTimer) clearTimeout(previewTimer)
+    previewTimer = setTimeout(() => refreshPreview(state.markdown, state.meta), 300)
+  }
+
+  // ── 保存 ───────────────────────────────────────────────────
+  async function saveNow() {
+    if (!state.docKey || !state.dirty) return
+    // 冲突未决之前不再重试：否则用户每打一个字都会再撞一次 409
+    if (state.conflict) return
+    const snapshotMarkdown = state.markdown
+    patch({ saving: true })
+    try {
+      const res = await api.save(state.sessionId, state.docKey, snapshotMarkdown, state.revision, state.meta)
+      patch({
+        saving: false,
+        revision: res.revision,
+        savedMarkdown: snapshotMarkdown,
+        dirty: state.markdown !== snapshotMarkdown,
+        conflict: null,
+        external: null,
+      })
+      if (state.markdown !== snapshotMarkdown) scheduleSave()
+    } catch (error) {
+      if (error instanceof ConflictError) {
+        patch({ saving: false, conflict: { revision: error.revision, markdown: error.markdown } })
+        return
+      }
+      patch({ saving: false, error: `保存失败：${(error as Error).message}` })
+    }
+  }
+
+  const scheduleSave = () => {
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => void saveNow(), 800)
+  }
+
+  // ── 载入 ───────────────────────────────────────────────────
+  async function loadDoc(docKey: string, opts: { keepLocal?: boolean } = {}) {
+    if (!docKey) return
+    const res = await api.doc(state.sessionId, docKey)
+    const keep = opts.keepLocal && state.dirty && state.docKey === docKey
+    patch({
+      status: 'ready',
+      error: null,
+      docKey,
+      path: res.doc.path,
+      title: res.doc.title,
+      markdown: keep ? state.markdown : res.doc.markdown,
+      savedMarkdown: res.doc.markdown,
+      dirty: keep ? true : false,
+      revision: res.doc.revision,
+      meta: res.meta,
+      blocks: res.blocks,
+      notes: res.notes,
+      placeholders: res.placeholders,
+      images: res.images,
+      history: res.history,
+      conflict: null,
+      external: null,
+    })
+    onDocLoaded?.(docKey)
+    void refreshPreview(keep ? state.markdown : res.doc.markdown, res.meta)
+  }
+
+  async function init() {
+    try {
+      const themes = await api.themes().catch(() => null)
+      if (themes) patch({ themes: themes.themes, presets: themes.presets, sizes: themes.sizes })
+      const st = await api.state(state.sessionId)
+      if (!st.active) {
+        patch({ status: 'empty' })
+        return
+      }
+      await loadDoc(st.active.key)
+    } catch (error) {
+      patch({ status: 'error', error: (error as Error).message })
+    }
+  }
+
+  // ── 对外动作 ───────────────────────────────────────────────
+  const actions = {
+    init,
+
+    setMarkdown(text: string) {
+      patch({ markdown: text, dirty: text !== state.savedMarkdown })
+      schedulePreview()
+      scheduleSave()
+    },
+
+    setCaret(line: number) {
+      if (line !== state.caretLine) patch({ caretLine: line })
+    },
+
+    /** 光标所在块（加批注、跳预览都用它）。 */
+    currentBlock(): Block | null {
+      const line = state.caretLine
+      return state.blocks.find((b) => b.startLine <= line && line <= b.endLine) || state.blocks[0] || null
+    },
+
+    async setMeta(next: Partial<DocMeta>) {
+      const meta = { ...state.meta, ...next }
+      patch({ meta })
+      if (state.docKey) {
+        try {
+          await api.meta(state.sessionId, state.docKey, next)
+        } catch (error) {
+          toast(`设置未保存：${(error as Error).message}`, 'error')
+        }
+      }
+      void refreshPreview(state.markdown, meta)
+    },
+
+    async addNote(text: string) {
+      const block = actions.currentBlock()
+      if (!state.docKey || !block) return
+      try {
+        // 只给块 id：引用片段由宿主按当前正文补全，不会与正文不一致
+        const res = await api.notes(state.sessionId, state.docKey, {
+          action: 'add',
+          note: { blockId: block.id, text, author: 'human' },
+        })
+        patch({ notes: res.notes })
+        toast('批注已加；模型下次 fishpai_read 就能看到')
+      } catch (error) {
+        toast(`批注失败：${(error as Error).message}`, 'error')
+      }
+    },
+
+    async updateNote(id: string, next: Partial<Note>) {
+      if (!state.docKey) return
+      try {
+        const res = await api.notes(state.sessionId, state.docKey, { action: 'update', id, patch: next })
+        patch({ notes: res.notes })
+      } catch (error) {
+        toast(`批注更新失败：${(error as Error).message}`, 'error')
+      }
+    },
+
+    async removeNote(id: string) {
+      if (!state.docKey) return
+      try {
+        const res = await api.notes(state.sessionId, state.docKey, { action: 'remove', id })
+        patch({ notes: res.notes })
+      } catch (error) {
+        toast(`删除失败：${(error as Error).message}`, 'error')
+      }
+    },
+
+    async restore(rev: number) {
+      if (!state.docKey) return
+      try {
+        await api.history(state.sessionId, state.docKey, { action: 'restore', rev })
+        await loadDoc(state.docKey)
+        toast(`已回滚到 rev ${rev}`)
+      } catch (error) {
+        if (error instanceof ConflictError) {
+          patch({ conflict: { revision: error.revision, markdown: error.markdown } })
+          return
+        }
+        toast(`回滚失败：${(error as Error).message}`, 'error')
+      }
+    },
+
+    /** 冲突处理：保留我的（服务端最新文本会进历史）/ 采用服务端的。 */
+    async resolveConflict(choice: 'mine' | 'theirs') {
+      if (!state.conflict || !state.docKey) return
+      const conflict = state.conflict
+      if (choice === 'theirs') {
+        patch({ markdown: conflict.markdown, savedMarkdown: conflict.markdown, revision: conflict.revision, conflict: null, dirty: false })
+        schedulePreview()
+        toast('已采用 AI 的版本')
+        return
+      }
+      patch({ revision: conflict.revision, conflict: null })
+      await saveNow()
+      toast('已用你的版本覆盖，AI 的版本留在历史里')
+    },
+
+    /** 导出/复制用：拿「复制到公众号」形态的 HTML（本地图片已内嵌 base64）。 */
+    async publishHtml(): Promise<string> {
+      if (!state.docKey) throw new Error('还没有打开文档')
+      await saveNow()
+      const res = await api.renderPublish(state.sessionId, state.docKey, state.markdown, state.meta)
+      return res.html
+    },
+
+    /** 轮询发现宿主的 revision 变了（AI 写的、或别的窗口写的）。 */
+    async onExternalRevision(rev: number) {
+      if (!state.docKey || rev <= state.revision) return
+      if (state.dirty) {
+        patch({ external: { revision: rev } })
+        return
+      }
+      await loadDoc(state.docKey)
+      toast(`AI 更新了文档（rev ${rev}）`)
+    },
+
+    async reload() {
+      if (state.docKey) await loadDoc(state.docKey)
+    },
+
+    /** 采用外部版本（放弃自己的未保存改动）。 */
+    async acceptExternal() {
+      if (!state.docKey) return
+      await loadDoc(state.docKey)
+    },
+
+    toast,
+    flush() {
+      if (saveTimer) clearTimeout(saveTimer)
+      return saveNow()
+    },
+  }
+
+  return {
+    getSnapshot: () => state,
+    subscribe: (fn: () => void) => {
+      listeners.add(fn)
+      return () => listeners.delete(fn)
+    },
+    actions,
+    dispose() {
+      if (saveTimer) clearTimeout(saveTimer)
+      if (previewTimer) clearTimeout(previewTimer)
+      listeners.clear()
+    },
+  }
+}
+
+export type FishpaiStore = ReturnType<typeof createFishpaiStore>
