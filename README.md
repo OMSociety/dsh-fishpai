@@ -104,7 +104,7 @@ overlapping = lineHeight === 0 || (lineCount >= 2 && 内容高度 / lineCount < 
 
 鱼排的做法：复制/导出时把文字包进 `<span>`——块级元素不再有**直接文字子节点**，那条规则就不再命中；
 这恰好也是微信自己插入内容之后的形态（`<span leaf="">`）。13 套主题实测：
-**11 套 + `dark_night` 全部通过**；`tech` / `gradient` 会被另一条 `darkmode-no-gradient`（深色模式下的渐变）标出——
+**13 套主题实测通过 11 套**（10 套「适合公众号」的 + `dark_night`）；`tech` / `gradient` 会被另一条 `darkmode-no-gradient`（深色模式下的渐变）标出——
 这正是面板里早就提示"其它风格（微信可能掉样式）"的原因：要发公众号就用「默认公众号」，
 要这两种观感就用「导出 HTML」。
 
