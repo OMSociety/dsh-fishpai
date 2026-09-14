@@ -338,6 +338,11 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
             ...common,
             publish: true,
             simple: !!body.simple,
+            // 微信结构兼容层（把文字包进 <span>）只在复制/导出这条路径上开：
+            // 微信编辑器的结构校验用「内容高度 ÷ 行框矩形数」估行高，而含行内元素的段落
+            // 一行会被拆成多个矩形 → 被误判成"行高小于字体大小、文字重叠"。
+            // 默认渲染路径（golden 守着的那条）一个字节都不动。
+            wrapText: true,
             imageResolver: makeImageResolver({ cwd, docPath: abs }),
           })
           return json(res, 200, { ok: true, mode: 'publish', html: out.html, themeKey: out.themeKey, themeName: out.themeName })

@@ -464,6 +464,46 @@ test('路由：面板自己新建空白文档（不编造 baseline），POST /ac
   assert.match(bogus.json.error, /没有这个文档/)
 })
 
+test('微信结构兼容层只走复制/导出：publish 包 span，preview 不包', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+
+  const publish = await callRoute(handler, {
+    method: 'POST',
+    url: '/fishpai/api/render',
+    body: { sessionId: 's1', docKey: opened.key, mode: 'publish' },
+  })
+  assert.equal(publish.status, 200)
+  // 微信的结构校验用「内容高度 ÷ 行框矩形数」估行高，含行内元素的段落会被误判成行高过小；
+  // 把文字包进 span（块级元素不再有直接文字子节点）就不命中——这条只该出现在复制/导出产物里。
+  assert.match(publish.json.html, /<span>本周四晚七点/, '复制/导出产物应当把文字包进 span')
+
+  const preview = await callRoute(handler, {
+    method: 'POST',
+    url: '/fishpai/api/render',
+    body: { sessionId: 's1', docKey: opened.key, mode: 'preview' },
+  })
+  assert.equal(preview.status, 200)
+  assert.doesNotMatch(preview.json.html, /<span>/, '预览不加兼容层（那段 HTML 不进微信）')
+})
+
+test('fishpai_render：默认（复制形态）加兼容层，publish:false 时保持原始形态', async () => {
+  const cwd = tmpWorkspace()
+  const { tools, exec } = fakeHost(cwd)
+  const byName = (name) => tools.find((t) => t.name === name)
+  await byName('fishpai_open').execute({ markdown: ARTICLE }, exec)
+
+  const wrapped = await byName('fishpai_render').execute({ out_path: '导出成品' }, exec)
+  assert.equal(wrapped.isError, false, wrapped.text)
+  assert.match(fs.readFileSync(path.join(cwd, '导出成品.html'), 'utf8'), /<span>本周四晚七点/)
+
+  const plain = await byName('fishpai_render').execute({ out_path: '预览原样', publish: false }, exec)
+  assert.equal(plain.isError, false, plain.text)
+  assert.doesNotMatch(fs.readFileSync(path.join(cwd, '预览原样.html'), 'utf8'), /<span>/)
+})
+
 test('路由：Origin: null 的请求被拒（沙箱 iframe / data: 文档）', async () => {
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })

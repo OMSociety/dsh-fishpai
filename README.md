@@ -58,6 +58,7 @@ test/                   渲染 golden、站点剪贴板对照、块/diff/批注/
 - **复制到公众号**：写 `text/html` + `text/plain` 双格式；本地图片（相对路径的磁盘图）会先内嵌成 base64，
   粘进编辑器时图片跟着一起过去、**不需要手动重新上传**（编辑器接收后由微信自行转存）。
   会被微信拦掉的是**外链图**（`http(s)://` 指向别处），以及内嵌不了的本地图（文件不在、在工作目录外、超过 5 MB）。
+  产物还带一层微信结构兼容层（把文字包进 `<span>`），见下文。
 - **导出 HTML**：自包含文件，可直接归档或交给别人
 - **批注**：光标放在某段上点「＋批注」，模型下次 `fishpai_read` 就会看到「哪一块、要怎样」；
   也可以直接在正文里写 `<!-- 鱼排: 这里补个过渡 -->`
@@ -73,19 +74,58 @@ test/                   渲染 golden、站点剪贴板对照、块/diff/批注/
 
 `plugin/core/render.mjs` 是上游渲染管线的 ESM 移植，**在预览锚点（`annotate`）与图片内嵌（`imageResolver`）
 都不生效时，输出与迁移前的 `render.js` 逐字节相同**（`test/golden/**`，由迁移前的冻结实现 `test/oracle/render.cjs` 生成——
-两份独立代码互为对照）。面板的预览与复制会显式开这两个能力，默认路径始终保持一致。
+两份独立代码互为对照）。面板的**预览**只额外开锚点，那条路径同样与站点逐字节一致；
+**复制/导出**还会加一层结构兼容层（`wrapText`），见下两节。
 
 在此之上，`test/site-parity.test.mjs` 用**从墨排线上站点抓下来的真实剪贴板内容**
 （`test/golden/site-clip.default.html`）做金标准，规范化后逐字符比对本地输出——所以"与墨排一致"这句话
 在仓库内、离线就能复验，不依赖站点是否还在线。`legacy-site/` 留着上游原始站点，需要时可本地起站复跑对照。
 
+**唯一一处有意的偏离**：**复制到公众号 / 导出 HTML** 会在渲染后把文字包进 `<span>`（`wrapText`，见下节）。
+它只加一层不带样式的 `<span>`、视觉零影响，`test/wechat-structure.test.mjs` 守着
+"去掉它加的那层裸 span 就回到默认产物"这条纯叠加性质。
+
+## 为什么复制过去不再报「行高过小」
+
+公众号编辑器插入内容后会跑一遍结构校验（微信官方规范
+[《微信公众平台编辑器插件开发规范》](https://developers.weixin.qq.com/doc/service/guide/product/plugin_spec.html)
+§1.3，官方实现 [wechatjs/verify-article-structure-spec](https://github.com/wechatjs/verify-article-structure-spec)）。
+它的 line-height 规则是**实测**的：
+
+```
+lineCount   = Range(节点).getClientRects().length
+overlapping = lineHeight === 0 || (lineCount >= 2 && 内容高度 / lineCount < 0.95 × 字号)
+```
+
+它把"矩形个数"当行数，而**行内元素（`<span>` / `<a>` / `<strong>`）会把同一行拆成多个矩形**。
+实测：一个 `line-height: 1.8` 的两行段落，只要中间有一个链接，矩形数就是 6 →
+"平均行高"被算成 8.97px < 15.2px → 被报成「行高小于字体大小，且存在多行文本，可能导致文字重叠（实测）」。
+**这是校验器的误报**（`line-height` 1.8 并不会重叠），但提示会一直在。
+
+鱼排的做法：复制/导出时把文字包进 `<span>`——块级元素不再有**直接文字子节点**，那条规则就不再命中；
+这恰好也是微信自己插入内容之后的形态（`<span leaf="">`）。13 套主题实测：
+**11 套 + `dark_night` 全部通过**；`tech` / `gradient` 会被另一条 `darkmode-no-gradient`（深色模式下的渐变）标出——
+这正是面板里早就提示"其它风格（微信可能掉样式）"的原因：要发公众号就用「默认公众号」，
+要这两种观感就用「导出 HTML」。
+
+想自己复验，见下节。
+
 ## 开发
 
 ```powershell
 npm install        # 只有 devDependencies（esbuild / typescript / @types/react）
-npm test           # 渲染 golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + bundle 形态
+npm test           # 渲染 golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信结构 + bundle 形态
 npm run typecheck  # 客户端 TSX 类型检查
 npm run build      # 重新打包 lib/client.js（改完客户端必须跑，并提交产物）
+```
+
+### 可选：用微信官方校验器复验（需要本机 Chrome，不进依赖）
+
+```powershell
+git clone --depth 1 https://github.com/wechatjs/verify-article-structure-spec "$env:TEMP\was"
+cd "$env:TEMP\was\cli"; $env:PUPPETEER_SKIP_DOWNLOAD='true'; npm install
+$env:PUPPETEER_EXECUTABLE_PATH='C:\Program Files\Google\Chrome\Application\chrome.exe'
+npx tsx src/index.ts <导出的 article.html> --json   # isValid: true 即通过
 ```
 
 ## 安装

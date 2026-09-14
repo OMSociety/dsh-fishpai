@@ -302,6 +302,7 @@ function rewriteImages(html, resolver) {
  * @param {boolean}[opts.macCodeBlock] 代码块是否用 mac 标题栏形态，默认 true
  * @param {boolean}[opts.simple]       站点「一键发布 14 平台」那条白名单路径
  * @param {boolean}[opts.annotate]     预览锚点（隐含 publish=false），默认 false
+ * @param {boolean}[opts.wrapText]     把文字包进 `<span>`（微信结构校验的兼容层），默认 false
  * @param {(src:string)=>string|null} [opts.imageResolver] 图片内嵌解析器
  * @returns {{html: string, themeKey: string, themeName: string, blocks?: Array<object>}}
  */
@@ -311,7 +312,7 @@ export function render(markdownText, opts = {}) {
   const THEMES = themes()
   const theme = THEMES[key]
   const styles = makeStyler(theme, opts.color)
-  const md = createMd(styles, { macCodeBlock: opts.macCodeBlock })
+  const md = createMd(styles, { macCodeBlock: opts.macCodeBlock, wrapText: opts.wrapText })
 
   const env = {}
   let body

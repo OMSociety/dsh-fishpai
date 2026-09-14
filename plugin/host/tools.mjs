@@ -414,6 +414,10 @@ export function registerTools(ctx, deps) {
           footnotes: state.footnotes !== false,
           macCodeBlock: state.macCodeBlock !== false,
           publish: args.publish !== false,
+          // 导出的成品是要粘进公众号的，所以跟面板的「复制到公众号」走同一条兼容层
+          // （把文字包进 <span>，避开微信结构校验对"含行内元素的段落"的误报）。
+          // publish:false（预览原样 HTML）时不加，保持与站点一致的原始形态。
+          wrapText: args.publish !== false,
           imageResolver: args.embed_images === false ? undefined : makeImageResolver({ cwd, docPath: abs }),
         })
         const target = args.out_path

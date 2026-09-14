@@ -22,6 +22,18 @@
   保留 ↑↓ / Enter / Esc 与点击外部关闭。
   图标全部走 `currentColor` + `--dsw-alias-*` 令牌，**浅色与深色主题共用一套，不需要两套图**。
 
+### Fixed
+
+- **复制到公众号不再被平台的结构校验报「行高过小」**。公众号编辑器的 line-height 规则是实测的：
+  `行数 = Range.getClientRects().length`，而**行内元素会把同一行拆成多个矩形**——一个
+  `line-height: 1.8` 的两行段落只要含一个链接，矩形数就是 6，"平均行高"被算成 8.97px < 15.2px，
+  于是被报成"行高小于字体大小，且存在多行文本，可能导致文字重叠（实测）"。
+  现在复制/导出的产物会把文字包进 `<span>`（块级元素不再有直接文字子节点，那条规则不再命中），
+  这也正是微信自己插入内容后的形态。渲染内核的默认路径保持与上游逐字节一致，
+  兼容层只走 publish 一条路径、且是纯叠加（`test/wechat-structure.test.mjs` 守着）。
+  13 套主题用微信官方校验器实测：11 套 + `dark_night` 通过；`tech`/`gradient` 会命中
+  `darkmode-no-gradient`（与面板里"微信可能掉样式"的提示一致，要发公众号请用「默认公众号」）。
+
 ## [0.1.0] - 2026-09-15
 
 首个版本。fork 自 [mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT），重构为 DSH 插件。

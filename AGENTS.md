@@ -10,9 +10,12 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
 
 ## 不可违反的不变量
 
-1. **渲染字节级一致**。`plugin/core/render.mjs` 在 `annotate`/`embedImages` 关闭时，输出必须与
-   `test/golden/**` 逐字节相同。改渲染代码前先跑 `npm test`；golden 只能用
+1. **渲染字节级一致**。`plugin/core/render.mjs` 在 `annotate`／`imageResolver`／`wrapText` 都关闭时，
+   输出必须与 `test/golden/**` 逐字节相同。改渲染代码前先跑 `npm test`；golden 只能用
    `npm run test:golden:regen` 重生成，且重生成必须说得清"为什么上游行为变了"。
+   **唯一允许的偏离是 `wrapText`**（复制/导出时把文字包进 `<span>`，让微信编辑器的结构校验
+   不再把"含行内元素的段落"误报成行高过小）：它只走 publish 那条路径，且必须是**纯叠加**的
+   （`test/wechat-structure.test.mjs` 守着这条性质），默认路径一个字节都不许动。
 2. **上游那 8 个坑不许"修好"**（`legacy-site/DESIGN.md` 与 README 里有完整列表），典型的是：
    紧凑列表项内段落 token 的 `hidden=true` 必须跳过；代码块的 mac 结构嵌在 `pre>code` **内部**；
    站点默认 `sans`/`16px` 总会覆盖主题自带字体字号。与上游不一致 = bug。

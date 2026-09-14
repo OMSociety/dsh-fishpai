@@ -37,7 +37,7 @@ export function makeStyler(theme, customColor) {
 /**
  * 建一个与站点配置一致的 markdown-it 实例，并覆写渲染规则产出内联样式。
  * @param {Record<string,string>} styles 主题样式表（makeStyler 的产物）
- * @param {{macCodeBlock?: boolean}} [opts] macCodeBlock 默认 true
+ * @param {{macCodeBlock?: boolean, wrapText?: boolean}} [opts] macCodeBlock 默认 true；wrapText 默认 false
  */
 export function createMd(styles, opts = {}) {
   const macCodeBlock = opts.macCodeBlock !== false
@@ -207,6 +207,26 @@ export function createMd(styles, opts = {}) {
       i++
     }
   })
+
+  /**
+   * 微信平台兼容（可选，`wrapText`）：把文字包进 `<span>`。
+   *
+   * 为什么需要：微信编辑器的结构校验用 `Range.getClientRects()` 量"文字行数"，
+   * 而**行内元素（`<span>`/`<a>`/`<strong>`）会把同一行拆成多个矩形**——「内容高度 ÷ 矩形数」
+   * 因此被算小，含行内元素的段落会被误判成"行高小于字体大小、多行文字重叠"
+   * （实测：`line-height: 1.8` 的两行段落含一个链接 → 6 个矩形 → 判定叠字）。
+   *
+   * 把文字包进 `<span>` 后，块级元素不再有**直接文字子节点**，那条校验就不再命中
+   * （官方校验器实测 `isValid: true`）。视觉上零影响——span 不带任何样式；
+   * 而且这正是微信自己插入内容后的结构（`<span leaf="">`）。
+   *
+   * 默认关闭：默认路径必须与 `test/golden/**` 逐字节一致（那是本项目的地基）。
+   * 复制到公众号/导出这条路径才开（见 plugin/host/routes.mjs 与 tools.mjs）。
+   */
+  if (opts.wrapText) {
+    const escapeHtml = md.utils.escapeHtml
+    md.renderer.rules.text = (tokens, idx) => `<span>${escapeHtml(tokens[idx].content)}</span>`
+  }
 
   return md
 }
