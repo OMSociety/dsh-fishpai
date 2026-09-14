@@ -15,20 +15,41 @@ import { containment } from './markdown.mjs'
 /** 行内占位语法：`<!-- 鱼排: 文字 -->`（也接受 fishpai / 中文冒号）。 */
 export const PLACEHOLDER_RE = /<!--\s*(?:鱼排|fishpai)\s*[:：]\s*([\s\S]*?)\s*-->/g
 
-/** 从 Markdown 里抽出全部行内占位（1-based 行号，便于面板跳转）。 */
+/**
+ * 把**代码区域**遮成等长空白，行结构不变（行号还能对上原文）。
+ *
+ * 为什么需要：文章里讲解用法时常常把 `<!-- 鱼排: 这里补个数据 -->` 写进行内代码当例子，
+ * 那是"示例"不是"待办"。不遮的话面板会一直显示"待补 1"，而人根本找不到要补什么。
+ * 遮的是**围栏代码块**与**行内代码**（缩进式代码块不遮：那需要更重的解析，收益也小）。
+ */
+function maskCode(markdown) {
+  const lines = String(markdown || '').split('\n')
+  let fence = null
+  return lines.map((line) => {
+    const m = /^\s{0,3}(`{3,}|~{3,})/.exec(line)
+    if (fence) {
+      if (m && m[1][0] === fence[0] && m[1].length >= fence.length) fence = null
+      return ' '.repeat(line.length)
+    }
+    if (m) {
+      fence = m[1]
+      return ' '.repeat(line.length)
+    }
+    return line.replace(/(`+)[^`]*\1/g, (full) => ' '.repeat(full.length))
+  })
+}
+
+/** 从 Markdown 里抽出全部行内占位（1-based 行号，便于面板跳转）。代码区域里的不算。 */
 export function extractPlaceholders(markdown) {
   const out = []
+  const mask = maskCode(markdown)
   const lines = String(markdown || '').split('\n')
   for (let i = 0; i < lines.length; i++) {
+    // 遮罩与原文等长，所以命中的文本就是原文的文本——只在"判不判定为占位"这一步用遮罩
     const re = new RegExp(PLACEHOLDER_RE.source, 'g')
     let m
-    while ((m = re.exec(lines[i])) !== null) {
-      out.push({
-        line: i + 1,
-        text: m[1].trim(),
-        raw: m[0],
-        blockId: null,
-      })
+    while ((m = re.exec(mask[i])) !== null) {
+      out.push({ line: i + 1, text: m[1].trim(), raw: m[0], blockId: null })
     }
   }
   return out

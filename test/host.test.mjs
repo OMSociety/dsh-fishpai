@@ -569,6 +569,25 @@ test('微信底色兼容层只走复制/导出：publish 把 background 拆成�
   assert.match(preview.json.html, /(^|[;"\s])background\s*:/, '预览保持与站点一致的原始形态')
 })
 
+test('面板开关的判据由渲染结果给出：linkCount / hasCode 随预览一起回带', async () => {
+  const cwd = tmpWorkspace()
+  // 故意用没有协议的裸域名 + 缩进式代码块：这两类正是"面板自己猜"会猜错的
+  const markdown = '看 github.com/OMSociety/dsh-fishpai 这个仓库。\n\n段落\n\n    缩进式代码块\n'
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+
+  const preview = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: 's1', docKey: opened.key, mode: 'preview' } })
+  assert.equal(preview.status, 200)
+  assert.equal(preview.json.linkCount, 1, '裸域名也算链接（linkify 会把它变成 <a>）')
+  assert.equal(preview.json.hasCode, true, '缩进式代码块也算代码块')
+  assert.match(preview.json.html, /参考资料/, '有链接就一定有「参考资料」——开关必须能点')
+
+  const plain = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: 's1', docKey: opened.key, markdown: '只有正文，没有链接也没有代码。', mode: 'preview' } })
+  assert.equal(plain.json.linkCount, 0)
+  assert.equal(plain.json.hasCode, false)
+})
+
 test('状态里存着已移除的主题（ft/medium）：退回默认，不让文档打不开', async () => {
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })

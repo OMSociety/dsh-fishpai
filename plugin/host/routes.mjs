@@ -371,6 +371,11 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
           html: out.html,
           themeKey: out.themeKey,
           themeName: out.themeName,
+          // 「脚注 / Mac 代码框」这两个开关能不能点，由**渲染结果**说话：
+          // 以前面板拿正则猜正文（只认带 `//` 的链接、只认 ``` 围栏），
+          // 于是 `github.com/x/y` 生成了「参考资料」而开关是灰的、缩进式代码块也漏。
+          linkCount: out.linkCount,
+          hasCode: out.hasCode,
           // 预览跟着本地正文走，所以块/占位/图片/批注锚点也一起回带——
           // 面板因此不必等"保存 + 重载"才看得到自己刚写的东西。
           ...liveSurface({ cwd, key, abs, markdown }),

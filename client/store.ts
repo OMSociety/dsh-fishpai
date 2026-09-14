@@ -46,6 +46,10 @@ export interface FishpaiState {
   notes: Note[]
   placeholders: Placeholder[]
   images: ImageInfo[]
+  /** 正文里会被转成脚注的链接数（来自渲染结果，决定「脚注」开关能不能点）。 */
+  linkCount: number
+  /** 正文里有没有代码块（同样来自渲染结果，决定「Mac 代码框」开关能不能点）。 */
+  hasCode: boolean
   /**
    * 预览要用的本地图片：`src` → data URI。
    *
@@ -98,6 +102,8 @@ function initialState(sessionId: string): FishpaiState {
     notes: [],
     placeholders: [],
     images: [],
+    linkCount: 0,
+    hasCode: false,
     imageMap: {},
     history: [],
     docs: [],
@@ -271,6 +277,8 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         blocks: res.blocks,
         placeholders: res.placeholders,
         images: res.images,
+        linkCount: res.linkCount,
+        hasCode: res.hasCode,
         ...(epoch === notesEpoch ? { notes: res.notes } : {}),
         themeName: res.themeName,
         previewing: false,
@@ -349,6 +357,9 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       notes: res.notes,
       placeholders: res.placeholders,
       images: res.images,
+      // /doc 不带渲染信息：先按"没有"起手，紧随其后的那次预览会把它们填准
+      linkCount: 0,
+      hasCode: false,
       imageMap: Object.fromEntries(imageCache.get(docKey) || []),
       history: res.history,
       conflict: null,

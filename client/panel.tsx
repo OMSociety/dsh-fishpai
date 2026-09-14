@@ -61,21 +61,6 @@ function kindLabel(kind: string | null | undefined, fallback = '块'): string {
   return KIND_LABEL[kind] || kind
 }
 
-/**
- * 两个"开关到底有没有用"的判断（只用来把无效控件置灰并说明原因）。
- *
- * 都是启发式：只在 markdown 里扫一眼，判错也只是提示不准，不影响功能。
- * 外链要排掉图片语法（`![alt](url)` 不会转脚注），自动链接（裸 URL）也算。
- */
-function hasExternalLinks(markdown: string): boolean {
-  if (/(?<!!)\[[^\]\n]*\]\(\s*(?:https?:)?\/\//.test(markdown)) return true
-  return /(^|[\s(])https?:\/\/\S+/.test(markdown)
-}
-
-function hasCodeBlocks(markdown: string): boolean {
-  return /^ {0,3}(?:```|~~~)/m.test(markdown)
-}
-
 // ── 剪贴板 ─────────────────────────────────────────────────────
 
 async function copyRich(html: string, plain: string): Promise<void> {
@@ -423,9 +408,12 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
 
   const openNotes = state.notes.filter((n) => !n.resolved)
   const currentTheme = state.themes.find((t) => t.key === state.meta.theme) || null
-  // 只用来把"点了没反应"的开关置灰并说明原因
-  const docHasLinks = hasExternalLinks(state.markdown)
-  const docHasCode = hasCodeBlocks(state.markdown)
+  // 只用来把"点了没反应"的开关置灰并说明原因。
+  // 判据来自**宿主渲染结果**（linkCount / hasCode），不是在这里拿正则猜正文——
+  // 猜的话 `github.com/x/y` 这种没写协议的链接会漏（它照样生成了「参考资料」），
+  // 缩进式代码块也会漏，结果就是"开关灰着、效果却在"。
+  const docHasLinks = state.linkCount > 0
+  const docHasCode = state.hasCode
   // 内嵌不了的图（文件不在/越界/超上限）粘进公众号大概率不显示，要在编辑器里手动传
   const manualImages = state.images.filter((i) => !i.embed)
 

@@ -17,13 +17,37 @@ import { createMd, makeStyler, collectBlocks } from './markdown.mjs'
 import { classifyTheme } from './theme-info.mjs'
 
 // ── 1. 微信脚注：正文外链转上标 + 文末「参考资料」────────────────
+// ── 1. 微信脚注：正文外链转上标 + 文末「参考资料」────────────────
 // 站点做法：把 <a> 换成 <span>，沿用该 <a> 已经拿到的主题链接样式（含 border-bottom），
 // 再补一个 cursor: default 的 <sup>；文末追加纯文本「参考资料」（微信不支持正文外链）。
+const A_TAG_RE = /<a\s([^>]*?)href="([^"]*)"([^>]*)>([\s\S]*?)<\/a>/g
+
+/**
+ * 哪些 `<a>` 会被转成脚注（同一条规则必须被"渲染"与"数给面板看"两处共用）。
+ *
+ * 为什么要单独数一遍：面板的「脚注」开关以前靠**猜**正文里有没有外链（正则只认带 `//` 的写法），
+ * 于是 `github.com/foo/bar` 这种能被 linkify 变成链接、也会生成「参考资料」的写法，
+ * 开关却是灰的——用户点了没反应，也关不掉。现在由渲染结果说话。
+ */
+function isFootnoteHref(href) {
+  return !!href && !href.startsWith('#') && !href.startsWith('javascript:')
+}
+
+/** 正文里会被转成脚注的链接（顺序与编号一致）。 */
+export function footnoteLinks(html) {
+  const links = []
+  String(html).replace(A_TAG_RE, (full, pre, href, post, inner) => {
+    if (isFootnoteHref(href)) links.push({ text: inner.replace(/<[^>]+>/g, ''), href })
+    return full
+  })
+  return links
+}
+
 export function linksToFootnotes(md, html, styles = {}) {
   const links = []
   const supStyle = 'color: inherit; font-size: 80%; vertical-align: super; cursor: default;'
-  const out = html.replace(/<a\s([^>]*?)href="([^"]*)"([^>]*)>([\s\S]*?)<\/a>/g, (full, pre, href, post, inner) => {
-    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return full
+  const out = html.replace(A_TAG_RE, (full, pre, href, post, inner) => {
+    if (!isFootnoteHref(href)) return full
     const text = inner.replace(/<[^>]+>/g, '')
     const idx = links.length + 1
     links.push({ idx, text, href })
@@ -355,6 +379,11 @@ export function render(markdownText, opts = {}) {
     body = md.render(markdownText, env)
   }
 
+  // 面板要靠"渲染结果"而不是猜正文来决定两个开关能不能点：
+  //   脚注开关 —— 正文里到底有没有会被转成脚注的链接（`github.com/x` 这种没写协议的也算）
+  //   Mac 代码框开关 —— 正文里到底有没有代码块（缩进式代码块也算，只认 ``` 会漏）
+  const linkCount = opts.footnotes === false ? 0 : footnoteLinks(body).length
+  const hasCode = /<pre\b/.test(body)
   if (opts.footnotes !== false) body = linksToFootnotes(md, body, styles)
   body = cleanForWechat(body)
   if (typeof opts.imageResolver === 'function') body = rewriteImages(body, opts.imageResolver)
@@ -380,7 +409,8 @@ export function render(markdownText, opts = {}) {
   }
 
   const html = `<div style="${wrapperStyle}">${body}</div>`
-  const out = { html, themeKey: key, themeName: theme.name }
+  // linkCount / hasCode 只回给面板判断"开关该不该亮"，不参与 golden（html 一个字节都没动）
+  const out = { html, themeKey: key, themeName: theme.name, linkCount, hasCode }
   if (blocks) out.blocks = blocks
   return out
 }

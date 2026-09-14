@@ -196,15 +196,25 @@ export const api = {
   /**
    * 预览渲染。宿主回带的 `blocks` / `notes` / `placeholders` / `images` **是跟着传进去的
    * markdown 走的**（不是磁盘上那份），面板据此在打字时就刷新块清单、批注锚点与图片提示。
+   *
+   * `linkCount` / `hasCode` 同样来自**渲染结果**：面板靠它们决定「脚注」「Mac 代码框」
+   * 两个开关该不该置灰，而不是自己拿正则猜正文。
    */
   renderPreview: (sessionId: string, docKey: string, markdown: string, meta: Partial<DocMeta>) =>
-    call<{ ok: true; html: string; themeName: string; blocks: Block[]; notes: Note[]; placeholders: Placeholder[]; images: ImageInfo[] }>(
-      `/render`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ sessionId, docKey, markdown, meta, mode: 'preview' }),
-      },
-    ),
+    call<{
+      ok: true
+      html: string
+      themeName: string
+      linkCount: number
+      hasCode: boolean
+      blocks: Block[]
+      notes: Note[]
+      placeholders: Placeholder[]
+      images: ImageInfo[]
+    }>(`/render`, {
+      method: 'POST',
+      body: JSON.stringify({ sessionId, docKey, markdown, meta, mode: 'preview' }),
+    }),
 
   renderPublish: (sessionId: string, docKey: string, markdown: string, meta: Partial<DocMeta>) =>
     call<{ ok: true; html: string; themeName: string }>(`/render`, {

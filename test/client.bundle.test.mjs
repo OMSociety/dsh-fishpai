@@ -328,6 +328,14 @@ test('粘贴图片：剪贴板/拖拽取图 → POST /upload → 插入 ![](asse
   assert.ok(source.includes('imageMap'), '预览要带上内联进来的图')
 })
 
+test('两个开关的可用性由宿主渲染结果决定，不在客户端猜正文', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  assert.ok(source.includes('linkCount'), '「脚注」开关要看 linkCount')
+  assert.ok(source.includes('hasCode'), '「Mac 代码框」开关要看 hasCode')
+  assert.ok(!source.includes('hasExternalLinks'), '不再在面板里用正则猜外链')
+  assert.ok(!source.includes('hasCodeBlocks'), '不再在面板里用正则猜代码块')
+})
+
 test('apply() 在右侧栏与 better-sidebar 都不存在时也安全，注册的东西可收回', async () => {
   const harness = loadBundle({ services: { sidebarRightTabs: undefined, sidebarRight: undefined, betterSidebar: undefined } })
   harness.apply()

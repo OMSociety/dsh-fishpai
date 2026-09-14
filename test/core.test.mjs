@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { splitBlocks, shortHash } from '../plugin/core/markdown.mjs'
+import { render } from '../plugin/core/render.mjs'
 import { diffBlocks, similarity } from '../plugin/core/diff.mjs'
 import {
   attachPlaceholdersToBlocks,
@@ -206,4 +207,57 @@ test('批注分组：未解决 / 失锚 / 已解决', () => {
   assert.equal(g.open.length, 1)
   assert.equal(g.resolved.length, 1)
   assert.equal(g.orphan.length, 1)
+})
+
+
+// ── 面板开关的判据（linkCount / hasCode）与占位的代码区域排除 ──
+
+test('linkCount 由渲染结果给出：没写协议的裸域名也算（面板的「脚注」开关靠它）', () => {
+  // `github.com/x/y` 会被 linkify 变成链接、照样生成「参考资料」，
+  // 但以前面板拿正则猜（只认带双斜线的写法），于是开关灰着、效果却在——这条钉住修复
+  const bare = render('看 github.com/OMSociety/dsh-fishpai 这个仓库', { theme: 'default' })
+  assert.equal(bare.linkCount, 1)
+  assert.match(bare.html, /参考资料/)
+
+  const scheme = render('看 [仓库](https://github.com/OMSociety/dsh-fishpai)', { theme: 'default' })
+  assert.equal(scheme.linkCount, 1)
+
+  const none = render('正文里没有任何链接。', { theme: 'default' })
+  assert.equal(none.linkCount, 0)
+  assert.doesNotMatch(none.html, /参考资料/)
+
+  // 关掉脚注：HTML 里不再有「参考资料」，计数也归零（面板据此把开关显示为关）
+  const off = render('看 [仓库](https://github.com/OMSociety/dsh-fishpai)', { theme: 'default', footnotes: false })
+  assert.equal(off.linkCount, 0)
+  assert.doesNotMatch(off.html, /参考资料/)
+
+  // 只锚到本文档的链接、以及图片语法，都不算脚注
+  assert.equal(render('见 [上一节](#小标题)', { theme: 'default' }).linkCount, 0)
+  assert.equal(render('![图](https://example.com/a.png)', { theme: 'default' }).linkCount, 0)
+})
+
+test('hasCode 由渲染结果给出：围栏与缩进式代码块都算（面板的「Mac 代码框」开关靠它）', () => {
+  assert.equal(render('正文而已。', { theme: 'default' }).hasCode, false)
+  assert.equal(render('```js\nconst a = 1\n```', { theme: 'default' }).hasCode, true)
+  assert.equal(render('段落\n\n    缩进四格的代码块也算法', { theme: 'default' }).hasCode, true, '只认围栏会漏掉缩进式')
+  assert.equal(render('这里有 `inline` 行内代码。', { theme: 'default' }).hasCode, false)
+})
+
+test('占位只在正文里算：代码示例里的鱼排注释不该被当成待办', () => {
+  const body = '正文里留一条：<!-- 鱼排: 这里补个数据 -->\n'
+  assert.equal(extractPlaceholders(body).length, 1)
+  assert.equal(hasPlaceholders(body), true)
+
+  const inline = '写法是 `<!-- 鱼排: 这里补个数据 -->`，模型会把它当成待办。\n'
+  assert.deepEqual(extractPlaceholders(inline), [], '行内代码里的示例不算占位')
+
+  const fenced = '```markdown\n<!-- 鱼排: 示例 -->\n```\n'
+  assert.deepEqual(extractPlaceholders(fenced), [], '围栏代码块里的示例不算占位')
+
+  // 遮罩不改行号：真正的占位仍报在它所在的那一行
+  const mixed = '第一行\n`<!-- 鱼排: 示例 -->`\n<!-- 鱼排: 真的要补 -->\n'
+  const found = extractPlaceholders(mixed)
+  assert.equal(found.length, 1)
+  assert.equal(found[0].line, 3)
+  assert.equal(found[0].text, '真的要补')
 })
