@@ -47,7 +47,7 @@
 
 ## 📷 效果
 
-同一篇 Markdown，两套主题的「复制到公众号」形态（截图来自 `test/fixtures/reading-group.md`）：
+同一篇 Markdown（本文的姊妹篇：一篇介绍鱼排自己的推文）在两套主题下的「复制到公众号」形态：
 
 <table>
 <tr>

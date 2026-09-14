@@ -163,7 +163,7 @@ test('批注在正文未改时保持锚定，改动其它块不受影响', () =>
   assert.equal(anchored[0].orphan, false)
   assert.equal(anchored[0].blockIndex, 5)
 
-  const editedOther = splitBlocks(READING.replace('****', '**（宣）**'))
+  const editedOther = splitBlocks(READING.replace('**示例**', '**示例（宣）**'))
   const still = reanchorNotes([note], editedOther)
   assert.equal(still[0].orphan, false)
   assert.equal(still[0].blockIndex, 5)
@@ -189,8 +189,8 @@ test('那句话被整段重写后，批注标 orphan 而不是乱挂', () => {
 
 test('那块被删掉后批注标 orphan，而不是悄悄消失', () => {
   const blocks = splitBlocks(READING)
-  const note = makeNote({ blockId: blocks[9].id, quote: '****', text: '这里加联系方式' })
-  const without = splitBlocks(READING.replace('****', '**另一个署名**'))
+  const note = makeNote({ blockId: blocks[9].id, quote: '**示例**', text: '这里加联系方式' })
+  const without = splitBlocks(READING.replace('**示例**', '**另一个署名**'))
   const anchored = reanchorNotes([note], without)
   const grouped = groupNotes(anchored)
   assert.equal(grouped.orphan.length, 1)
