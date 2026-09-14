@@ -55,7 +55,7 @@
   "scripts": {
     "build": "node scripts/build-client.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/",
+    "test": "node --test \"test/**/*.test.mjs\"",
     "test:golden:regen": "node scripts/regen-golden.mjs",
     "check:build": "node scripts/build-client.mjs && git diff --exit-code -- lib/"
   },
