@@ -99,7 +99,7 @@ test('客户端 bundle 只依赖模块表里有的裸模块', () => {
 test('客户端 bundle 导出 name / inject / apply', () => {
   const { exports } = loadBundle()
   assert.equal(exports.name, 'dsh-fishpai')
-  assert.deepEqual([...exports.inject], ['slots'])
+  assert.deepEqual([...exports.inject], ['slots', 'sessions'])
   assert.equal(typeof exports.apply, 'function')
 })
 

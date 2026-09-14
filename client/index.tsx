@@ -18,8 +18,11 @@ import { api } from './api'
 
 export const name = 'dsh-fishpai'
 
-/** 客户端硬依赖只有槽位系统；右侧栏与 better-sidebar 都走延迟注入（缺任一都不拖垮插件）。 */
-export const inject = ['slots']
+/**
+ * 客户端硬依赖：槽位系统（注册面板）与会话服务（拿当前会话）。
+ * 两者都是核心提供的，永远在；右侧栏与 better-sidebar 仍走延迟注入——缺任一都不拖垮插件。
+ */
+export const inject = ['slots', 'sessions']
 
 const TAB_ID = 'dsh-fishpai'
 const TAB_KIND = 'fishpai'
@@ -39,9 +42,18 @@ function pick(injected: any, key: string): any {
   return injected[key]
 }
 
+/** 服务只能通过 ctx.get 读（直接 ctx.xxx 访问未声明的服务会抛）。 */
+function service(ctx: any, key: string): any {
+  try {
+    return typeof ctx.get === 'function' ? ctx.get(key) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function currentSessionId(ctx: any): string | null {
   try {
-    const sessions = ctx.sessions || (typeof ctx.get === 'function' ? ctx.get('sessions') : undefined)
+    const sessions = service(ctx, 'sessions')
     const snapshot = sessions?.list?.getSnapshot?.()
     return snapshot?.current || null
   } catch {
