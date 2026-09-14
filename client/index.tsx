@@ -95,8 +95,8 @@ export function apply(ctx: any): void {
   const openIfRequested = (sessionId: string, docKey: string) => {
     try {
       openPanel?.()
-    } catch {
-      /* 面板服务尚未就绪：下一次轮询再试 */
+    } catch (error) {
+      console.warn('[dsh-fishpai] 打开面板失败，20 秒后随下一次轮询重试：', error)
       return false
     }
     storeFor(sessionId)
@@ -204,6 +204,7 @@ export function apply(ctx: any): void {
   // ── 轮询：唯一的"宿主 → 页面"推送 ───────────────────────────
   ctx.effect(() => {
     let stopped = false
+    let warned = false
     let lastRevision = -1
     let lastSession = ''
     const tick = async () => {
@@ -212,6 +213,7 @@ export function apply(ctx: any): void {
       if (!sessionId) return
       try {
         const st = await api.state(sessionId)
+        warned = false
         if (sessionId !== lastSession) {
           lastSession = sessionId
           lastRevision = -1
@@ -226,8 +228,12 @@ export function apply(ctx: any): void {
           const store = stores.get(sessionId)
           if (store && previous !== -1 && revision > previous) void store.actions.onExternalRevision(revision)
         }
-      } catch {
-        /* 宿主还没起来/路由未注册：下一轮再试 */
+      } catch (error) {
+        // 宿主刚起来时路由可能还没注册：每个"未就绪期"只报一次，别每 3 秒刷屏
+        if (!warned) {
+          warned = true
+          console.warn('[dsh-fishpai] 轮询失败（宿主路由可能尚未就绪）：', error)
+        }
       }
     }
     const timer = setInterval(() => void tick(), POLL_MS)
