@@ -59,9 +59,11 @@
 
 ```powershell
 # 1) 先停掉 dsh web（运行中的服务会锁住依赖，装完再起）
-dsh plugin --profile web add "github:OMSociety/dsh-fishpai#v0.1.0"
+dsh plugin --profile web add "github:OMSociety/dsh-fishpai#main"
 # 2) 重新启动 dsh web
 ```
+
+> 内测期间跟进 `main`（最新的排版规则与兼容层都在这里）。要固定某一版，把 `#main` 换成对应的 tag 即可。
 
 **方式二：clone 到本地再装**
 
@@ -88,7 +90,7 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 | 工具 | 作用 | 关键参数 |
 |---|---|---|
 | `fishpai_open` | 打开 / 新建文档，并在右侧栏弹出面板 | `path`（可省扩展名，自动补 `.md`）、`markdown`（新建时写正文）、`theme` |
-| `fishpai_read` | **改稿前必做**：读块级 diff、批注、占位、图片提醒与块 id | `path`、`include` |
+| `fishpai_read` | **改稿前必做**：读块级 diff、批注、占位、图片提醒与块 id | `doc_key`、`include` |
 | `fishpai_write` | 改稿。必须带 `base_revision`；优先按块改 | `mode`（`patch` / `replace`）、`patches[{block_id, op, markdown}]`、`base_revision` |
 | `fishpai_render` | 导出可粘贴 / 归档的自包含 HTML（本地图片内嵌 base64） | `out_path`（可省扩展名）、`theme`、`publish`（`false` = 预览原样形态）、`embed_images` |
 
@@ -115,7 +117,7 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 |---|---|---|
 | 你指定的 `.md` | 文档正文 | 普通 Markdown，任何编辑器都能改；鱼排不往正文里塞标记 |
 | `<文档同级>/assets/` | 粘贴进来的图片 | 相对路径引用（`assets/xxx.png`），文档搬走图也跟着走 |
-| `.fishpai/state/` | 主题、revision、baseline、批注 | 按文档路径哈希命名；删掉只会丢批注与历史 |
+| `.fishpai/state/` | 主题、revision、baseline、批注 | 按文档路径哈希命名；删掉会丢批注、历史与「模型上次写入的基线」（正文不动，但模型暂时看不出你改了什么） |
 | `.fishpai/history/` | 历史快照（最多 50 份） | 面板「历史」抽屉里可一键回滚 |
 | `.fishpai/.gitignore` | 忽略上面两项 | 插件自建，不动你的 `.gitignore` |
 
@@ -154,7 +156,7 @@ npx tsx src/index.ts <导出的 article.html> --json    # isValid: true 即通�
 
 ## ⭐ 支持
 
-- 如果这个插件对你有帮助，欢迎点亮 Star ⭐，有问题和建议请提交 [Issue](https://github.com/OMSociety/maibot_plugin_schedule_assistant/issues) 或 [Pull Request](https://github.com/OMSociety/maibot_plugin_schedule_assistant/pulls)。
+- 如果这个插件对你有帮助，欢迎点亮 Star ⭐，有问题和建议请提交 [Issue](https://github.com/OMSociety/dsh-fishpai/issues) 或 [Pull Request](https://github.com/OMSociety/dsh-fishpai/pulls)。
 - 想改主题或加一套自己的：主题定义集中在 `plugin/vendor/themes.js`，加完跑 `node scripts/regen-golden.mjs` 重生成 golden
 
 ## 🙏 致谢

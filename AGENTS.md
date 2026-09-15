@@ -18,10 +18,12 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
    **允许的两处偏离都只走复制/导出（publish）那条路径，且都由调用方显式开启**：
    - `wrapText`：把文字包进 `<span>`，让微信的结构校验不再把"含行内元素的段落"误报成行高过小。
      必须是**纯叠加**的（`test/wechat-structure.test.mjs` 守着），默认路径一个字节都不许动。
-     它有两半：① 文字包 span（防行高误报）；② 给"以行内元素开头"的 `<li>` 前面补一个 U+00A0——
+     它有两半：① 文字包 span（防行高误报）；② 给"以**行内元素**开头"的 `<li>` 前面补一个 U+00A0——
      微信会把**条目开头**的行内片段单独起一行（`1. **标签**：说明` 会被拆成两行）。补一个文字节点即可，
      "整条 li 包一个 span"试过无效（`37748d4` 加、`32ac970` 撤）；补的必须是真 U+00A0 字符，
      不能写 `&nbsp;` 实体（源码级扫描会把它当普通文字）。
+     块级元素（`<p>`/`<ul>`/`<blockquote>`…）开头的条目**不许**补：松散列表（条目间有空行）第一条
+     就是 `<p>`，补进去的文字节点会落在 `<p>` 外面、变成 `<li>` 的直接文字子节点，恰好是这层要消除的形态。
    - `wechatBackground`：把 `background:` 简写拆成 `background-color:`／`background-image:`。
      微信的安全过滤按属性名过，简写会整条被丢（引用块的框、表头底色实测会消失）。
      必须是**纯规范化**（同一条测试守着"除了这几个属性名，别的字节一个都不动"）。
@@ -62,7 +64,8 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
     别在别处再抄一份键位或文案。编辑动作必须走 `document.execCommand('insertText')`
     （退回受控赋值只在浏览器不支持时发生）：直接改 `value` 会让 `Ctrl+Z` 的原生撤销栈作废，
     而"按了加粗发现手滑、想撤销"是最常见的动作。加动作/改键位只改这个文件，并补 `test/mdedit.test.mjs`。
-13. **粘贴进来的图片只落在文档同级的 `assets/`**：`POST /fishpai/api/upload` 是**唯一**一处写新文件的入口，
+13. **粘贴进来的图片只落在文档同级的 `assets/`**：`POST /fishpai/api/upload` 是写图片资产的入口
+    （新建文件一共两处：`/upload` 存图、`POST /doc` 建文档，文件名与路径都由宿主生成），
     文件名由宿主生成（时间戳 + 按 MIME 定的白名单扩展名），客户端给的名字只当一段可读词、不参与路径拼接；
     大小上限是 `store.mjs` 的 `MAX_ASSET_BYTES`（与内嵌上限共用一个常量，避免"存得进来却内嵌不了"）。
     正文仍然只能由 `/doc` 改——存图不许顺手改字。
