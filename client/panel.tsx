@@ -186,14 +186,31 @@ function ThemePicker(props: { themes: ThemeInfo[]; value: string; onPick: (key: 
   const menuRef = React.useRef<HTMLDivElement | null>(null)
   const btnRef = React.useRef<HTMLButtonElement | null>(null)
 
+  // 工作目录级的「自定义主题」单独一组，放在最前面。
+  // **没有就不显示**：宁可少一行，也不要一个点了没反应的灰项。
+  const customGroup = React.useMemo(() => {
+    const custom = themes.filter((t) => t.key === 'custom')
+    if (!custom.length) return []
+    return [
+      {
+        key: 'custom',
+        label: '我的',
+        note: custom[0].wechatSafe ? '' : '微信可能掉样式',
+        risk: !custom[0].wechatSafe,
+        items: custom,
+      },
+    ]
+  }, [themes])
   // 分组标题分两行显示：一行是组名，一行是**小字提示**。
   // 挤成一行（"其它风格（微信可能掉样式）"）在窄面板里会被折成两截，看着像没排好版。
+  // 「自定义主题」要从下面两组里排除掉，否则它会被自己的 wechatSafe 再收进来一次、列表里出现两行。
   const groups = React.useMemo(
     () => [
-      { key: 'safe', label: '适合公众号', note: '', risk: false, items: themes.filter((t) => t.wechatSafe) },
-      { key: 'risky', label: '其它风格', note: '微信可能掉样式', risk: true, items: themes.filter((t) => !t.wechatSafe) },
+      ...customGroup,
+      { key: 'safe', label: '适合公众号', note: '', risk: false, items: themes.filter((t) => t.key !== 'custom' && t.wechatSafe) },
+      { key: 'risky', label: '其它风格', note: '微信可能掉样式', risk: true, items: themes.filter((t) => t.key !== 'custom' && !t.wechatSafe) },
     ],
-    [themes],
+    [themes, customGroup],
   )
   const flat = React.useMemo(() => groups.flatMap((g) => g.items), [groups])
   const current = flat.find((t) => t.key === value) || null

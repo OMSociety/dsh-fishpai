@@ -92,7 +92,8 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 | `fishpai_open` | 打开 / 新建文档，并在右侧栏弹出面板 | `path`（可省扩展名，自动补 `.md`）、`markdown`（新建时写正文）、`theme` |
 | `fishpai_read` | **改稿前必做**：读块级 diff、批注、占位、图片提醒与块 id | `doc_key`、`include` |
 | `fishpai_write` | 改稿。必须带 `base_revision`；优先按块改 | `mode`（`patch` / `replace`）、`patches[{block_id, op, markdown}]`、`base_revision` |
-| `fishpai_render` | 导出可粘贴 / 归档的自包含 HTML（本地图片内嵌 base64） | `out_path`（可省扩展名）、`theme`、`publish`（`false` = 预览原样形态）、`embed_images` |
+| `fishpai_render` | 导出可粘贴 / 归档的自包含 HTML（本地图片内嵌 base64） | `out_path`（可省扩展名）、`theme`、`theme_spec`（临时自定义主题，不落盘）、`publish`（`false` = 预览原样形态）、`embed_images` |
+| `fishpai_theme` | 工作目录级的**「自定义主题」**（一套，`set` / `show` / `clear`）：模型在某套内置主题上只覆盖想改的槽位，面板主题列表里就是那一个占位 | `action`、`theme_spec` |
 
 模型的标准动作顺序是 **`open` → 等你改 → `read` → `write` → 你点复制**；技能 `fishpai`
 （随插件注册）里写明了这套纪律与排版口径，模型会在需要时自己读。

@@ -17,6 +17,13 @@ import { diffBlocks } from '../core/diff.mjs'
 import { applyPatches } from '../core/patch.mjs'
 import { attachPlaceholdersToBlocks, extractPlaceholders, reanchorNotes } from '../core/notes.mjs'
 import * as store from './store.mjs'
+import {
+  CUSTOM_THEME_KEY,
+  clearCustomTheme,
+  describeCustomTheme,
+  themeFor,
+  writeCustomTheme,
+} from './custom-theme.mjs'
 import { MAX_EMBED_BYTES, listLocalImages, listRemoteImages, makeImageResolver } from './assets.mjs'
 
 const OUT_SCHEMA = {
@@ -95,7 +102,7 @@ function readText(abs) {
 }
 
 /**
- * 注册四个工具。
+ * 注册五个工具。
  * @param {object} ctx 宿主 cordis 上下文（需要 ctx.tools）
  * @param {{resolveCwd: (sessionId: string) => string|null, log?: Function}} deps
  * @returns {() => void} 全部工具的卸载函数
@@ -399,7 +406,7 @@ export function registerTools(ctx, deps) {
           type: 'object',
           additionalProperties: true,
           description:
-            '自定义主题（只用于这次导出，**不保存**）：{"name":"我的·灰底衬线","base":"elegant","styles":{"h2":"font-size: 19px;","blockquote":"background: #f4f4f5;"}}。' +
+            '自定义主题（用 `fishpai_theme` 保存的那一套，或临时用这一次）：{"name":"我的·灰底衬线","base":"elegant","styles":{"h2":"font-size: 19px;","blockquote":"background: #f4f4f5;"}}。' +
             '只写想改的槽位，其余从 base 继承；base 省略时为 default。与 theme 同时给时以 theme_spec 为准。' +
             '可用槽位与允许的 CSS 属性见技能 fishpai 的「自定义主题」一节（超出白名单会被拒绝并说明原因）。',
         },
@@ -418,8 +425,9 @@ export function registerTools(ctx, deps) {
         // 自定义主题（模型给的规格）：校验成数据再合并到 base 上，**不求值任何模型给的代码**。
         // 校验不过就直接失败——错误文案是写给模型看的，让它自己改对再来一次。
         const custom = args.theme_spec ? buildCustomTheme(args.theme_spec, themes()) : null
-        // 主题名可能来自状态（那两套被移除的主题）或模型手写：认不出就退回默认，别让导出整个失败
-        const theme = custom ? custom.theme : safeThemeKey(args.theme ? String(args.theme) : state.theme)
+        // 主题名可能来自状态（那两套被移除的主题）、模型手写、或工作目录那套自定义主题
+        //（`custom` 要读磁盘）：认不出就退回默认，别让导出整个失败。
+        const theme = custom ? custom.theme : themeFor({ cwd, name: args.theme ? String(args.theme) : state.theme }).theme
         const out = renderCore(markdown, {
           theme,
           color: state.color || undefined,
@@ -457,6 +465,94 @@ export function registerTools(ctx, deps) {
         return ok(lines.join('\n'), key)
       } catch (error) {
         return err(`fishpai_render 失败：${error.message}`)
+      }
+    },
+  })
+
+  // 走 `register()` 而不是直接 `ctx.tools.register()`：它把卸载函数收进 disposers，
+  // 插件卸载时才不会留下一个还挂着的工具（`plugin.mount.test.mjs` 会查这个）。
+  register({
+    name: 'fishpai_theme',
+    description:
+      '工作目录级的「自定义主题」：一个工作目录**只有一套**，存在 `.fishpai/theme.json`，' +
+      '面板的主题列表里就是那一个「自定义主题」占位（不是主题库，改一次覆盖一次）。' +
+      'action=set 写入并覆盖，同时把当前文档切到它（你能在面板里立刻看到）；action=show 看现在这套（改它就在这份规格上改）；' +
+      'action=clear 移除，文档退回默认主题。只想试一次、不落盘，就用 fishpai_render 的 theme_spec。',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['set', 'show', 'clear'], description: '默认 show' },
+        theme_spec: {
+          type: 'object',
+          additionalProperties: true,
+          description:
+            'action=set 时必填：{"name":"我的·灰底衬线","base":"elegant","styles":{"blockquote":"background: #f4f4f5;"}}。' +
+            '只写想改的槽位，其余从 base 继承。可用槽位与允许的 CSS 属性见技能 fishpai 的「自定义主题」一节。',
+        },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    output: { schema: OUT_SCHEMA, render: renderText },
+    async execute(args, exec) {
+      try {
+        // 这个工具是**工作目录级**的，不需要先有一篇文档：只要会话有 cwd 就能用
+        const { sessionId, cwd } = sessionOf(deps, exec)
+        const action = String(args.action || 'show')
+
+        if (action === 'show') {
+          const current = describeCustomTheme(cwd)
+          if (!current) {
+            return ok('这个工作目录还没有自定义主题。用 action=set 写一套，面板主题列表里就会出现「自定义主题」。')
+          }
+          return ok(
+            [
+              `当前自定义主题「${current.spec.name}」（base=${current.spec.base}）改了 ${Object.keys(current.spec.styles).length} 个槽位：`,
+              JSON.stringify({ name: current.spec.name, base: current.spec.base, styles: current.spec.styles }, null, 2),
+              '要改就在这份规格上改，然后 action=set 覆盖（只有这一套）。',
+            ].join('\n'),
+          )
+        }
+
+        // 当前文档（可能没有）：写/删之后顺手把文档状态对齐，别留下"选不中的主题"
+        const activeKey = store.activeKey(cwd, sessionId)
+        const activeEntry = activeKey ? store.readIndex(cwd).docs[activeKey] : null
+        const docPath = activeEntry ? store.resolveInCwd(cwd, activeEntry.path) : null
+
+        if (action === 'clear') {
+          const removed = clearCustomTheme(cwd)
+          let reverted = false
+          if (docPath && store.readState(cwd, activeKey)?.theme === CUSTOM_THEME_KEY) {
+            store.updateMeta({ cwd, docPath, meta: { theme: 'default' } })
+            reverted = true
+          }
+          return ok(
+            removed
+              ? `已移除自定义主题${reverted ? '；当前文档已退回「默认公众号」' : ''}。`
+              : '本来就没有自定义主题，什么都没动。',
+            activeKey || undefined,
+          )
+        }
+
+        if (action !== 'set') return err(`未知 action：${action}（可用 set / show / clear）`)
+
+        const built = writeCustomTheme({ cwd, spec: args.theme_spec })
+        let switched = false
+        if (docPath) {
+          store.updateMeta({ cwd, docPath, meta: { theme: CUSTOM_THEME_KEY } })
+          switched = true
+        }
+        const lines = [
+          `已保存自定义主题「${built.spec.name}」（base=${built.spec.base}，改了 ${Object.keys(built.spec.styles).length} 个槽位）。`,
+          switched
+            ? '当前文档已切到它——面板里就能看到效果（预览与「复制到公众号」都走这套）。'
+            : '面板的主题列表里会多出「自定义主题」这一项，选它即可。',
+          '工作目录里只有这一套：再 set 一次就是覆盖，不会多出第二套。',
+        ]
+        for (const note of built.spec.notes) lines.push(`提示：${note}`)
+        return ok(lines.join('\n'), activeKey || undefined)
+      } catch (error) {
+        return err(`fishpai_theme 失败：${error.message}`)
       }
     },
   })

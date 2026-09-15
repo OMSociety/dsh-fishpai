@@ -390,11 +390,20 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     void refreshPreview(res.doc.markdown, res.meta)
   }
 
+  /**
+   * 重新拉主题清单：模型可能刚存了一套「自定义主题」，那是**工作目录级**的，
+   * 面板启动时拉过一次就不再看——不刷新的话列表里不会有它，用户会以为没生效。
+   * 失败就保持旧清单，不打扰用户。
+   */
+  async function refreshThemes() {
+    const res = await api.themes(state.sessionId).catch(() => null)
+    if (res) patch({ themes: res.themes, presets: res.presets, sizes: res.sizes })
+  }
+
   async function init() {
     try {
       patch({ status: 'loading', error: null })
-      const themes = await api.themes().catch(() => null)
-      if (themes) patch({ themes: themes.themes, presets: themes.presets, sizes: themes.sizes })
+      await refreshThemes()
       const st = await api.state(state.sessionId)
       // 空面板上要列「最近打开」，所以这一份清单即使不打开文档也要留着
       patch({ docs: Array.isArray(st.docs) ? st.docs : [] })
@@ -601,9 +610,16 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       return res.html
     },
 
-    /** 轮询发现宿主的当前文档变了（AI 写入 / 换了一篇 / 别的窗口写的）。 */
-    async onActiveDoc(key: string, revision: number) {
+    /** 轮询发现宿主的当前文档变了（AI 写入 / 换了一篇 / 别的窗口写的 / 模型换了主题）。 */
+    async onActiveDoc(key: string, revision: number, themeKey?: string) {
       if (!key) return
+      // 主题变了（模型用 fishpai_theme 换的）：这是**纯元数据**，正文一个字都不用动，
+      // 所以先处理它——尤其不能在用户正打字的时候走 loadDoc 把未保存的内容换掉。
+      if (key === state.docKey && themeKey && themeKey !== state.meta.theme) {
+        patch({ meta: { ...state.meta, theme: themeKey } })
+        void refreshThemes()
+        schedulePreview()
+      }
       if (state.docKey && key !== state.docKey) {
         // 模型换文档了：有未保存改动就只提示，别把用户正在写的字换掉
         if (state.dirty) {

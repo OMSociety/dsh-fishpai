@@ -9,6 +9,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import * as store from '../plugin/host/store.mjs'
+import * as custom from '../plugin/host/custom-theme.mjs'
+import { themes } from '../plugin/core/runtime.mjs'
 import { applyPatches } from '../plugin/core/patch.mjs'
 import { splitBlocks } from '../plugin/core/markdown.mjs'
 import { createApiHandler, sameOrigin } from '../plugin/host/routes.mjs'
@@ -777,7 +779,7 @@ test('工具契约：四个工具都是合法的 raw JSON-Schema 形态', () => 
   const { tools } = fakeHost(tmpWorkspace())
   assert.deepEqual(
     tools.map((t) => t.name).sort(),
-    ['fishpai_open', 'fishpai_read', 'fishpai_render', 'fishpai_write'],
+    ['fishpai_open', 'fishpai_read', 'fishpai_render', 'fishpai_theme', 'fishpai_write'],
   )
   for (const tool of tools) {
     assert.equal(typeof tool.description, 'string')
@@ -1285,4 +1287,158 @@ test('fishpai_render 的自定义主题：theme_spec 校验后生效，越权规
   const plain = await renderTool.execute({ theme: 'bamboo' }, exec)
   assert.equal(plain.isError, false, plain.text)
   assert.match(plain.text, /竹林/)
+})
+
+// ── 自定义主题（工作目录级的那一套）──────────────────────────────
+//
+// 面板上只有一个「自定义主题」占位，所以这一组要钉住三件事：
+//   ① 存储是**一个文件**（`<cwd>/.fishpai/theme.json`），没有主题库；
+//   ② `custom` 这个 key 要能解析成那套主题，**文件没了就静默退回默认**（不留"选不中的状态"）；
+//   ③ 换主题**不动 revision**，所以面板必须能从 `/state` 看出主题变了（否则模型换完没反应）。
+
+test('自定义主题：写/读/覆盖/移除都在这一个文件里，只有一套', () => {
+  const cwd = tmpWorkspace()
+  assert.equal(custom.readCustomTheme(cwd), null)
+  assert.equal(custom.themeFor({ cwd, name: 'custom' }).key, 'default', '还没有就退回默认')
+  assert.equal(custom.themeFor({ cwd, name: 'custom' }).missing, true, '要能区分"没有"与"选不中"')
+
+  const built = custom.writeCustomTheme({ cwd, spec: { name: '灰底', base: 'elegant', styles: { p: 'line-height: 2;' } } })
+  assert.equal(built.spec.name, '灰底')
+  const file = path.join(cwd, '.fishpai', 'theme.json')
+  assert.ok(fs.existsSync(file))
+  const read = custom.readCustomTheme(cwd)
+  assert.equal(read.spec.name, '灰底')
+  assert.equal(read.theme.styles.p, 'line-height: 2;')
+  assert.equal(read.theme.styles.h2, themes().elegant.styles.h2, '没改的槽位来自 base')
+  assert.deepEqual(custom.themeFor({ cwd, name: 'custom' }).theme.styles, read.theme.styles)
+
+  // 只有一套：再写一次是覆盖，不会多出第二个文件
+  custom.writeCustomTheme({ cwd, spec: { name: '第二套', base: 'default', styles: { p: 'color: #111;' } } })
+  assert.deepEqual(fs.readdirSync(path.join(cwd, '.fishpai')).filter((f) => f.endsWith('.json')), ['theme.json'])
+  assert.equal(custom.readCustomTheme(cwd).spec.name, '第二套')
+
+  assert.equal(custom.clearCustomTheme(cwd), true)
+  assert.equal(custom.readCustomTheme(cwd), null)
+  assert.equal(custom.clearCustomTheme(cwd), false, '再删一次是空操作')
+})
+
+test('自定义主题：坏文件与非法规格都不会把面板/文档弄坏', () => {
+  const cwd = tmpWorkspace()
+  store.ensureFishpaiLayout(cwd)
+  const file = path.join(cwd, '.fishpai', 'theme.json')
+
+  fs.writeFileSync(file, '{ 这不是 JSON', 'utf8')
+  assert.equal(custom.readCustomTheme(cwd), null, '坏文件按"没有"处理，不许抛')
+  assert.equal(custom.themeFor({ cwd, name: 'custom' }).key, 'default')
+
+  // 盘上放着一份校验不过的规格（手改的）→ 同样当没有
+  fs.writeFileSync(file, JSON.stringify({ version: 1, spec: { base: '不存在', styles: { p: 'color: #000;' } } }), 'utf8')
+  assert.equal(custom.readCustomTheme(cwd), null)
+
+  // 写非法规格：抛错，且不留半个文件（半截 JSON 会让下次直接"没有自定义主题"）
+  fs.unlinkSync(file)
+  assert.throws(
+    () => custom.writeCustomTheme({ cwd, spec: { base: 'default', styles: { p: 'position: fixed;' } } }),
+    /不支持的属性/,
+  )
+  assert.equal(fs.existsSync(file), false)
+})
+
+test('自定义主题：给 .json 放行只对这一条路径，state/ 那些仍然打不开', () => {
+  const cwd = tmpWorkspace()
+  assert.doesNotThrow(() => store.resolveInCwd(cwd, path.join('.fishpai', 'theme.json'), { exts: ['.json'] }))
+  // 默认白名单是文档（.md/.markdown/.txt），没有 .json——
+  // 别因为"要存主题"就把任意 JSON 读写打开（`.fishpai/state/*.json` 一直是有意不可达的）
+  assert.throws(() => store.resolveInCwd(cwd, path.join('.fishpai', 'state', 'x.json')), /扩展名/)
+})
+
+test('自定义主题：清单里的占位（固定名 + 基于哪套 + 能力标注），没有就返回 null', () => {
+  const cwd = tmpWorkspace()
+  assert.equal(custom.customCatalogEntry(cwd), null, '没有自定义主题就不显示这一组（不要一个点了没反应的灰项）')
+  custom.writeCustomTheme({ cwd, spec: { name: '灰底', base: 'elegant', styles: { p: 'line-height: 2;' } } })
+  const entry = custom.customCatalogEntry(cwd)
+  assert.equal(entry.key, 'custom')
+  assert.equal(entry.name, '自定义主题', '固定一个占位名，不跟着模型起的名字变')
+  assert.match(entry.desc, /灰底/)
+  assert.match(entry.desc, /优雅简约/, '说明是基于哪套内置主题')
+  for (const flag of ['usesAccent', 'gradientText', 'darkWrapper', 'wechatSafe']) {
+    assert.equal(typeof entry[flag], 'boolean', `缺 ${flag}`)
+  }
+})
+
+test('自定义主题：路由把它加进清单、渲染真的走它、/state 能看出主题变了', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: `${ARTICLE}\n> 引用一句。\n`, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+
+  const before = await callRoute(handler, { method: 'GET', url: '/fishpai/api/themes?sessionId=s1' })
+  assert.equal(before.json.themes.length, 11, '没有自定义主题时清单还是 11 套内置主题')
+  assert.ok(!before.json.themes.some((t) => t.key === 'custom'))
+
+  custom.writeCustomTheme({ cwd, spec: { name: '灰底', base: 'elegant', styles: { blockquote: 'background: #f4f4f5;' } } })
+  const after = await callRoute(handler, { method: 'GET', url: '/fishpai/api/themes?sessionId=s1' })
+  assert.equal(after.json.themes.length, 12)
+  assert.equal(after.json.themes.filter((t) => t.key === 'custom').length, 1, '只留一个占位，不能出现两次')
+  // 不带 sessionId 的调用方拿不到它：这是**工作目录级**的东西，得先知道是哪个工作目录
+  const noSession = await callRoute(handler, { method: 'GET', url: '/fishpai/api/themes' })
+  assert.equal(noSession.json.themes.length, 11)
+
+  const meta = await callRoute(handler, {
+    method: 'POST',
+    url: '/fishpai/api/meta',
+    body: { sessionId: 's1', docKey: opened.key, meta: { theme: 'custom' } },
+  })
+  assert.equal(meta.status, 200)
+  const preview = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: 's1', docKey: opened.key, mode: 'preview' } })
+  assert.equal(preview.status, 200)
+  assert.match(preview.json.html, /f4f4f5/, '自定义主题的声明要真的进预览')
+
+  // 换主题**不动 revision**，所以面板只能靠这个字段发现（否则模型换完没反应）
+  const st = await callRoute(handler, { method: 'GET', url: '/fishpai/api/state?sessionId=s1' })
+  assert.equal(st.json.active.theme, 'custom')
+
+  // 主题文件被删掉：静默退回默认，不留"选不中的状态"
+  custom.clearCustomTheme(cwd)
+  const st2 = await callRoute(handler, { method: 'GET', url: '/fishpai/api/state?sessionId=s1' })
+  assert.equal(st2.json.active.theme, 'default')
+  const doc = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=s1&docKey=${opened.key}` })
+  assert.equal(doc.json.meta.theme, 'default')
+})
+
+test('fishpai_theme：set 落盘并切当前文档，show/clear，非法规格给可读文案', async () => {
+  const cwd = tmpWorkspace()
+  const { tools, exec } = fakeHost(cwd)
+  await tools.find((t) => t.name === 'fishpai_open').execute({ markdown: ARTICLE, theme: 'default' }, exec)
+  const themeTool = tools.find((t) => t.name === 'fishpai_theme')
+
+  const empty = await themeTool.execute({ action: 'show' }, exec)
+  assert.equal(empty.isError, false)
+  assert.match(empty.text, /还没有自定义主题/)
+
+  const set = await themeTool.execute(
+    { action: 'set', theme_spec: { name: '灰底', base: 'elegant', styles: { p: 'line-height: 2;' } } },
+    exec,
+  )
+  assert.equal(set.isError, false, set.text)
+  assert.match(set.text, /已保存/)
+  assert.match(set.text, /已切到它/)
+  assert.equal(custom.readCustomTheme(cwd).spec.name, '灰底')
+  // 写完就切当前文档：不然用户得自己去面板里找那一项，"改了没反应"最劝退
+  const key = store.activeKey(cwd, 's1')
+  assert.equal(store.readState(cwd, key).theme, 'custom')
+
+  const show = await themeTool.execute({ action: 'show' }, exec)
+  assert.match(show.text, /灰底/)
+  assert.match(show.text, /line-height: 2/)
+
+  const bad = await themeTool.execute({ action: 'set', theme_spec: { base: 'default', styles: { p: 'position: fixed;' } } }, exec)
+  assert.equal(bad.isError, true)
+  assert.match(bad.text, /不支持的属性/)
+
+  const cleared = await themeTool.execute({ action: 'clear' }, exec)
+  assert.equal(cleared.isError, false)
+  assert.match(cleared.text, /已移除/)
+  assert.match(cleared.text, /退回/)
+  assert.equal(store.readState(cwd, key).theme, 'default', '文档不能停在一个已经删掉的主题上')
 })

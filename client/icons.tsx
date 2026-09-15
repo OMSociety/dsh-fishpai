@@ -81,6 +81,10 @@ const THEME_GLYPH: Record<string, string> = {
   tech: 'IconCodeOutline16', // 技术风格（代码）
   dark_night: 'IconDarkOutline16', // 暗夜模式
   gradient: 'IconEnhanceOutline16', // 渐变彩虹（增色）
+  // 「自定义主题」：工作目录里那**一套**模型生成的主题，图标固定这一个。
+  // 为什么不让模型挑：合法图标名的名单只在浏览器这半（66 个 Icon* 导出），而校验器在宿主那半——
+  // 让模型选就得在宿主再抄一份、跟着 DSH 升级维护，抄漏一个的后果是"图标静默消失且不报错"。
+  custom: 'IconEditOutline16',
 }
 
 /** 某套主题的图标（取不到内置图标时为 null，调用方直接不画）。 */

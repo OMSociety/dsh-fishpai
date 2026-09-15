@@ -242,6 +242,7 @@ export function apply(ctx: any): void {
     let warned = false
     let lastRevision = -1
     let lastKey: string | null = null
+    let lastTheme = ''
     let lastSession = ''
     const tick = async () => {
       if (stopped || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return
@@ -254,19 +255,23 @@ export function apply(ctx: any): void {
           lastSession = sessionId
           lastKey = null
           lastRevision = -1
+          lastTheme = ''
         }
         if (st.openRequest && st.openRequest.key) {
           openIfRequested(sessionId, st.openRequest.key)
         }
         const activeKey = st.active ? st.active.key : null
         const revision = st.active ? st.active.revision : -1
+        // 主题也要看：模型换主题（`fishpai_theme`）**不会**动 revision，只看 revision 就发现不了
+        const themeKey = st.active ? st.active.theme : ''
         const firstPoll = lastKey === null && lastRevision === -1
-        const switched = activeKey !== lastKey || revision !== lastRevision
+        const switched = activeKey !== lastKey || revision !== lastRevision || themeKey !== lastTheme
         lastKey = activeKey
         lastRevision = revision
+        lastTheme = themeKey
         // 不仅看 revision：模型可能换了一篇文档（fishpai_open 另一篇），此时 key 会变
         const store = stores.get(sessionId)
-        if (store && switched && !firstPoll && activeKey) void store.actions.onActiveDoc(activeKey, revision)
+        if (store && switched && !firstPoll && activeKey) void store.actions.onActiveDoc(activeKey, revision, themeKey)
       } catch (error) {
         // 宿主刚起来时路由可能还没注册：每个"未就绪期"只报一次，别每 3 秒刷屏
         if (!warned) {

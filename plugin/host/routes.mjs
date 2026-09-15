@@ -17,7 +17,8 @@
  *      正文仍只能由 `/doc` 改。
  */
 import fs from 'node:fs'
-import { render as renderCore, safeThemeKey, themeCatalog } from '../core/render.mjs'
+import { render as renderCore, themeCatalog } from '../core/render.mjs'
+import { customCatalogEntry, themeFor } from './custom-theme.mjs'
 import { colorPresets } from '../core/runtime.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
 import { attachPlaceholdersToBlocks, extractPlaceholders, reanchorNotes } from '../core/notes.mjs'
@@ -161,8 +162,9 @@ function docPayload({ cwd, key }) {
       baseline: state.baseline ? { rev: state.baseline.rev, at: state.baseline.at, by: state.baseline.by } : null,
     },
     meta: {
-      // 状态里的主题可能已经被移除（上游主题删过两套）：退回默认，别让文档打不开
-      theme: safeThemeKey(state.theme),
+      // 状态里的主题可能已经被移除（上游主题删过两套）：退回默认，别让文档打不开。
+      // `custom` 走磁盘（工作目录那唯一一套），文件被删也会退回默认——面板因此不会显示一个选不中的项。
+      theme: themeFor({ cwd, name: state.theme }).key,
       color: state.color,
       font: state.font,
       fontSize: state.fontSize,
@@ -199,9 +201,14 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
 
     try {
       if (route === 'GET /themes') {
+        // 「自定义主题」是**工作目录级**的，所以要问会话要 cwd。
+        // 没带 sessionId 的调用方照旧只拿内置主题（面板一定会带）。
+        const sessionId = String(url.searchParams.get('sessionId') || '')
+        const cwd = sessionId ? resolveCwd(sessionId) : null
+        const custom = cwd ? customCatalogEntry(cwd) : null
         return json(res, 200, {
           ok: true,
-          themes: themeCatalog(),
+          themes: custom ? [...themeCatalog(), custom] : themeCatalog(),
           presets: colorPresets(),
           fonts: ['sans', 'serif', 'mono'],
           sizes: ['14px', '15px', '16px', '17px', '18px'],
@@ -217,7 +224,17 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         return json(res, 200, {
           ok: true,
           cwd,
-          active: entry ? { key, path: entry.path, title: entry.title, revision: state ? state.revision : entry.revision } : null,
+          active: entry
+            ? {
+                key,
+                path: entry.path,
+                title: entry.title,
+                revision: state ? state.revision : entry.revision,
+                // 主题也一起报：模型用 fishpai_theme 换了主题时 revision **不会变**，
+                // 面板只看 revision 就发现不了。这里报**解析后**的 key（自定义主题被删就退回 default）。
+                theme: state ? themeFor({ cwd, name: state.theme }).key : 'default',
+              }
+            : null,
           openRequest: pending ? { key, at: pending } : null,
           docs: store.listDocs(cwd),
         })
@@ -352,7 +369,7 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         const markdown = typeof body.markdown === 'string' ? body.markdown : readText(abs)
         const meta = { ...(state || {}), ...(body.meta || {}) }
         const common = {
-          theme: safeThemeKey(meta.theme),
+          theme: themeFor({ cwd, name: meta.theme }).theme,
           color: meta.color || undefined,
           font: meta.font,
           fontSize: meta.fontSize,

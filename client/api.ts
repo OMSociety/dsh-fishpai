@@ -92,7 +92,7 @@ export interface DocPayload {
 
 export interface StatePayload {
   cwd: string
-  active: { key: string; path: string; title: string; revision: number } | null
+  active: { key: string; path: string; title: string; revision: number; theme: string } | null
   openRequest: { key: string; at: number } | null
   docs: Array<{ key: string; path: string; title: string; revision: number; updatedAt: number }>
 }
@@ -158,7 +158,7 @@ const q = (params: Record<string, string>) =>
 export const api = {
   state: (sessionId: string) => call<{ ok: true } & StatePayload>(`/state?${q({ sessionId })}`),
 
-  themes: () => call<{ ok: true } & ThemesPayload>(`/themes`),
+  themes: (sessionId: string) => call<{ ok: true } & ThemesPayload>(`/themes?${q({ sessionId })}`),
 
   doc: (sessionId: string, docKey: string) => call<{ ok: true } & DocPayload>(`/doc?${q({ sessionId, docKey })}`),
 

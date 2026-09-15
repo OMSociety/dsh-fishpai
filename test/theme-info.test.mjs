@@ -82,11 +82,13 @@ test('每套主题都配了图标（面板的主题列表靠它，不许悄悄�
     [...block.matchAll(/^\s{2}([a-z_]+):\s*'([A-Za-z0-9]+)'/gm)].map((m) => [m[1], m[2]]),
   )
   const keys = themeCatalog().map((t) => t.key)
-  assert.deepEqual(
-    [...mapped.keys()].sort(),
-    [...keys].sort(),
-    'THEME_GLYPH 的键要与主题清单一致（加了主题就补一个图标）',
-  )
+  // 方向一：内置主题一个都不许漏（这条是原本的意图）
+  const missing = keys.filter((k) => !mapped.has(k))
+  assert.deepEqual(missing, [], `THEME_GLYPH 缺图标：${missing.join(', ')}（加了主题就要补一行）`)
+  // 方向二：多出来的键必须是**有意**的。`custom` 是允许的——「自定义主题」由**路由层**加进清单，
+  // 不在 core 的 `themeCatalog()` 里，所以这里允许它是超集；除此之外多出来的键多半是拼错的 key。
+  const extra = [...mapped.keys()].filter((k) => !keys.includes(k) && k !== 'custom')
+  assert.deepEqual(extra, [], `THEME_GLYPH 里有不认识的键：${extra.join(', ')}`)
   for (const [key, name] of mapped) {
     assert.match(name, /^Icon[A-Za-z0-9]+$/, `${key} 的图标名不像 DSH 内置图标：${name}`)
   }

@@ -77,7 +77,7 @@ test('宿主插件能在真实 Cordis 里挂载，并注册四个工具、一条
 
   assert.deepEqual(
     registeredTools.map((t) => t.name).sort(),
-    ['fishpai_open', 'fishpai_read', 'fishpai_render', 'fishpai_write'],
+    ['fishpai_open', 'fishpai_read', 'fishpai_render', 'fishpai_theme', 'fishpai_write'],
   )
   assert.equal(routes.length, 1)
   assert.equal(routes[0].kind, 'prefix')
@@ -157,7 +157,7 @@ test('缺少 webServer 时照样挂载（工具与技能仍然可用）', async 
   await fiber
   await flush()
 
-  assert.equal(tools.length, 4, '没有 webServer 时工具仍应注册')
+  assert.equal(tools.length, 5, '没有 webServer 时工具仍应注册')
   assert.equal(skills.length, 1, '没有 webServer 时技能仍应注册')
   await fiber.dispose()
   await flush()
