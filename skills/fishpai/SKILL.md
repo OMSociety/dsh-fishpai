@@ -6,8 +6,8 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 # 鱼排 FishPai（公众号排版与协同改稿）
 
 鱼排把 Markdown 排成**内联样式 HTML**：整段粘进微信公众号编辑器就得到成品排版。
-它的渲染内核与 [MoPai 墨排](https://github.com/ye4wzp/mopai-markdown) 的「复制到公众号」输出一致
-（渲染内核与上游逐字节一致；真实剪贴板内容规范化后零差异。主题清单有意不同：上游的「金融时报」「Medium」已移除，「Claude」去掉了整页异色底）。
+它的渲染内核与 [MoPai 墨排](https://github.com/ye4wzp/mopai-markdown) 的「复制到公众号」输出逐字节一致
+（真实剪贴板内容规范化后零差异）。主题清单有意不同：上游的「金融时报」「Medium」已移除，「Claude」去掉了整页异色底。
 
 ## 什么时候用
 

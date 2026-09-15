@@ -49,9 +49,10 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
 6. **样式只用 `--dsw-alias-*` 主题变量**；旧名（`--dsw-text-secondary` 一类）在新版 DSH 里一个都不存在。
 7. **文件只能落在会话工作目录内**（`header.cwd`），并过扩展名白名单；不做任意路径读写。
 8. **绝不静默覆盖人的手改**：任何写入都要带 `base_revision`，不匹配就拒绝并回带最新 diff。
-   **块的行范围包含末尾那个空行**（块与块的分隔符）：`applyPatches` 的 `replace` 必须把分隔空行补回去，
-   否则下一块会被 markdown 的"懒延续"并进列表/段落，下一轮再改那个被并大的块就**会把它整段删掉**
-   （实测踩过：改列表项吃掉了文末两行）。`test/host.test.mjs` 有回归守卫。
+   **`applyPatches` 必须在拼接处自己保证恰好一个空行**：块的行范围（`collectBlocks` 取的 `map[1]`）
+   **列表含末尾那个分隔空行、段落不含**，不能指望它天然对齐；漏补会让下一块被 markdown 的"懒延续"
+   并进列表/段落，下一轮再改那个被并大的块就**会把它整段删掉**（实测踩过：改列表项吃掉了文末两行）。
+   `test/host.test.mjs` 有回归守卫。
 9. **`package.json` 的 `dsh.client.inject` 是「包依赖边」，不是服务依赖**。它声明的是
    "这一行的 factory 到位前必须先到位的**包**"（DSH `dsh-client-modules` 的 `WebBootEntry`：
    "names package rows whose factories must arrive before this row materializes"），
@@ -108,7 +109,7 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
 
 ```powershell
 npm install          # 只有 devDependencies（esbuild / typescript / @types/react / @types/react-dom / @deepseek-ai/cordis）
-npm test             # node --test：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + 主题规格 + bundle + 快捷键 + 挂载
+npm test             # node --test：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + 主题规格 + bundle + 快捷键 + 挂载 + 客户端 store 时序
 npm run typecheck    # 客户端 TSX 类型检查
 npm run build        # esbuild → lib/client.js（__ModuleLoader__ 形态）
 npm run check:build  # 构建后确认 lib/ 无漂移（CI 用）
