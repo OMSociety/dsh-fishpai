@@ -18,7 +18,7 @@
  */
 import fs from 'node:fs'
 import { render as renderCore, themeCatalog } from '../core/render.mjs'
-import { customCatalogEntry, themeFor } from './custom-theme.mjs'
+import { clearCustomTheme, customCatalogEntry, themeFor, CUSTOM_THEME_KEY } from './custom-theme.mjs'
 import { colorPresets } from '../core/runtime.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
 import { attachPlaceholdersToBlocks, extractPlaceholders, reanchorNotes } from '../core/notes.mjs'
@@ -313,6 +313,25 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         return json(res, 200, { ok: true, docKey: key })
       }
 
+      if (route === 'POST /theme') {
+        // 面板主题列表里那个 ×：删掉工作目录级的那一套「自定义主题」（只有一套）。
+        // 当前文档若正用着它，顺手退回「默认公众号」，不留"选不中的主题"。
+        const { sessionId, cwd } = sessionOf(body, url)
+        if (String(body.action || '') !== 'clear') return fail(res, 400, '未知 action（可用 clear）')
+        const removed = clearCustomTheme(cwd)
+        let reverted = false
+        if (removed) {
+          const key = store.activeKey(cwd, sessionId)
+          const entry = key ? store.readIndex(cwd).docs[key] : null
+          const docPath = entry ? store.resolveInCwd(cwd, entry.path) : null
+          if (docPath && store.readState(cwd, key)?.theme === CUSTOM_THEME_KEY) {
+            store.updateMeta({ cwd, docPath, meta: { theme: 'default' } })
+            reverted = true
+          }
+        }
+        return json(res, 200, { ok: true, removed, reverted })
+      }
+
       if (route === 'POST /upload') {
         // 面板上直接粘贴/拖进来的图片：存到**文档同级的 assets/**，回一个相对文档目录的 src，
         // 面板把它当成 `![](assets/xxx.png)` 插进正文。正文一个字都不在这里改（改由人/模型写）。
@@ -386,6 +405,9 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
             // 一行会被拆成多个矩形 → 被误判成"行高小于字体大小、文字重叠"。
             // 默认渲染路径（golden 守着的那条）一个字节都不动。
             wrapText: true,
+            // 同一条兼容层：微信粘进去会剥掉最外层 wrapper 的样式，字号只挂在 wrapper 上
+            // 等于没设——正文退回 16px，「字号」控件看着像没用。推进到文字所在的块级元素上。
+            promoteFontSize: true,
             // 同一条兼容层：微信的安全过滤按属性名过，`background` 简写不在名单里、
             // `background-color` 才在 —— 不拆的话引用块的框、表头底色粘过去就没了。
             wechatBackground: true,

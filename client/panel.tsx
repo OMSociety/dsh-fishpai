@@ -190,7 +190,13 @@ function BlankMark() {
  *
  * 图标取不到时（极老/裁剪过的 DSH 没有那个基线模块）自动退化成纯文字列表，功能不受影响。
  */
-function ThemePicker(props: { themes: ThemeInfo[]; value: string; onPick: (key: string) => void }) {
+function ThemePicker(props: {
+  themes: ThemeInfo[]
+  value: string
+  onPick: (key: string) => void
+  /** 删掉工作目录级的那一套「自定义主题」（「我的」那一组右边的 ×）。 */
+  onDeleteCustom?: () => void
+}) {
   const { themes, value } = props
   const [open, setOpen] = React.useState(false)
   const [active, setActive] = React.useState(0)
@@ -326,6 +332,22 @@ function ThemePicker(props: { themes: ThemeInfo[]; value: string; onPick: (key: 
               <div className="fp-menu-group" role="presentation" data-risk={group.risk ? 'true' : undefined}>
                 <span className="fp-menu-group-title">{group.label}</span>
                 {group.note ? <span className="fp-menu-group-note">{group.note}</span> : null}
+                {group.key === 'custom' && props.onDeleteCustom ? (
+                  <button
+                    type="button"
+                    className="fp-menu-x"
+                    aria-label="删除自定义主题"
+                    title="删掉这一套自定义主题（当前文档会退回「默认公众号」）"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      if (window.confirm('删掉「自定义主题」？当前文档会退回「默认公众号」。')) {
+                        props.onDeleteCustom?.()
+                      }
+                    }}
+                  >
+                    ×
+                  </button>
+                ) : null}
               </div>
               {group.items.map((theme) => {
                 const index = flat.indexOf(theme)
@@ -804,6 +826,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
             themes={state.themes}
             value={state.meta.theme}
             onPick={(key) => void store.actions.setMeta({ theme: key })}
+            onDeleteCustom={() => void store.actions.clearCustomTheme()}
           />
 
           {/* 主题色只对用 {{PRIMARY}} 的主题有效（当前只有「默认公众号」）。用不上就不显示，别放个点了没反应的控件。 */}

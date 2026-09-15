@@ -339,6 +339,27 @@ export function splitBackgroundsInHtml(html) {
   return html.replace(/\sstyle="([^"]*)"/g, (full, styleText) => ` style="${splitBackgrounds(styleText)}"`)
 }
 
+// ── 5b. 微信字号兼容（把选定的字号推进到文字所在的块级元素上）─────
+/**
+ * 字号默认只挂在最外层 wrapper 上，预览里一切正常。但微信编辑器粘进去时会剥掉
+ * 最外层 wrapper 的样式——于是正文全退回微信自己的 16px，「字号」控件看着像没用。
+ * 表现与「底色简写被丢」是同一类：**外层**的样式靠不住，**元素自己**的样式粘得过去。
+ *
+ * 把字号补到正文文字所在的 p / li / blockquote 上即可（引用框、表头底色实测都留得住）。
+ * 纯叠加：① 没选字号时不加任何字节；② 已经自带字号的元素一律不动——h1–h3 有自己的
+ * 字号、表格自己写了 14px（上游里表格字号本来就不跟着正文字号走，跟着改才是 bug）。
+ */
+const INHERITS_SIZE_TAGS = /^(?:p|li|blockquote)$/
+
+export function promoteFontSize(html, size) {
+  if (!html || !size) return html
+  return html.replace(/<([a-zA-Z][\w-]*)([^>]*?)style="([^"]*)"/g, (full, tag, mid, style) => {
+    if (!INHERITS_SIZE_TAGS.test(tag)) return full
+    if (/(^|;)\s*font-size\s*:/.test(style)) return full
+    return `<${tag}${mid}style="font-size: ${size}; ${style}"`
+  })
+}
+
 // ── 6. 预览锚点（annotate）─────────────────────────────────────
 
 /** 每个顶层块前插一个不可见锚点元素；只给预览的滚动同步与块高亮用，绝不进复制/导出结果。 */
@@ -442,6 +463,9 @@ export function render(markdownText, opts = {}) {
 
   if (opts.publish !== false && !opts.annotate) {
     body = prepareForPublish(body, { simple: !!opts.simple })
+    // 微信会剥掉最外层 wrapper 的样式，字号只挂在 wrapper 上等于没设
+    // （粘进去正文退回 16px，预览里却好好的）。推进到文字所在的块级元素上。
+    if (opts.promoteFontSize && opts.fontSize) body = promoteFontSize(body, size)
   }
   // wrapText 的第二半：列表项前面补一个不换行空格（微信会把条目开头的行内片段单独起一行）
   if (opts.wrapText) body = padListItems(body)

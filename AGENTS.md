@@ -15,7 +15,7 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
    golden 只能用 `npm run test:golden:regen` 重生成（**默认用冻结 oracle**），且重生成必须说得清
    "为什么上游行为变了"。`plugin/vendor/themes.js` 是**数据**：上面说过的删/改主题就属于这一类，
    重生成 golden 用默认 oracle 即可（oracle 读的是同一个文件，验证的是渲染逻辑没被带歪）。
-   **允许的两处偏离都只走复制/导出（publish）那条路径，且都由调用方显式开启**：
+   **允许的三处偏离都只走复制/导出（publish）那条路径，且都由调用方显式开启**：
    - `wrapText`：把文字包进 `<span>`，让微信的结构校验不再把"含行内元素的段落"误报成行高过小。
      必须是**纯叠加**的（`test/wechat-structure.test.mjs` 守着），默认路径一个字节都不许动。
      它有两半：① 文字包 span（防行高误报）；② 给"以**行内元素**开头"的 `<li>` 前面补一个 U+00A0——
@@ -28,7 +28,11 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
    - `wechatBackground`：把 `background:` 简写拆成 `background-color:`／`background-image:`。
      微信的安全过滤按属性名过，简写会整条被丢（引用块的框、表头底色实测会消失）。
      必须是**纯规范化**（同一条测试守着"除了这几个属性名，别的字节一个都不动"）。
-   两条都**不要**改成默认开启，也不要用 `--from-core` 去"修"golden 失败。
+   - `promoteFontSize`：把选定的字号从 wrapper 推进到 p / li / blockquote 上。微信粘进去
+     会剥掉最外层 wrapper 的样式，字号只挂在 wrapper 上等于没设（正文退回 16px，预览里却好好的）。
+     同样**纯叠加**：没传 `fontSize` 时不加任何字节；自带字号的元素（h1–h3、表格、部分主题的引用）
+     一律不动——表格字号不跟着正文字号走是**上游行为**，跟着改才是 bug。
+   三条都**不要**改成默认开启，也不要用 `--from-core` 去"修"golden 失败。
    另有一条**平台限制**（不是渲染偏离，也没有开关）：公众号编辑器**只认黑体**（iOS 设备上才是
    苹方），`font-family` 里的衬线／等宽栈粘进编辑器会退回黑体，只有「导出 HTML」的文件保得住。
    面板预览在浏览器里**看不出这个差别**，所以 `FontPicker` 把衬线／等宽单列一组、标一句橙色

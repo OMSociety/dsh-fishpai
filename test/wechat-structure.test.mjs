@@ -263,3 +263,33 @@ test('默认渲染路径不受底色兼容层影响（关着的时候一个字�
   const opts = { theme: 'bamboo', publish: true, footnotes: true, macCodeBlock: true, fontSize: '16px' }
   assert.equal(render(markdown, { ...opts, wechatBackground: false }).html, render(markdown, opts).html)
 })
+
+// ── 字号兼容层：选定的字号只挂在 wrapper 上，微信粘进去会剥掉 wrapper ──────
+//
+// 表现是「预览里字号变了，粘进公众号还是老样子」——与底色简写被丢同一类问题：
+// 外层 wrapper 的样式靠不住，元素自己的样式才粘得过去。把字号推进到正文文字所在的
+// p / li / blockquote 上即可（引用框、表头底色实测都留得住）。
+
+test('字号推进到文字所在的块级元素（p / li / 引用），且不碰自带字号的元素', () => {
+  const md = '# 标题\n\n正文一段。\n\n> 引用块\n\n- 列表项\n\n| 表头 | 内容 |\n|---|---|\n| a | b |\n'
+  const html = render(md, { theme: 'default', publish: true, fontSize: '18px', promoteFontSize: true }).html
+  for (const tag of ['p', 'li', 'blockquote']) {
+    assert.match(html, new RegExp('<' + tag + ' style="font-size: 18px; '), `${tag} 要补上选定的字号（wrapper 被剥掉后得自己撑住）`)
+  }
+  // 自带字号的元素一律不动：标题、表格（表格字号不跟着正文走是上游行为，跟着改才是 bug）
+  assert.match(html, /<h1 style="font-size: 22px/, '标题自己的字号不被覆盖')
+  assert.match(html, /<table style="[^"]*font-size: 14px/, '表格自带字号保留')
+  assert.doesNotMatch(html, /<td style="font-size: 18px/, '单元格不能跟着正文字号走')
+})
+
+test('字号兼容层是纯叠加：没选字号时不加任何字节，默认渲染路径不经过这一层', () => {
+  const md = '正文一段。\n\n- 列表项\n'
+  const base = { theme: 'default', publish: true, footnotes: true, macCodeBlock: true }
+  // 没选字号（fontSize 未传）时，开着兼容层也不能平白加字号
+  assert.equal(render(md, { ...base, promoteFontSize: true }).html, render(md, base).html, '没选字号时兼容层不该加字节')
+  // 关着兼容层时选了字号也不推进（与 wrapText / wechatBackground 同口径，由调用方显式开启）
+  assert.doesNotMatch(render(md, { ...base, fontSize: '17px' }).html, /<p style="font-size: 17px/, '默认渲染路径一个字节都不动')
+  // 已自带字号的元素即使开了兼容层也不动（纽约时报的引用自带 18px 那一类）
+  const own = render('> 引用\n', { theme: 'nyt', publish: true, fontSize: '15px', promoteFontSize: true }).html
+  assert.doesNotMatch(own, /<blockquote style="font-size: 15px/, '引用自带字号时不被覆盖')
+})

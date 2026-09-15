@@ -497,6 +497,30 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     },
 
     /**
+     * 删掉工作目录级的那一套「自定义主题」（面板主题列表「我的」那一组右边的 ×）。
+     * 只有一套，删了那一组就整个消失。宿主已把正用着它的当前文档退回「默认公众号」，
+     * 这里把本地的 meta 与预览也同步过去，免得预览还停在已经不存在的主题上。
+     */
+    async clearCustomTheme() {
+      try {
+        const res = await api.clearTheme(state.sessionId)
+        if (!res.removed) {
+          toast('本来就没有自定义主题，什么都没动')
+          return
+        }
+        await refreshThemes()
+        if (state.meta.theme === 'custom') {
+          const meta = { ...state.meta, theme: 'default' }
+          patch({ meta })
+          void refreshPreview(state.markdown, meta)
+        }
+        toast(res.reverted ? '已移除自定义主题；当前文档退回「默认公众号」' : '已移除自定义主题')
+      } catch (error) {
+        toast(`移除失败：${(error as Error).message}`, 'error')
+      }
+    },
+
+    /**
      * 加一条批注。**返回是否真的加上了**——调用方据此决定要不要清空输入框：
      * 没加上还把用户刚写的字抹掉，是这类面板最容易咬人的地方。
      *

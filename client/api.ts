@@ -175,7 +175,12 @@ export const api = {
       body: JSON.stringify({ sessionId, title }),
     }),
 
-  /** 把这个会话的当前鱼排文档切成另一篇（「最近打开」列表用）。 */
+  /** 面板主题列表里的 ×：删掉工作目录级的那一套「自定义主题」。 */
+  clearTheme: (sessionId: string) =>
+    call<{ ok: true; removed: boolean; reverted: boolean }>('/theme', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId, action: 'clear' }),
+    }),
   activate: (sessionId: string, docKey: string) =>
     call<{ ok: true; docKey: string }>(`/active`, {
       method: 'POST',

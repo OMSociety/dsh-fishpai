@@ -75,11 +75,19 @@ export const CSS = `
 }
 /* 分组标题：组名一行、小字提示一行（挤成一行在窄面板里会折得很难看） */
 .fp-menu-group{
+  position:relative;
   display:flex;flex-direction:column;gap:1px;
   padding:6px 6px 3px;font-size:11px;line-height:1.45;color:var(--dsw-alias-label-secondary);
 }
 .fp-menu-group-title{font-weight:500}
 .fp-menu-group-note{font-size:10px;color:var(--dsw-alias-label-secondary);opacity:.8}
+/* 「我的」那一组右边的删除按钮：只有这一组能删（自定义主题只有一套） */
+.fp-menu-x{
+  position:absolute;top:4px;right:4px;font:inherit;font-size:12px;line-height:1;
+  padding:2px 5px;cursor:pointer;color:var(--dsw-alias-label-secondary);
+  background:transparent;border:0;border-radius:4px;
+}
+.fp-menu-x:hover{color:var(--dsw-alias-state-warn-primary);background:var(--dsw-alias-interactive-bg-hover)}
 /* 第二组之前来一条细分隔线：一眼能看出"上面是能直接用的，下面是另一类" */
 .fp-menu-group[data-risk="true"]{
   margin-top:5px;padding-top:7px;border-top:1px solid var(--dsw-alias-border-l2);

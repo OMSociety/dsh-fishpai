@@ -1425,6 +1425,35 @@ test('自定义主题：路由把它加进清单、渲染真的走它、/state �
   assert.equal(doc.json.meta.theme, 'default')
 })
 
+test('POST /theme：面板的 × 删掉自定义主题，并让正用着它的文档退回默认', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+
+  // 没有自定义主题时删一次：什么都不动，也不是错
+  const noop = await callRoute(handler, { method: 'POST', url: '/fishpai/api/theme', body: { sessionId: 's1', action: 'clear' } })
+  assert.equal(noop.status, 200)
+  assert.equal(noop.json.removed, false)
+
+  custom.writeCustomTheme({ cwd, spec: { name: '灰底', base: 'elegant', styles: { p: 'line-height: 2;' } } })
+  await callRoute(handler, { method: 'POST', url: '/fishpai/api/meta', body: { sessionId: 's1', docKey: opened.key, meta: { theme: 'custom' } } })
+  assert.equal(store.readState(cwd, opened.key).theme, 'custom')
+
+  const res = await callRoute(handler, { method: 'POST', url: '/fishpai/api/theme', body: { sessionId: 's1', action: 'clear' } })
+  assert.equal(res.status, 200)
+  assert.equal(res.json.removed, true)
+  assert.equal(res.json.reverted, true, '当前文档正用着它，要退回默认')
+  assert.equal(custom.readCustomTheme(cwd), null, '主题文件删掉了')
+  assert.equal(store.readState(cwd, opened.key).theme, 'default', '文档状态也退回了')
+  const after = await callRoute(handler, { method: 'GET', url: '/fishpai/api/themes?sessionId=s1' })
+  assert.equal(after.json.themes.length, 11, '清单里「我的」那一组整个消失')
+
+  // 别的 action 不认
+  const bad = await callRoute(handler, { method: 'POST', url: '/fishpai/api/theme', body: { sessionId: 's1', action: 'nuke' } })
+  assert.equal(bad.status, 400)
+})
+
 test('fishpai_theme：set 落盘并切当前文档，show/clear，非法规格给可读文案', async () => {
   const cwd = tmpWorkspace()
   const { tools, exec } = fakeHost(cwd)

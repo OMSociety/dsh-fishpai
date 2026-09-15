@@ -288,6 +288,13 @@ test('字体下拉要标出「衬线/等宽」在公众号里不生效：编辑�
   assert.ok(source.includes('state.meta.font === "sans"'), '底部状态行判断"适合微信"时要把字体一起算进去')
 })
 
+test('主题下拉「我的」那一组要有删除按钮：自定义主题只有一套，删了得能退回默认', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  assert.ok(source.includes('fp-menu-x'), '分组标题右边要有删除按钮的样式钩子')
+  assert.ok(source.includes('onDeleteCustom'), 'ThemePicker 要把删除回调接出来')
+  assert.ok(source.includes('clearCustomTheme'), 'store 要有删除动作')
+})
+
 test('风险提示可关掉，但换主题后要重新出现（不能"关一次就再也不提醒"）', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   assert.ok(source.includes('fp-banner-x'), '风险提示缺关闭按钮')
