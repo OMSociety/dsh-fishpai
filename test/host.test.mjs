@@ -576,7 +576,7 @@ test('微信结构兼容层只走复制/导出：publish 包 span，preview 不�
 })
 
 test('微信底色兼容层只走复制/导出：publish 把 background 拆成长写，preview 原样', async () => {
-  const RICH = '# 标题\n\n> 引用一段\n\n| 概念 | 说明 |\n| --- | --- |\n|  | 从文本的沉默处读出问题结构 |\n'
+  const RICH = '# 标题\n\n> 引用一段\n\n| 概念 | 说明 |\n| --- | --- |\n| 示例概念 | 示例说明 |\n'
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: RICH, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
