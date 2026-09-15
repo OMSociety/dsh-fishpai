@@ -263,4 +263,19 @@ test('占位只在正文里算：代码示例里的鱼排注释不该被当成�
   assert.equal(found.length, 1)
   assert.equal(found[0].line, 3)
   assert.equal(found[0].text, '真的要补')
+
+  // 跨行占位：人把说明写成两行时，逐行扫会整条漏掉
+  const multi = '正文一段。\n\n<!-- 鱼排: 第一行说明\n第二行说明 -->\n\n下一段。\n'
+  const ph = extractPlaceholders(multi)
+  assert.equal(ph.length, 1, '跨行占位也要抽出来')
+  assert.equal(ph[0].line, 3, '行号落在占位开始的那一行')
+  assert.equal(ph[0].col, 0)
+  assert.equal(ph[0].text, '第一行说明\n第二行说明', '中间的换行要保留在文字里')
+  assert.equal(hasPlaceholders(multi), true)
+
+  // 同一行两处文字相同的占位：col 用来区分
+  const dup = '<!-- 鱼排: 同样的字 --> 中间有字 <!-- 鱼排: 同样的字 -->\n'
+  const dups = extractPlaceholders(dup)
+  assert.equal(dups.length, 2)
+  assert.notEqual(dups[0].col, dups[1].col, 'col 必须不同，否则 React key 撞')
 })

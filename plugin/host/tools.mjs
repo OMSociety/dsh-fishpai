@@ -399,8 +399,8 @@ export function registerTools(ctx, deps) {
     parameters: {
       type: 'object',
       properties: {
-        doc_key: { type: 'string', description: '文档键；省略则用本会话当前打开的那一份' },
-        markdown: { type: 'string', description: '直接渲染这段 Markdown（不读文件）；与 doc_key 二选一' },
+        doc_key: { type: 'string', description: '文档键；省略则用本会话当前打开的那一份（主题、字号等开关跟着它走）' },
+        markdown: { type: 'string', description: '直接渲染这段 Markdown（不读磁盘上的文件）；本会话仍需已打开一篇文档提供样式设置——没有就先 fishpai_open' },
         theme: { type: 'string', description: '主题 key 或中文名，覆盖文档当前设置' },
         theme_spec: {
           type: 'object',

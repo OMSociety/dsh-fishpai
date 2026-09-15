@@ -42,7 +42,7 @@ export function footnoteLinks(html) {
   return links
 }
 
-export function linksToFootnotes(md, html, styles = {}) {
+export function linksToFootnotes(html) {
   const links = []
   const supStyle = 'color: inherit; font-size: 80%; vertical-align: super; cursor: default;'
   const out = html.replace(A_TAG_RE, (full, pre, href, post, inner) => {
@@ -215,15 +215,11 @@ export function simplifyCodeBlocks(html) {
  * `<pre>…</pre>` 区间内的所有 span 统一处理。
  */
 export function inlineCodeStyles(html) {
-  const blocks = []
-  const out = html.replace(/<pre[\s\S]*?<\/pre>/g, (m) => {
-    blocks.push(m)
-    return `\x01${blocks.length - 1}\x01`
-  })
-
-  return out.replace(/\x01(\d+)\x01/g, (_, n) => {
-    const block = blocks[Number(n)]
-    return block.replace(/<span([^>]*)>/g, (full, attrs) => {
+  // 直接在 `<pre>` 区间内部处理 span，不做"先遮罩后还原"：
+  // 遮罩用的占位符（`\x01N\x01`）万一在正文里原样出现（模型生成的稿子什么都有可能），
+  // 还原那一步会把它当成占位符、把正文替换成某个代码块或空串，静默吃掉正文。
+  return html.replace(/<pre[\s\S]*?<\/pre>/g, (m) =>
+    m.replace(/<span([^>]*)>/g, (full, attrs) => {
       const cm = attrs.match(/\bclass="([^"]*)"/)
       const cls = cm ? cm[1] : ''
       const sm = attrs.match(/\bstyle="([^"]*)"/)
@@ -234,7 +230,7 @@ export function inlineCodeStyles(html) {
       const rest = sm ? attrs.replace(/\sstyle="[^"]*"/, '') : attrs
       return `<span${rest} style="${merged}">`
     })
-  })
+  )
 }
 
 /**
@@ -353,20 +349,29 @@ const INHERITS_SIZE_TAGS = /^(?:p|li|blockquote)$/
 
 export function promoteFontSize(html, size) {
   if (!html || !size) return html
+  const promote = (text) =>
+    text.replace(/<([a-zA-Z][\w-]*)([^>]*?)style="([^"]*)"/g, (full, tag, mid, style) => {
+      if (!INHERITS_SIZE_TAGS.test(tag)) return full
+      if (/(^|;)\s*font-size\s*:/.test(style)) return full
+      return `<${tag}${mid}style="font-size: ${size}; ${style}"`
+    })
   // 文末「参考资料」那一节**自己**带着 font-size（13px 小字）：它的 `<section>` 粘进微信
   // 后照样在，字号不会因 wrapper 被剥而丢失，所以里面的 p 不需要推进——推进去反而把这节
-  // 撑成正文字号。先遮住、推进完再原样还原（这一节是唯一会出现在产物里的 `<section>`）。
-  const masked = []
-  const body = html.replace(/<section\b[^>]*>[\s\S]*?<\/section>/g, (m) => {
-    masked.push(m)
-    return `\x02${masked.length - 1}\x02`
-  })
-  const out = body.replace(/<([a-zA-Z][\w-]*)([^>]*?)style="([^"]*)"/g, (full, tag, mid, style) => {
-    if (!INHERITS_SIZE_TAGS.test(tag)) return full
-    if (/(^|;)\s*font-size\s*:/.test(style)) return full
-    return `<${tag}${mid}style="font-size: ${size}; ${style}"`
-  })
-  return out.replace(/\x02(\d+)\x02/g, (_, n) => masked[Number(n)] || '')
+  // 撑成正文字号。把所有 `<section>` 整段摘出来、只推进其余部分，再按原位缝回去。
+  // 遮的是所有 `<section>`：正文里手写的原始 HTML section 也会被一起遮住（极少见），
+  // 不推进对它来说是**安全**的退化（不会错加字节）。
+  // 摘出来时不用占位符（同 inlineCodeStyles 的理由）：正文里若出现同样的控制字符，
+  // 占位符会被当成它，把正文替换成别处的内容或空串。
+  let out = ''
+  let last = 0
+  const re = /<section\b[^>]*>[\s\S]*?<\/section>/g
+  for (const m of html.matchAll(re)) {
+    if (m.index > last) out += promote(html.slice(last, m.index))
+    out += m[0]
+    last = m.index + m[0].length
+  }
+  if (last < html.length) out += promote(html.slice(last))
+  return out
 }
 
 // ── 6. 预览锚点（annotate）─────────────────────────────────────
@@ -455,7 +460,7 @@ export function render(markdownText, opts = {}) {
   // 开关只决定要不要真的转成脚注，不决定"正文里有没有链接"。
   const linkCount = footnoteLinks(body).length
   const hasCode = /<pre\b/.test(body)
-  if (opts.footnotes !== false) body = linksToFootnotes(md, body, styles)
+  if (opts.footnotes !== false) body = linksToFootnotes(body)
   body = cleanForWechat(body)
   if (typeof opts.imageResolver === 'function') body = rewriteImages(body, opts.imageResolver)
 

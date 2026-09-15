@@ -372,7 +372,9 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         } else if (action === 'update') {
           if (!store.updateNote({ cwd, docPath: abs, id: String(body.id || ''), patch: body.patch || {} })) return fail(res, 404, '批注不存在')
         } else if (action === 'remove') {
-          store.removeNote({ cwd, docPath: abs, id: String(body.id || '') })
+          const removed = store.removeNote({ cwd, docPath: abs, id: String(body.id || '') })
+          if (removed === null) return fail(res, 404, '文档状态缺失')
+          if (!removed) return fail(res, 404, '批注不存在')
         } else {
           return fail(res, 400, `未知 action: ${action}`)
         }

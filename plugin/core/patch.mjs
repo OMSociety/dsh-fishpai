@@ -14,7 +14,17 @@
  * @returns {{markdown: string, applied: Array<object>, errors: Array<string>}}
  */
 export function applyPatches(markdown, blocks, patches) {
-  const lines = String(markdown ?? '').split('\n')
+  // CRLF 文档（Windows 上用记事本/别的编辑器存的 .md 很常见）：split('\n') 会把行尾的
+  // `\r` 留在每行末尾，于是「空行」是 `'\r'` 而不是 `''`——下面所有「是不是空行」的判据
+  // 都会失灵（replace 会吞掉块尾的分隔行，下一块被并进列表）。统一在 LF 世界里做行操作，
+  // 输出时再按原文档的行尾风格还原（最后一行不加 `\r`：它后面没有换行）。
+  const source = String(markdown ?? '')
+  const isCrlf = /\r\n/.test(source)
+  const lines = isCrlf ? source.replace(/\r\n/g, '\n').split('\n') : source.split('\n')
+  const denorm = (out) => {
+    if (!isCrlf) return out.join('\n')
+    return out.map((l, i) => (i === out.length - 1 ? l : `${l}\r`)).join('\n')
+  }
   const byId = new Map(blocks.map((b) => [b.id, b]))
   const byIndex = new Map(blocks.map((b) => [b.index, b]))
 
@@ -66,13 +76,18 @@ export function applyPatches(markdown, blocks, patches) {
         errors.push(`insert_after 需要 markdown：块 ${block.id}`)
         continue
       }
-      // 插入点前面补一个空行，保证与上一块分隔
       const at = to
-      const needsBlank = at > 0 && lines[at - 1] !== '' && lines[at] !== undefined && lines[at] !== ''
-      lines.splice(at, 0, ...(needsBlank ? [''] : []), ...newLines)
+      // 前后各保证**恰好一个**空行：上一行是内容、且插入文本自己没带前导空行，就补一个；
+      // 下一行是内容、且插入文本没带尾随空行，也补一个。分隔行（列表的 map 里就含着它；
+      // 段落的 map 不含、但紧跟在 at 后面）本来就在，不重复补。
+      // 少了任一边，markdown 的"懒延续"会把新块与相邻块并成同一段——
+      // 模型以为加了新段落，实际只给已有段落加了一行。
+      const needHead = at > 0 && lines[at - 1] !== '' && newLines[0] !== ''
+      const needTail = lines[at] !== undefined && lines[at] !== '' && newLines[newLines.length - 1] !== ''
+      lines.splice(at, 0, ...(needHead ? [''] : []), ...newLines, ...(needTail ? [''] : []))
     }
     applied.push({ blockId: block.id, op })
   }
 
-  return { markdown: lines.join('\n'), applied, errors }
+  return { markdown: denorm(lines), applied, errors }
 }

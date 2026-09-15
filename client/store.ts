@@ -317,6 +317,10 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     if (!state.docKey || !state.dirty) return
     // 冲突未决之前不再重试：否则用户每打一个字都会再撞一次 409
     if (state.conflict) return
+    // 「外部更新」提示在场时同样不自动保存：本地 revision 已过期，写出去必然 409，
+    // 只会把这条提示替换成语义重叠的「冲突」提示。用户的输入留在编辑器里，
+    // 等他点横幅上的按钮（flush 会采用服务端版本号去写，正是「保留我的」）。
+    if (state.external) return
     if (saveInFlight) return // 在飞的那次结束后会因 dirty 自动再排一次
     const snapshotMarkdown = state.markdown
     saveInFlight = true
@@ -358,14 +362,19 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
    * 没有令牌就会把已经切过去的那一篇盖回来（面板显示 A、宿主当前却是 B，
    * 此后打的字会按 `docKey = A` 存进 A）。`refreshPreview` 一直有同款 `previewToken`，这里补齐。
    *
-   * 未保存的改动由调用方负责：`reloadSafely` / `restore` 都是"先落盘再重载"；
-   * 轮询那条路（`onActiveDoc`）碰到 dirty 时只挂 `external` 提示，根本不进来。
+   * 未保存的改动由调用方负责（`reloadSafely` / `restore` / `createDoc` / `openDocByKey`
+   * 都是"先落盘再重载"）；但调用方的 dirty 检查只在 await **之前**——
+   * fetch 期间用户敲的那一笔，靠这里在 patch 前再核一次 dirty 兜住：正文保留用户的输入，
+   * 别的视图信息照常更新，下一拍预览会跟上。
    */
   async function loadDoc(docKey: string) {
     if (!docKey) return
     const token = ++loadToken
+    const dirtyBefore = state.dirty
     const res = await api.doc(state.sessionId, docKey)
     if (token !== loadToken) return // 已经有更新的一次载入在路上，丢掉这次
+    // fetch 期间用户又敲了字：不能拿服务端的版本整片盖掉（「绝不静默覆盖人的手改」的同一条纪律）
+    const keepTyped = state.dirty && !dirtyBefore
     notesEpoch += 1
     patch({
       status: 'ready',
@@ -373,9 +382,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       docKey,
       path: res.doc.path,
       title: res.doc.title,
-      markdown: res.doc.markdown,
-      savedMarkdown: res.doc.markdown,
-      dirty: false,
+      ...(keepTyped ? {} : { markdown: res.doc.markdown, savedMarkdown: res.doc.markdown, dirty: false }),
       revision: res.doc.revision,
       meta: res.meta,
       blocks: res.blocks,
@@ -393,7 +400,19 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     })
     onDocLoaded?.(docKey)
     void ensureImages(res.images, docKey)
-    void refreshPreview(res.doc.markdown, res.meta)
+    // keepTyped 时正文是用户刚敲的那一份，预览也要跟着它走
+    void refreshPreview(state.markdown, res.meta)
+  }
+
+  /**
+   * 切换文档前的统一约定：有未保存的输入就先落盘，保存失败就取消切换。
+   * 少了这一步，「新建空白文档 / 最近打开」会把用户刚敲的字静默丢掉——
+   * 与 `reloadSafely` / `restore` 是同一条纪律，只是这两个入口原先漏了。
+   */
+  async function saveBeforeSwitch(): Promise<boolean> {
+    if (!state.dirty || state.conflict || state.external) return true
+    await saveNow()
+    return !state.dirty
   }
 
   /**
@@ -433,6 +452,10 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
      */
     async createDoc() {
       try {
+        if (!(await saveBeforeSwitch())) {
+          toast('保存没成功，已取消新建文档以免丢字', 'error')
+          return
+        }
         const res = await api.createDoc(state.sessionId)
         await loadDoc(res.docKey)
         toast('新建了一篇空白文档，可以直接在编辑器里写')
@@ -445,6 +468,10 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     async openDocByKey(key: string) {
       if (!key || key === state.docKey) return
       try {
+        if (!(await saveBeforeSwitch())) {
+          toast('保存没成功，已取消切换以免丢字', 'error')
+          return
+        }
         await api.activate(state.sessionId, key)
         await loadDoc(key)
       } catch (error) {
@@ -708,6 +735,9 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     toast,
     flush() {
       if (saveTimer) clearTimeout(saveTimer)
+      // 「外部更新」横幅在场时本地 revision 已过期：采用服务端报回来的版本号去写
+      // （这就是横幅上「保留我的」的意思），否则必然撞 409。
+      if (state.external) patch({ revision: state.external.revision, external: null })
       return saveNow()
     },
   }
@@ -724,6 +754,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       if (previewTimer) clearTimeout(previewTimer)
       for (const timer of toastTimers) clearTimeout(timer)
       toastTimers.clear()
+      imageCache.clear()
       listeners.clear()
     },
   }

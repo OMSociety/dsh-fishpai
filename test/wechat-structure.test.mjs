@@ -13,7 +13,7 @@
  * 那条规则就不再命中；这正是微信自己插入内容后的结构（`<span leaf="">`）。
  * **已知边界**：`wrapText` 改的是 markdown-it 的 `text` 规则，代码块走 `fence` 规则、包不到，
  * 而代码块天然多行，同一套"内容高度 ÷ 矩形数"照样算小——所以**带代码块的文章仍会被标出那一条**
- * （上游形态也一样；面板里对此没有承诺，README 里写明了）。
+ * （上游形态也一样；CHANGELOG 的「行高误报」条目写明了这条边界）。
  * 本文件检查的就是这条**结构性充分条件**，所以它不依赖浏览器，也不需要联网。
  */
 import test from 'node:test'
@@ -303,6 +303,18 @@ test('字号不推进文末「参考资料」：那一节自己带小字号，<s
   const section = html.slice(html.indexOf('<section'))
   assert.match(section, /font-size: 13px/, '这一节自带小字号')
   assert.doesNotMatch(section, /font-size: 18px/, '小字不该被撑成正文字号')
-  // 遮罩用的哨兵不能留在产物里
-  assert.doesNotMatch(html, /\x02/, '遮罩哨兵必须还原干净')
+  // <section> 摘除后必须按原位缝回去，产物里不该留下处理痕迹
+  assert.doesNotMatch(html, /\x02/, '摘除 section 的占位符必须还原干净')
+})
+
+test('正文里原样出现的控制字符不能被兼容层的遮罩占位符吃掉', () => {
+  // 早期实现把 <section> 整段换成 `\x02N\x02` 占位符、推进完再还原：正文里若原本
+  // 就有同样的控制字符（模型生成的稿子什么都有可能），还原那一步会把它当成占位符，
+  // 静默换成别处的内容或空串。inlineCodeStyles 的 \x01 占位符同理（会吞掉代码块前的正文）。
+  const md = '正文里有控制字符：a' + '\u0001' + '5' + '\u0001' + 'b，再来一对 a' + '\u0002' + '0' + '\u0002' + 'b。\n\n```js\nconsole.log(1)\n```\n'
+  const html = render(md, { theme: 'default', publish: true, fontSize: '18px', promoteFontSize: true }).html
+  assert.ok(html.includes('a' + '\u0001' + '5' + '\u0001' + 'b'), '正文里的 x01 序列要原样保留')
+  assert.ok(html.includes('a' + '\u0002' + '0' + '\u0002' + 'b'), '正文里的 x02 序列要原样保留')
+  // 该推进的字号仍然推进
+  assert.match(html, /<p style="font-size: 18px; /)
 })

@@ -7,6 +7,7 @@ node_modules/
 .fishpai/state/
 .fishpai/history/
 .fishpai/docs/
+.fishpai/theme.json
 
 # Upstream's own ignore rules, kept for the reference site under legacy-site/
 article-assets/

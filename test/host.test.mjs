@@ -405,6 +405,62 @@ test('块级补丁：replace 保住块尾的分隔空行，后面的块不会被
   assert.equal(splitBlocks(twice.markdown).length, 3)
 })
 
+test('块级补丁：insert_after 插入的新块与前后都隔开（不然并进相邻段）', () => {
+  // 段落的 map 不含它后面的分隔空行；插入文本若不自带空行，两边都必须补上，
+  // 否则 markdown 的"懒延续"把新块并进相邻段——模型以为加了段落，实际只加了一行。
+  const mid = '## 小节\n\n这是第一段。\n\n这是第二段。\n'
+  const blocks = splitBlocks(mid)
+  const out = applyPatches(mid, blocks, [
+    { block_id: blocks.find((b) => b.text.includes('这是第一段')).id, op: 'insert_after', markdown: '这是插入的新段。' },
+  ])
+  assert.deepEqual(out.errors, [])
+  assert.equal(splitBlocks(out.markdown).length, 4, '应当多出一个块')
+  assert.match(out.markdown, /这是第一段。\n\n这是插入的新段。\n\n这是第二段。/, '前后都要恰好一个空行')
+  // 插入文本自带前导/尾随空行时不重复补
+  const selfBlank = applyPatches(mid, blocks, [
+    { block_id: blocks.find((b) => b.text.includes('这是第一段')).id, op: 'insert_after', markdown: '\n这是插入的新段。\n' },
+  ])
+  assert.deepEqual(selfBlank.errors, [])
+  assert.doesNotMatch(selfBlank.markdown, /\n\n\n/, '不许出现连续两个空行')
+  // 插在文末
+  const tail = applyPatches(mid, blocks, [
+    { block_id: blocks[blocks.length - 1].id, op: 'insert_after', markdown: '插在文末。' },
+  ])
+  assert.deepEqual(tail.errors, [])
+  assert.equal(splitBlocks(tail.markdown).length, 4)
+  assert.match(tail.markdown, /这是第二段。\n\n插在文末。/)
+  // 列表的 map 含分隔行：插在列表后，新块要落在分隔行之后
+  const listDoc = '第一段。\n\n1. 甲\n2. 乙\n\n**项目地址：**\nexample.com\n'
+  const lb = splitBlocks(listDoc)
+  const lo = applyPatches(listDoc, lb, [{ block_id: lb[1].id, op: 'insert_after', markdown: '插在列表后。' }])
+  assert.deepEqual(lo.errors, [])
+  assert.equal(splitBlocks(lo.markdown).length, 4)
+  assert.match(lo.markdown, /2\. 乙\n\n插在列表后。\n\n\*\*项目地址/)
+})
+
+test('块级补丁：CRLF 文档不吞分隔行、不混排行尾', () => {
+  // Windows 上用记事本/别的编辑器存的 .md 常是 CRLF：split('\n') 会把 \r 留在行尾，
+  // 于是「空行」是 '\r' 而非 ''——所有空行判据失灵，replace 会吞掉块尾分隔行，
+  // 下一块被并进列表（正是上一条测试在 LF 下防的故障），补丁文本还会把文档变成 CRLF/LF 混排。
+  const doc = '第一段。\r\n\r\n1. 甲\r\n2. 乙\r\n\r\n**项目地址：**\r\nexample.com\r\n'
+  const before = splitBlocks(doc)
+  assert.equal(before.length, 3)
+
+  const once = applyPatches(doc, before, [{ block_id: before[1].id, op: 'replace', markdown: '1. 丙' }])
+  assert.deepEqual(once.errors, [])
+  assert.equal(splitBlocks(once.markdown).length, 3, 'CRLF 下替换列表后仍应是三块')
+  assert.match(once.markdown, /项目地址/, '后面的块不许被吃掉')
+  assert.doesNotMatch(once.markdown, /[^\r]\n/, '整篇仍应是纯 CRLF，不许混入裸 LF')
+
+  // insert_after 同样要保持 CRLF 与块边界
+  const inserted = applyPatches(once.markdown, splitBlocks(once.markdown), [
+    { block_id: splitBlocks(once.markdown)[1].id, op: 'insert_after', markdown: '插在列表后。' },
+  ])
+  assert.deepEqual(inserted.errors, [])
+  assert.equal(splitBlocks(inserted.markdown).length, 4)
+  assert.doesNotMatch(inserted.markdown, /[^\r]\n/, '插入后仍是纯 CRLF')
+})
+
 // ── HTTP 路由 ──────────────────────────────────────────────────
 
 test('同源守卫：跨站与伪造 Origin 一律拒绝', () => {
@@ -1054,6 +1110,11 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   const removed = await callRoute(handler, { method: 'POST', url: '/fishpai/api/notes', body: { sessionId: session, docKey, action: 'remove', id: note.id } })
   assert.equal(removed.status, 200)
   assert.equal(removed.json.notes.length, 0)
+
+  // 删一条不存在的批注：和 add/update 一样给 404，而不是在 reanchorNotes 上炸成 400
+  const missing = await callRoute(handler, { method: 'POST', url: '/fishpai/api/notes', body: { sessionId: session, docKey, action: 'remove', id: '不存在的id' } })
+  assert.equal(missing.status, 404)
+  assert.match(missing.json.error, /批注不存在/)
 
   // 8) POST /meta —— 样式开关
   const meta = await callRoute(handler, { method: 'POST', url: '/fishpai/api/meta', body: { sessionId: session, docKey, meta: { mobile: true, color: '#10b981' } } })

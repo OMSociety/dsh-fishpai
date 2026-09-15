@@ -41,18 +41,22 @@ function maskCode(markdown) {
 
 /** 从 Markdown 里抽出全部行内占位（1-based 行号，便于面板跳转）。代码区域里的不算。 */
 export function extractPlaceholders(markdown) {
+  const source = String(markdown || '')
+  const mask = maskCode(source).join('\n')
+  // 遮罩与原文等长、行结构相同，所以在整篇上跑正则、再按字符偏移拆出行号/列号——
+  // 逐行扫会漏掉**跨行**的占位（`<!-- 鱼排: 第一行\n第二行 -->` 这种写法直接整条消失）。
+  const lines = source.split('\n')
+  const lineStarts = [0]
+  for (let i = 0; i < lines.length - 1; i++) lineStarts.push(lineStarts[i] + lines[i].length + 1)
   const out = []
-  const mask = maskCode(markdown)
-  const lines = String(markdown || '').split('\n')
-  for (let i = 0; i < lines.length; i++) {
-    // 遮罩与原文等长，所以命中的文本就是原文的文本——只在"判不判定为占位"这一步用遮罩
-    const re = new RegExp(PLACEHOLDER_RE.source, 'g')
-    let m
-    while ((m = re.exec(mask[i])) !== null) {
-      // `col` = 这一行里的字符偏移：同一行有两处**文字相同**的占位时，
-      // 只按 `行号-文字` 做 React key 会撞（重复 key → 警告与错渲染）
-      out.push({ line: i + 1, col: m.index, text: m[1].trim(), raw: m[0], blockId: null })
-    }
+  const re = new RegExp(PLACEHOLDER_RE.source, 'g')
+  let lineNo = 0
+  let m
+  while ((m = re.exec(mask)) !== null) {
+    while (lineStarts[lineNo + 1] !== undefined && lineStarts[lineNo + 1] <= m.index) lineNo++
+    // `col` = 这一行里的字符偏移：同一行有两处**文字相同**的占位时，
+    // 只按 `行号-文字` 做 React key 会撞（重复 key → 警告与错渲染）
+    out.push({ line: lineNo + 1, col: m.index - lineStarts[lineNo], text: m[1].trim(), raw: m[0], blockId: null })
   }
   return out
 }

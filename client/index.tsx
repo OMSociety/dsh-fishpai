@@ -244,6 +244,8 @@ export function apply(ctx: any): void {
     let lastKey: string | null = null
     let lastTheme = ''
     let lastSession = ''
+    /** 已经轮询过的会话：第一次 tick 不触发 onActiveDoc（面板自己会 init），之后不再抑制。 */
+    const seenSessions = new Set<string>()
     const tick = async () => {
       if (stopped || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return
       const sessionId = currentSessionId(ctx)
@@ -264,7 +266,13 @@ export function apply(ctx: any): void {
         const revision = st.active ? st.active.revision : -1
         // 主题也要看：模型换主题（`fishpai_theme`）**不会**动 revision，只看 revision 就发现不了
         const themeKey = st.active ? st.active.theme : ''
-        const firstPoll = lastKey === null && lastRevision === -1
+        // 第一次轮询不触发 onActiveDoc：面板自己的 init() 已经载入了当前文档。
+        // 这必须是**一次性**标志，不能从 lastKey/lastRevision 派生——
+        // 「没有活动文档」时它们恒为 null/-1，于是每 tick 都被判成首次，
+        // onActiveDoc 永远不被调用；用户先打开空面板、再让模型 fishpai_open 时，
+        // 面板就一直卡在空态（onActiveDoc 里那条 `!state.docKey → loadDoc` 的兜底根本到不了）。
+        const firstPoll = !seenSessions.has(sessionId)
+        seenSessions.add(sessionId)
         const switched = activeKey !== lastKey || revision !== lastRevision || themeKey !== lastTheme
         lastKey = activeKey
         lastRevision = revision
