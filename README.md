@@ -5,8 +5,8 @@
   <p>人在侧栏改字、加批注与占位；模型用<strong>块级 diff</strong> 看懂你改了什么、想要什么；成品仍由你复制粘贴进公众号编辑器。</p>
 
   <p>
-    <a href="https://github.com/OMSociety/dsh-fishpai/commits/main"><img src="https://img.shields.io/badge/version-内测-4f6ef7" alt="Version"></a>
-    <a href="https://github.com/deepseek-ai/dsh"><img src="https://img.shields.io/badge/DSH-0.1.5--rc.2-4f6ef7" alt="DSH"></a>
+    <a href="https://github.com/OMSociety/dsh-fishpai/releases"><img src="https://img.shields.io/github/v/tag/OMSociety/dsh-fishpai?color=4f6ef7&label=version" alt="Version"></a>
+    <a href="https://github.com/deepseek-ai/dsh"><img src="https://img.shields.io/badge/DSH-%3E%3D0.1.5--rc.2-4f6ef7" alt="DSH"></a>
     <a href="LICENSE"><img src="https://img.shields.io/github/license/OMSociety/dsh-fishpai?color=4f6ef7" alt="License"></a>
     <a href="https://github.com/OMSociety/dsh-fishpai/stargazers"><img src="https://img.shields.io/github/stars/OMSociety/dsh-fishpai?color=4f6ef7" alt="Stars"></a>
     <a href="https://github.com/OMSociety/dsh-fishpai/issues"><img src="https://img.shields.io/github/issues/OMSociety/dsh-fishpai?color=4f6ef7" alt="Issues"></a>
@@ -59,11 +59,11 @@
 
 ```powershell
 # 1) 先停掉 dsh web（运行中的服务会锁住依赖，装完再起）
-dsh plugin --profile web add "github:OMSociety/dsh-fishpai#main"
+dsh plugin --profile web add "github:OMSociety/dsh-fishpai#v1.0.0"
 # 2) 重新启动 dsh web
 ```
 
-> 内测期间跟进 `main`（最新的排版规则与兼容层都在这里）；尚未打 tag，要固定某一版可把 `#main` 换成提交哈希。
+> 上面的 `#v1.0.0` 钉在已发布的版本上；想跟进最新就把尾巴换成 `#main`（最新的排版规则与兼容层都在这里）。
 
 **方式二：clone 到本地再装**
 
@@ -72,7 +72,7 @@ git clone https://github.com/OMSociety/dsh-fishpai D:\WorkSpace\dsh-fishpai
 dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 ```
 
-> 装好后右侧栏会多出「鱼排编辑器」入口（官方右侧栏的 `+` 菜单 / 引导页里也能找到）。
+> 装好后**刷新一下浏览器页面**，右侧栏就会多出「鱼排编辑器」入口（官方右侧栏的 `+` 菜单 / 引导页里也能找到）——只重启宿主不够，客户端产物是页面加载时取的。
 > 本插件零运行时依赖，不受 `minimumReleaseAge` 影响；客户端产物 `lib/client.js` 已入库，不需要本地构建。
 
 **装完怎么用**
@@ -91,7 +91,7 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 |---|---|---|
 | `fishpai_open` | 打开 / 新建文档，并在右侧栏弹出面板 | `path`（可省扩展名，自动补 `.md`）、`markdown`（新建时写正文）、`theme` |
 | `fishpai_read` | **改稿前必做**：读块级 diff、批注、占位、图片提醒与块 id | `doc_key`、`include` |
-| `fishpai_write` | 改稿。必须带 `base_revision`；优先按块改 | `mode`（`patch` / `replace`）、`patches[{block_id, op, markdown}]`、`base_revision` |
+| `fishpai_write` | 改稿。必须带 `base_revision`；优先按块改 | `doc_key`、`base_revision`、`mode`（`patch` / `replace`）、`patches[{block_id 或 block_index, op, markdown}]` |
 | `fishpai_render` | 导出可粘贴 / 归档的自包含 HTML（本地图片内嵌 base64） | `out_path`（可省扩展名）、`theme`、`theme_spec`（临时自定义主题，不落盘）、`publish`（`false` = 预览原样形态）、`embed_images` |
 | `fishpai_theme` | 工作目录级的**「自定义主题」**（一套，`set` / `show` / `clear`）：模型在某套内置主题上只覆盖想改的槽位，面板主题列表里就是那一个占位 | `action`、`theme_spec` |
 
@@ -122,13 +122,13 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 | `.fishpai/state/` | 主题、revision、baseline、批注 | 按文档路径哈希命名；删掉会丢批注、历史与「模型上次写入的基线」（正文不动，但模型暂时看不出你改了什么） |
 | `.fishpai/history/` | 历史快照（最多 50 份） | 面板「历史」抽屉里可一键回滚 |
 | `.fishpai/theme.json` | 「自定义主题」（工作目录级，只有一套） | `fishpai_theme set` 写、`clear` 删；改坏了静默退回「默认公众号」 |
-| `.fishpai/.gitignore` | 忽略上面三项 | 插件自建，不动你的 `.gitignore`；主题想跟仓库走就用 `git add -f` |
+| `.fishpai/.gitignore` | 忽略 `state/`、`history/`、`theme.json` | 插件自建，只追加缺失的行（你写的改动一字不动）；正文与图片是否入库由你自己决定，主题想跟仓库走就用 `git add -f` |
 
 ## 🛠 开发
 
 ```powershell
 npm install        # 只有 devDependencies（esbuild / typescript / @types/react / @types/react-dom / @deepseek-ai/cordis）
-npm test           # 全量回归：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + 主题规格 + bundle + 快捷键 + 挂载
+npm test           # 全量回归：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + 主题规格 + bundle + 快捷键 + 挂载 + 客户端 store 时序
 npm run typecheck  # 客户端 TSX 类型检查
 npm run build      # 重新打包 lib/client.js（改完客户端必须跑，并提交产物）
 npm run check:build  # 确认 lib/ 无漂移
@@ -145,7 +145,7 @@ client/                 客户端源码（TSX → esbuild 打成 lib/client.js�
 lib/client.js           客户端 bundle（入库；dsh plugin add 不做构建）
 skills/fishpai/         鱼排技能：教模型怎么选主题、怎么按块改稿
 legacy-site/            上游 SPA 原样留存，便于复核渲染一致性
-test/                   golden、站点对照、块/diff/批注/补丁、宿主红线、微信兼容层、主题规格、bundle 形态、快捷键、真实 Cordis 挂载
+test/                   golden、站点对照、块/diff/批注/补丁、宿主红线、微信兼容层、主题规格、bundle 形态、快捷键、真实 Cordis 挂载、客户端 store 时序
 ```
 
 用微信官方校验器复验（需要本机 Chrome，不进依赖）：
@@ -160,7 +160,7 @@ npx tsx src/index.ts <导出的 article.html> --json    # isValid: true 即通�
 ## ⭐ 支持
 
 - 如果这个插件对你有帮助，欢迎点亮 Star ⭐，有问题和建议请提交 [Issue](https://github.com/OMSociety/dsh-fishpai/issues) 或 [Pull Request](https://github.com/OMSociety/dsh-fishpai/pulls)。
-- 想改主题或加一套自己的：主题定义集中在 `plugin/vendor/themes.js`，加完跑 `node scripts/regen-golden.mjs` 重生成 golden
+- 想改主题或加一套自己的：主题定义集中在 `plugin/vendor/themes.js`，加完跑 `npm run test:golden:regen` 重生成 golden
 
 ## 🙏 致谢
 
