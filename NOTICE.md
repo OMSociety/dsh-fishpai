@@ -11,7 +11,7 @@
 | 上游作者 | ye4wzp |
 | 许可 | MIT |
 | 本仓库 fork 自 | `main`（fork 时的上游 HEAD） |
-| 上游原样保留位置 | `legacy-site/`（去掉 `screenshots/`，其余原样：`index.html`、`css/`、`js/`、`docs/`、`DESIGN.md`、`README*.md`、`tests/`） |
+| 上游原样保留位置 | `legacy-site/`（去掉 `screenshots/`，其余原样：`index.html`、`css/`、`js/`、`docs/`、`DESIGN.md`、`README*.md`、`tests/` 等） |
 
 鱼排直接复用了上游两项核心资产，均为 MIT：
 

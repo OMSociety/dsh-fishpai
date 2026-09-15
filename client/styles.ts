@@ -224,7 +224,7 @@ export const CSS = `
 
 /* 快捷键速查表：挂在编辑器头上的小按钮 + 一块列表（内容和键盘处理同源） */
 /* 注意是 static：浮层的定位上下文交给 .fp-pane-head（整行），见那里的注释。
-   （这里是模板字符串里，注释别用反引号——会把字符串闭合掉，实测踩过一次。） */
+   （这里是模板字符串里，注释别用反引号——会把字符串闭合掉。） */
 .fp-keys-wrap{display:inline-flex;flex:none}
 .fp-keys-btn{
   font:inherit;font-size:11px;line-height:1;cursor:pointer;padding:3px 6px;border-radius:5px;
@@ -235,7 +235,7 @@ export const CSS = `
 .fp-keys{
   position:absolute;top:calc(100% + 4px);right:0;z-index:3;
   /* 宽度**随面板收缩**：以前写死 266px，窄面板里比面板还宽、向左溢出被裁掉，
-     表现就是"快捷键标签全被切掉、只剩右边一排键帽"（实测截图）。 */
+     表现就是"快捷键标签全被切掉、只剩右边一排键帽"。 */
   width:auto;min-width:min(232px,100%);max-width:calc(100% - 12px);
   max-height:60vh;overflow:auto;
   padding:6px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);

@@ -67,6 +67,9 @@ function kindLabel(kind: string | null | undefined, fallback = '块'): string {
  * 这个控件必须存在：主题自带的 `font-family` **总会被**字体预设覆盖（上游站点行为，
  * `render()` 里就是拿预设去替换 wrapper 的 font-family），所以"想要衬线"只能从这里切——
  * 少了它，一套衬线主题在面板里永远显示成黑体，而用户找不到任何地方能改。
+ *
+ * 公众号编辑器只认黑体（iOS 设备上才是苹方），衬线/等宽只在「导出 HTML」里有效：
+ * 粘进编辑器会退回黑体，但预览里看不出差别。靠 `FontPicker` 里的橙色小字标出来。
  */
 const FONT_LABEL: Record<string, string> = { sans: '黑体', serif: '衬线', mono: '等宽' }
 
@@ -356,7 +359,152 @@ function ThemePicker(props: { themes: ThemeInfo[]; value: string; onPick: (key: 
   )
 }
 
-// ── 主面板 ─────────────────────────────────────────────────────
+/**
+ * 字体选择器：和 {@link ThemePicker} 同一套自绘 listbox（原生 `<option>` 放不进分组小字）。
+ *
+ * 只有黑体能在公众号编辑器里活下来（iOS 设备上才是苹方），衬线/等宽只在「导出 HTML」里有效。
+ * 照主题下拉那样分组、给第二组标一句橙色小字，用户挑的时候就能看见，不用等粘进去才发现。
+ */
+function FontPicker(props: { fonts: string[]; value: string; onPick: (font: string) => void }) {
+  const { fonts, value } = props
+  const [open, setOpen] = React.useState(false)
+  const [active, setActive] = React.useState(0)
+  const wrapRef = React.useRef<HTMLDivElement | null>(null)
+  const menuRef = React.useRef<HTMLDivElement | null>(null)
+  const btnRef = React.useRef<HTMLButtonElement | null>(null)
+
+  const groups = React.useMemo(() => {
+    const safe = fonts.filter((f) => f === 'sans')
+    const exportOnly = fonts.filter((f) => f !== 'sans')
+    return [
+      { key: 'safe', label: '', note: '', risk: false, items: safe },
+      { key: 'export', label: '', note: '仅用于导出 HTML', risk: true, items: exportOnly },
+    ].filter((g) => g.items.length)
+  }, [fonts])
+  const flat = React.useMemo(() => groups.flatMap((g) => g.items), [groups])
+  const current = flat.includes(value) ? value : flat[0]
+
+  React.useEffect(() => {
+    if (!open) return
+    const onDown = (event: MouseEvent) => {
+      if (!wrapRef.current || !wrapRef.current.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  const openMenu = () => {
+    const index = flat.indexOf(current)
+    setActive(index < 0 ? 0 : index)
+    setOpen(true)
+  }
+  const closeMenu = (refocus = false) => {
+    setOpen(false)
+    if (refocus) btnRef.current?.focus()
+  }
+  const commit = (font: string | undefined) => {
+    if (font) props.onPick(font)
+    closeMenu(true)
+  }
+  // 键盘处理挂在容器上，理由同 ThemePicker
+  React.useEffect(() => {
+    if (open) menuRef.current?.focus()
+  }, [open])
+
+  const activeFont = flat[active]
+
+  return (
+    <div className="fp-picker" ref={wrapRef}>
+      <button
+        ref={btnRef}
+        type="button"
+        className="fp-picker-btn"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="字体"
+        title="正文字体：公众号编辑器只认黑体（iOS 设备上才是苹方），衬线/等宽只在「导出 HTML」里有效；它会覆盖主题自带的字体栈（站点既有行为，不是 bug）"
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        onKeyDown={(event) => {
+          if (open) return
+          if (event.key === 'Escape' || event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            openMenu()
+          }
+        }}
+      >
+        <span className="fp-picker-label">{FONT_LABEL[current] || current}</span>
+        <CaretGlyph className="fp-picker-caret" />
+      </button>
+
+      {open ? (
+        <div
+          className="fp-menu"
+          role="listbox"
+          aria-label="字体"
+          ref={menuRef}
+          tabIndex={-1}
+          aria-activedescendant={activeFont ? `fp-font-opt-${activeFont}` : undefined}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault()
+              closeMenu(true)
+              return
+            }
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault()
+              const step = event.key === 'ArrowDown' ? 1 : -1
+              setActive((index) => (flat.length ? (index + step + flat.length) % flat.length : 0))
+              return
+            }
+            if (event.key === 'Home' || event.key === 'End') {
+              event.preventDefault()
+              setActive(event.key === 'Home' ? 0 : Math.max(0, flat.length - 1))
+              return
+            }
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              commit(activeFont)
+            }
+          }}
+        >
+          {groups.map((group) => (
+            <div key={group.key} role="presentation">
+              {group.label || group.note ? (
+                <div className="fp-menu-group" role="presentation" data-risk={group.risk ? 'true' : undefined}>
+                  {group.label ? <span className="fp-menu-group-title">{group.label}</span> : null}
+                  {group.note ? <span className="fp-menu-group-note">{group.note}</span> : null}
+                </div>
+              ) : null}
+              {group.items.map((font) => {
+                const index = flat.indexOf(font)
+                const on = font === value
+                return (
+                  <button
+                    key={font}
+                    id={`fp-font-opt-${font}`}
+                    type="button"
+                    role="option"
+                    tabIndex={-1}
+                    aria-selected={on}
+                    className="fp-menu-row"
+                    data-on={on ? 'true' : undefined}
+                    data-active={index === active ? 'true' : undefined}
+                    title={font === 'sans' ? '公众号编辑器里能正常显示' : '只在「导出 HTML」里有效，粘进公众号会退回黑体'}
+                    onMouseEnter={() => setActive(index)}
+                    onClick={() => commit(font)}
+                  >
+                    <span className="fp-menu-name">{FONT_LABEL[font] || font}</span>
+                    {on ? <TickGlyph className="fp-menu-tick" /> : null}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
 
 export function Panel(props: { store: FishpaiStore; sessionId: string; visible?: boolean }) {
   const { store, sessionId } = props
@@ -682,18 +830,11 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
             </div>
           ) : null}
 
-          <select
-            className="fp-select"
+          <FontPicker
+            fonts={state.fonts}
             value={state.meta.font}
-            title="正文字体：衬线适合长文。注意它会覆盖主题自带的字体栈（站点既有行为，不是 bug）"
-            onChange={(e) => void store.actions.setMeta({ font: e.target.value })}
-          >
-            {state.fonts.map((f) => (
-              <option key={f} value={f}>
-                {FONT_LABEL[f] || f}
-              </option>
-            ))}
-          </select>
+            onPick={(font) => void store.actions.setMeta({ font })}
+          />
 
           <select
             className="fp-select"
@@ -870,7 +1011,8 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
         {openNotes.length ? <span>批注 {openNotes.length}</span> : null}
         <span className="fp-muted" title={currentTheme ? currentTheme.desc : undefined}>
           {state.themeName}
-          {currentTheme ? ` · ${currentTheme.wechatSafe ? '适合微信' : '导出 HTML 更稳'}` : ''}
+          {/* 公众号编辑器只认黑体：选了衬线/等宽，主题再"适合微信"也会在编辑器里退回黑体 */}
+          {currentTheme ? ` · ${currentTheme.wechatSafe && state.meta.font === 'sans' ? '适合微信' : '导出 HTML 更稳'}` : ''}
         </span>
       </div>
 

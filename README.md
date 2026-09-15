@@ -5,7 +5,7 @@
   <p>人在侧栏改字、加批注与占位；模型用<strong>块级 diff</strong> 看懂你改了什么、想要什么；成品仍由你复制粘贴进公众号编辑器。</p>
 
   <p>
-    <a href="https://github.com/OMSociety/dsh-fishpai/tags"><img src="https://img.shields.io/github/v/tag/OMSociety/dsh-fishpai?label=version&color=4f6ef7" alt="Version"></a>
+    <a href="https://github.com/OMSociety/dsh-fishpai/commits/main"><img src="https://img.shields.io/badge/version-内测-4f6ef7" alt="Version"></a>
     <a href="https://github.com/deepseek-ai/dsh"><img src="https://img.shields.io/badge/DSH-0.1.5--rc.2-4f6ef7" alt="DSH"></a>
     <a href="LICENSE"><img src="https://img.shields.io/github/license/OMSociety/dsh-fishpai?color=4f6ef7" alt="License"></a>
     <a href="https://github.com/OMSociety/dsh-fishpai/stargazers"><img src="https://img.shields.io/github/stars/OMSociety/dsh-fishpai?color=4f6ef7" alt="Stars"></a>
@@ -34,9 +34,9 @@
 | 📝 | **批注与占位** | 光标所在段落加批注（模型下次 `fishpai_read` 就能看到）；正文里写 `<!-- 鱼排: 这里补个过渡 -->` 也一样；点批注「定位」直接选中它引用的那段 |
 | 🔀 | **块级 diff 与局部改稿** | 模型只改该改的块，你的其它改动原样保留；写入必须带 `base_revision`，不符**先拒**并回带"自你上次写入以来的改动" |
 | 🛡 | **冲突不丢字** | 模型与你同时改时给出「用我的覆盖 / 看 AI 的版本」，采用 AI 版会先把你的草稿存进历史 |
-| 🎨 | **主题与主题色** | 11 套主题，按"是否适合公众号"分组；主题色只对「默认公众号」生效（用不上的取色行会自动隐藏），有风险的主题直接提示原因 |
+| 🎨 | **主题与主题色** | 11 套主题，按"是否适合公众号"分组；主题色只对「默认公众号」生效（用不上的取色行会自动隐藏），有风险的主题直接提示原因；另有工作目录级的「自定义主题」（模型可在内置主题上只改几个槽位） |
 | 📦 | **复制与导出** | 复制为 `text/html` + `text/plain` 双格式；本地图片内嵌 base64，粘过去**不用手动重传**；也能导出成自包含 `.html` |
-| 🧩 | **四个模型工具** | `fishpai_open` / `read` / `write` / `render`，配一份教模型怎么用的技能 |
+| 🧩 | **五个模型工具** | `fishpai_open` / `read` / `write` / `render` / `theme`，配一份教模型怎么用的技能 |
 
 ## 📷 效果
 
@@ -46,7 +46,7 @@
 <td width="36%" align="center"><a href="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.jpg"><img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.jpg" alt="复制后粘进公众号编辑器的实际效果" width="235"></a></td>
 </tr>
 <tr>
-<td align="center">面板：左边写 Markdown，右边实时预览；主题、字号、脚注开关都在顶部一行</td>
+<td align="center">面板：左边写 Markdown，右边实时预览；主题、字体、字号、脚注开关都在顶部一行</td>
 <td align="center">粘进公众号的实拍</td>
 </tr>
 </table>
@@ -63,7 +63,7 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai#main"
 # 2) 重新启动 dsh web
 ```
 
-> 内测期间跟进 `main`（最新的排版规则与兼容层都在这里）。要固定某一版，把 `#main` 换成对应的 tag 即可。
+> 内测期间跟进 `main`（最新的排版规则与兼容层都在这里）；尚未打 tag，要固定某一版可把 `#main` 换成提交哈希。
 
 **方式二：clone 到本地再装**
 
@@ -117,16 +117,18 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 | 位置 | 内容 | 说明 |
 |---|---|---|
 | 你指定的 `.md` | 文档正文 | 普通 Markdown，任何编辑器都能改；鱼排不往正文里塞标记 |
+| `.fishpai/docs/` | 没指定路径时新建的文档 | `fishpai_open` 省略 `path` 就落在这里，按标题命名 |
 | `<文档同级>/assets/` | 粘贴进来的图片 | 相对路径引用（`assets/xxx.png`），文档搬走图也跟着走 |
 | `.fishpai/state/` | 主题、revision、baseline、批注 | 按文档路径哈希命名；删掉会丢批注、历史与「模型上次写入的基线」（正文不动，但模型暂时看不出你改了什么） |
 | `.fishpai/history/` | 历史快照（最多 50 份） | 面板「历史」抽屉里可一键回滚 |
-| `.fishpai/.gitignore` | 忽略上面两项 | 插件自建，不动你的 `.gitignore` |
+| `.fishpai/theme.json` | 「自定义主题」（工作目录级，只有一套） | `fishpai_theme set` 写、`clear` 删；改坏了静默退回「默认公众号」 |
+| `.fishpai/.gitignore` | 忽略上面三项 | 插件自建，不动你的 `.gitignore`；主题想跟仓库走就用 `git add -f` |
 
 ## 🛠 开发
 
 ```powershell
-npm install        # 只有 devDependencies（esbuild / typescript / @types/react）
-npm test           # 178 项：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + bundle 形态 + 快捷键
+npm install        # 只有 devDependencies（esbuild / typescript / @types/react / @types/react-dom / @deepseek-ai/cordis）
+npm test           # 全量回归：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + 主题规格 + bundle + 快捷键 + 挂载
 npm run typecheck  # 客户端 TSX 类型检查
 npm run build      # 重新打包 lib/client.js（改完客户端必须跑，并提交产物）
 npm run check:build  # 确认 lib/ 无漂移
@@ -136,14 +138,14 @@ npm run check:build  # 确认 lib/ 无漂移
 
 ```
 plugin/index.mjs        宿主入口：注册工具 + /fishpai/api 路由 + fishpai 技能
-plugin/core/            渲染内核（ESM，零依赖）：runtime / markdown / render / diff / notes / patch / theme-info
-plugin/host/            宿主侧：工具契约、HTTP 路由、文档存储、图片
+plugin/core/            渲染内核（ESM，零依赖）：runtime / markdown / render / diff / notes / patch / theme-info / theme-spec
+plugin/host/            宿主侧：工具契约、HTTP 路由、文档存储、图片、自定义主题
 plugin/vendor/          上游 themes.js + markdown-it 14.1.0 + highlight.js 11.9.0 + hljs-map.json
 client/                 客户端源码（TSX → esbuild 打成 lib/client.js）
 lib/client.js           客户端 bundle（入库；dsh plugin add 不做构建）
 skills/fishpai/         鱼排技能：教模型怎么选主题、怎么按块改稿
 legacy-site/            上游 SPA 原样留存，便于复核渲染一致性
-test/                   golden、站点对照、块/diff/批注/补丁、宿主红线、微信兼容层、bundle 形态、真实 Cordis 挂载
+test/                   golden、站点对照、块/diff/批注/补丁、宿主红线、微信兼容层、主题规格、bundle 形态、快捷键、真实 Cordis 挂载
 ```
 
 用微信官方校验器复验（需要本机 Chrome，不进依赖）：

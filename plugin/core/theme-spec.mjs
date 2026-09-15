@@ -94,7 +94,7 @@ const PLACEHOLDER_G = /\{\{PRIMARY(?:_BG)?\}\}/g
  * 明确不许出现的东西：注入面（`}`/`<`）、外链请求（`url(`）、脚本（`expression`/`javascript:`）、样式表指令。
  *
  * 判定前先把**合法占位符**摘掉：`{{PRIMARY}}` 自己就带花括号，不摘的话所有想用主题色的主题
- * 都会被自己的注入检查拦下（这条是写完测试才发现的——占位符是这套机制的一部分，不是注入面）。
+ * 都会被自己的注入检查拦下（占位符是这套机制的一部分，不是注入面）。
  */
 const FORBIDDEN_RE = /[{}<>]|url\s*\(|expression\s*\(|@import|javascript:/i
 

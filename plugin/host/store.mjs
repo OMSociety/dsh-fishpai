@@ -159,6 +159,10 @@ function docsDir(cwd) {
   return path.join(fishpaiDir(cwd), 'docs')
 }
 
+/** 自建 .fishpai/.gitignore 的内容：运行时状态与「自定义主题」都不入库，文档本体在 docs/ 下，由用户自行决定。 */
+const IGNORE_HEADER = '# FishPai 运行时状态与自定义主题；文档本体在 docs/ 下，可自行决定是否入库\n'
+const IGNORE_LINES = ['state/', 'history/', 'theme.json']
+
 /** 自建 .fishpai/.gitignore，免得运行时状态弄脏用户仓库；不动用户的 .gitignore。 */
 export function ensureFishpaiLayout(cwd) {
   for (const dir of [fishpaiDir(cwd), stateDir(cwd), docsDir(cwd)]) {
@@ -166,8 +170,13 @@ export function ensureFishpaiLayout(cwd) {
   }
   const ignore = path.join(fishpaiDir(cwd), '.gitignore')
   if (!fs.existsSync(ignore)) {
-    fs.writeFileSync(ignore, '# FishPai 运行时状态；文档本体在 docs/ 下，可自行决定是否入库\nstate/\nhistory/\n', 'utf8')
+    fs.writeFileSync(ignore, `${IGNORE_HEADER}${IGNORE_LINES.join('\n')}\n`, 'utf8')
+    return
   }
+  // 早就建过的目录要补上后来新增的忽略项：只追加缺的行，用户自己写的改动一字不动
+  const lines = fs.readFileSync(ignore, 'utf8').split(/\r?\n/)
+  const missing = IGNORE_LINES.filter((line) => !lines.includes(line))
+  if (missing.length) fs.appendFileSync(ignore, `${missing.join('\n')}\n`, 'utf8')
 }
 
 function readJson(file, fallback) {
@@ -449,7 +458,7 @@ export function listDocs(cwd) {
  *
  * `baseRevision` 是**必填**的：调用方必须说清"我读的是哪一版"。
  * **缺失不等于强制覆盖**——这正是"绝不静默覆盖人的手改"要挡的那条路。
- * 曾经写成"有版本才比对"，于是不传 `baseRevision` 就能连续覆盖人的手改：
+ * 若写成"有版本才比对"，不传 `baseRevision` 就能连续覆盖人的手改：
  * `Number(undefined)` 是 `NaN`，连"版本号非法"都识别不出来。
  * 所以这里把"拿不出合法版本号"与"版本不匹配"合并成同一个结果：冲突。
  *

@@ -2,7 +2,7 @@
  * 鱼排 FishPai —— 宿主入口。
  *
  * 三件事，都挂在 ctx.effect 上（HMR / 卸载时逐条收回）：
- *   1. 注册模型工具：fishpai_open / fishpai_read / fishpai_write / fishpai_render
+ *   1. 注册模型工具：fishpai_open / fishpai_read / fishpai_write / fishpai_render / fishpai_theme
  *   2. 注册 `/fishpai/api/*` 路由：右侧栏面板读写文档的唯一通道
  *   3. 注册 `fishpai` 技能：告诉模型什么时候用、按什么纪律改稿
  *

@@ -25,7 +25,7 @@ const ALLOWED_EXTERNALS = [/^react$/, /^react\//, /^react-dom$/, /^react-dom\//,
  *
  * `inject` **必须异步触发回调**：cordis 的 `ctx.inject(deps, cb)` 是
  * `this.plugin({apply: cb})`，而 Fiber._reload 里先 `await Promise.resolve()` 才跑 apply。
- * 桩里同步触发会掩盖"双通道同时注册"这类真实竞态（曾经就漏过一次）。
+ * 桩里若同步触发，会掩盖"双通道同时注册"这类真实竞态（漏一次，测试就测不出来）。
  */
 function loadBundle(options = {}) {
   const source = fs.readFileSync(BUNDLE, 'utf8')
@@ -276,7 +276,16 @@ test('面板必须有「字体」控件：主题自带的字体栈会被这个�
   // 于是"把正文换成衬线"在界面上根本做不到（一套衬线主题会永远显示成黑体）。
   assert.ok(source.includes('fonts: ["sans", "serif", "mono"]'), '字体预设没进初值（store 里也没存）')
   assert.ok(source.includes('serif: "衬线"'), '字体预设要有中文名（黑体 / 衬线 / 等宽）')
-  assert.ok(source.includes('font: e.target.value'), '字体选择要接到 setMeta')
+  assert.ok(source.includes('store.actions.setMeta({ font })'), '字体选择要接到 setMeta')
+})
+
+test('字体下拉要标出「衬线/等宽」在公众号里不生效：编辑器只认黑体，不标用户会以为渲染坏了', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  // 照主题下拉那样分组 + 橙色小字，而不是在选项名字后面加括号
+  assert.ok(source.includes('仅用于导出 HTML'), '要有一句"仅用于导出 HTML"的分组小字')
+  assert.ok(source.includes('fp-font-opt-${font}'), '衬线/等宽要是 listbox 里的可选项（和主题下拉同一套结构）')
+  // esbuild 输出统一用双引号
+  assert.ok(source.includes('state.meta.font === "sans"'), '底部状态行判断"适合微信"时要把字体一起算进去')
 })
 
 test('风险提示可关掉，但换主题后要重新出现（不能"关一次就再也不提醒"）', () => {

@@ -97,6 +97,25 @@ test('新建文档：写文件 + 建 baseline + 建索引，revision 从 1 开�
   assert.ok(fs.existsSync(path.join(cwd, '.fishpai', '.gitignore')), '应自建 .fishpai/.gitignore')
 })
 
+test('.fishpai/.gitignore 忽略运行时状态与自定义主题；已存在的文件只补缺的行', () => {
+  const fresh = tmpWorkspace()
+  store.ensureFishpaiLayout(fresh)
+  const text = fs.readFileSync(path.join(fresh, '.fishpai', '.gitignore'), 'utf8')
+  assert.ok(['state/', 'history/', 'theme.json'].every((line) => text.split(/\r?\n/).includes(line)), 'state / history / theme.json 都要忽略')
+
+  // 老目录（在 theme.json 落盘之前就建过）：用户写的内容一字不动，只追加缺的行
+  const old = tmpWorkspace()
+  const ignore = path.join(old, '.fishpai', '.gitignore')
+  fs.mkdirSync(path.dirname(ignore), { recursive: true })
+  fs.writeFileSync(ignore, '# 我的注释\nstate/\n', 'utf8')
+  store.ensureFishpaiLayout(old)
+  const patched = fs.readFileSync(ignore, 'utf8')
+  assert.ok(patched.startsWith('# 我的注释\nstate/\n'), '用户已有的行不动')
+  assert.ok(patched.includes('theme.json'), '补上后来加的 theme.json')
+  store.ensureFishpaiLayout(old)
+  assert.equal(fs.readFileSync(ignore, 'utf8'), patched, '再跑一次是空操作')
+})
+
 test('打开已存在的文档不会覆盖内容，并明确告诉调用方 markdown 被忽略', () => {
   const cwd = tmpWorkspace()
   fs.writeFileSync(path.join(cwd, 'exists.md'), ARTICLE)
@@ -248,8 +267,8 @@ test('revision 守卫：**缺** baseRevision 不等于强制覆盖（存储层�
   store.saveDoc({ cwd, docPath: 'a.md', markdown: `${ARTICLE}\n人的手改。\n`, baseRevision: 1, by: 'human' })
   const human = fs.readFileSync(path.join(cwd, 'a.md'), 'utf8')
 
-  // 曾经写成"有版本才比对"：不传 baseRevision 就能连续覆盖人的手改，178 条测试全绿也抓不住。
-  // `Number(undefined)` 是 NaN，连"版本号非法"都识别不出来，所以这里逐个钉住"拿不出合法版本号"的各种形态。
+  // 若把守卫写成"有版本才比对"，不传 baseRevision 就能连续覆盖人的手改，而现有用例一条也抓不住
+  // （`Number(undefined)` 是 NaN，连"版本号非法"都识别不出来），所以这里逐个钉住"拿不出合法版本号"的各种形态。
   for (const bad of [undefined, null, NaN, 'abc', {}]) {
     const res = store.saveDoc({ cwd, docPath: 'a.md', markdown: '模型静默覆盖。\n', baseRevision: bad, by: 'ai' })
     assert.equal(res.ok, false, `baseRevision=${String(bad)} 必须被拒`)
@@ -364,7 +383,7 @@ test('块级补丁：多个补丁从下往上应用，行号不会互相顶偏',
 test('块级补丁：replace 保住块尾的分隔空行，后面的块不会被吞掉', () => {
   // 块的行范围含末尾那个空行（块与块的分隔符）。replace 若把它一起吃掉，
   // 下一块会被 markdown 的"懒延续"并进列表/段落，而人下一轮再改那个被并大的块时，
-  // **被吞掉的块就被整段删掉**（实测踩过：改一次列表项，吃掉了文末的「项目地址」两行）。
+  // **被吞掉的块就被整段删掉**（踩过：改一次列表项，吃掉了文末的「项目地址」两行）。
   const doc = '第一段。\n\n1. 甲\n2. 乙\n\n**项目地址：**\nexample.com\n'
   const before = splitBlocks(doc)
   assert.equal(before.length, 3, '应当是 段落 / 列表 / 段落 三块')
@@ -661,7 +680,7 @@ test('面板开关的判据由渲染结果给出：linkCount / hasCode 随预览
   assert.equal(plain.json.hasCode, false)
 
   // 关掉「脚注」之后 linkCount 必须照实（还是 1）。
-  // 曾经这里写成 `opts.footnotes === false ? 0 : …`：面板拿 linkCount > 0 判断开关能不能点，
+  // 若写成 `opts.footnotes === false ? 0 : …`：面板拿 linkCount > 0 判断开关能不能点，
   // 于是关一次就变 0 → 开关置灰 → 再也打不开（自锁），提示还写着"正文里没有外链"而正文其实有。
   const off = await callRoute(handler, {
     method: 'POST',
@@ -775,7 +794,7 @@ function fakeHost(cwd) {
   return { ctx, tools, dispose, exec }
 }
 
-test('工具契约：四个工具都是合法的 raw JSON-Schema 形态', () => {
+test('工具契约：五个工具都是合法的 raw JSON-Schema 形态', () => {
   const { tools } = fakeHost(tmpWorkspace())
   assert.deepEqual(
     tools.map((t) => t.name).sort(),
@@ -1079,7 +1098,7 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
 // ── 写入守卫的第二道（路由层）与两条关键路径的测试盲区 ──────────
 //
 // 这一组是补洞用的：以前**所有** PUT /doc 用例都带 baseRevision，
-// 于是"不传版本号就能静默覆盖人的手改"那个洞在 178 条里一条也抓不住。
+// 于是"不传版本号就能静默覆盖人的手改"那个洞一条用例也覆盖不到。
 
 test('路由守卫：PUT /doc 缺/非法 baseRevision 一律 400，过期版本 409 并回带最新正文', async () => {
   const cwd = tmpWorkspace()

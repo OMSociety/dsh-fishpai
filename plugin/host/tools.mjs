@@ -1,5 +1,5 @@
 /**
- * 模型侧工具：`fishpai_open` / `fishpai_read` / `fishpai_write` / `fishpai_render`。
+ * 模型侧工具：`fishpai_open` / `fishpai_read` / `fishpai_write` / `fishpai_render` / `fishpai_theme`。
  *
  * 用 **raw JSON-Schema 注册**（`ctx.tools.register({name, description, parameters, output, execute})`），
  * 不要 import `defineTool`——树外插件解析 `@deepseek-ai/dsh-tools` 不可靠（本机 dsh-ssh-tunnel /

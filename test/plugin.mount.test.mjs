@@ -64,7 +64,7 @@ function makeApp(cwd) {
 const flush = async (times = 8) => {
   for (let i = 0; i < times; i++) await new Promise((resolve) => setTimeout(resolve, 0))
 }
-test('宿主插件能在真实 Cordis 里挂载，并注册四个工具、一条路由、一个技能', async () => {
+test('宿主插件能在真实 Cordis 里挂载，并注册五个工具、一条路由、一个技能', async () => {
   const fs = await import('node:fs')
   const os = await import('node:os')
   const path = await import('node:path')

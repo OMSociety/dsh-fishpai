@@ -67,6 +67,8 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 - **字号**：正文 16px 起步，长文 17px 更好读
 - **字体**：面板上的「字体」预设（黑体 / 衬线 / 等宽）**总会覆盖主题自带的字体栈**——所以
   "这套主题是衬线的"能不能成立，取决于这个预设，而不是主题里写了什么。让用户切到「衬线」而不是向他保证主题自带衬线。
+  **公众号编辑器只认黑体**（iOS 设备上才是苹方）：衬线 / 等宽只在「导出 HTML」里有效，粘进编辑器会退回黑体，
+  而面板预览里看不出这个差别。用户要的是"公众号里也衬线"时，说明实际得用导出，别让他以为坏了。
 - **段落**：段落之间空一行；`breaks` 已开启，单换行即换行
 - **图片**：`![alt](相对路径)`。复制到公众号时本地图会自动内嵌成 base64，**粘进编辑器不需要手动重传**
   （编辑器接收后由微信自行转存）。会被微信拦掉的是 `http(s)://` 的**外链图**，以及内嵌不了的本地图
@@ -85,7 +87,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 | 用户认可、以后一直用 | `fishpai_theme({ action:'set', theme_spec })` | 落盘到 `<工作目录>/.fishpai/theme.json` |
 
 `fishpai_theme` 存的是**工作目录级的一套**（不是主题库）：面板主题列表里只有**一个**「自定义主题」占位，
-再 `set` 一次就是覆盖。`set` 之后会把当前文档切到它，用户在面板里立刻能看到；`action:'show'` 读回当前规格
+再 `set` 一次就是覆盖。`set` 之后会把当前文档切到它（若本会话已打开文档），用户在面板里立刻能看到；`action:'show'` 读回当前规格
 （要改就在那份规格上改），`action:'clear'` 删掉（文档自动退回「默认公众号」）。
 **别跟用户说"存了好几套"**——只有一套。
 
@@ -109,10 +111,9 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
   `margin` `padding` `padding-left` `padding-bottom` `border` `border-top` `border-bottom` `border-left`
   `border-radius` `border-collapse` `border-image` `width` `height` `max-width` `display` `overflow-x`
   `box-shadow` `-webkit-background-clip` `-webkit-text-fill-color`
-- **`wrapper` 里必须同时有 `font-family` 与 `font-size`**（漏了会被自动补上，但那是给你兜底：
-  少了它们，面板的「字体」「字号」会变成点了没反应的死控件）
+- **`wrapper` 里必须同时有 `font-family` 与 `font-size`**，否则面板的「字体」「字号」调节失效（漏了会自动补上）
 - 想跟「主题色」联动就用 `{{PRIMARY}}` / `{{PRIMARY_BG}}` 占位符
-- 不许出现 `{}` `<` `>` `url(...)` `expression(...)` `@import` `!important`；不要写图标或 emoji
+- 不许出现 `{}` `<` `>` `url(...)` `expression(...)` `@import` `javascript:`；`!important` 写了会被自动去掉（微信不保留它）。不要写图标或 emoji
   （图标由鱼排统一给）
 - 白色/深色底、渐变文字这类**微信会掉样式**的组合：`fishpai_render` 会照做，但你要当场提醒用户
   "这套更适合导出 HTML，发公众号可能变形"

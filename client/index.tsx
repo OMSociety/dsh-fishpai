@@ -4,7 +4,7 @@
  *
  * 为什么两条通道都要：官方右侧栏只在 DSH 0.1.5 线提供 `sidebarRightTabs`；
  * 老版本/被裁剪的构建上它就是不存在。双通道的写法照本机同样跑在 DSH 上的
- * `dsh-github-workbench`（官方席位 + better-sidebar 回退）——那是在这台机器上验证过的先例。
+ * `dsh-github-workbench`（官方席位 + better-sidebar 回退），那是已验证的先例。
  *
  * 轮询（3s）承担"宿主 → 浏览器"的唯一推送：
  *   - `openRequest` 出现 → 自动打开/展开面板（模型调用 fishpai_open 后用户立刻看到）

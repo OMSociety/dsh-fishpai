@@ -24,12 +24,16 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
      不能写 `&nbsp;` 实体（源码级扫描会把它当普通文字）。
      块级元素（`<p>`/`<ul>`/`<blockquote>`…）开头的条目**不许**补：松散列表（条目间有空行）第一条
      就是 `<p>`，补进去的文字节点会落在 `<p>` 外面、变成 `<li>` 的直接文字子节点（结构上多余）。
-     真机实测（2026-09-15，六种列表形态一次粘进公众号）：松散列表本来就正常，别为它加东西。
+     松散列表本来就正常，别为它加东西。
    - `wechatBackground`：把 `background:` 简写拆成 `background-color:`／`background-image:`。
      微信的安全过滤按属性名过，简写会整条被丢（引用块的框、表头底色实测会消失）。
      必须是**纯规范化**（同一条测试守着"除了这几个属性名，别的字节一个都不动"）。
    两条都**不要**改成默认开启，也不要用 `--from-core` 去"修"golden 失败。
-2. **上游那 8 个坑不许"修好"**（`legacy-site/DESIGN.md` 与 README 里有完整列表），典型的是：
+   另有一条**平台限制**（不是渲染偏离，也没有开关）：公众号编辑器**只认黑体**（iOS 设备上才是
+   苹方），`font-family` 里的衬线／等宽栈粘进编辑器会退回黑体，只有「导出 HTML」的文件保得住。
+   面板预览在浏览器里**看不出这个差别**，所以 `FontPicker` 把衬线／等宽单列一组、标一句橙色
+   小字「仅用于导出 HTML」。不要去"修"字体栈，也不要把标注拆掉。
+2. **上游那 8 个坑不许"修好"**（完整列表见 `plugin/core/markdown.mjs` 的文件头注释），典型的是：
    紧凑列表项内段落 token 的 `hidden=true` 必须跳过；代码块的 mac 结构嵌在 `pre>code` **内部**；
    站点默认 `sans`/`16px` 总会覆盖主题自带字体字号。与上游不一致 = bug。
 3. **不引入 GPL / 无证 / MPL 依赖**。具体禁的是 `Wechatsync` 系（GPL-3.0 / 无证）与 `DOMPurify`（MPL）。
@@ -42,7 +46,7 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
 8. **绝不静默覆盖人的手改**：任何写入都要带 `base_revision`，不匹配就拒绝并回带最新 diff。
    **块的行范围包含末尾那个空行**（块与块的分隔符）：`applyPatches` 的 `replace` 必须把分隔空行补回去，
    否则下一块会被 markdown 的"懒延续"并进列表/段落，下一轮再改那个被并大的块就**会把它整段删掉**
-   （实测踩过一次：改列表项吃掉了文末两行）。`test/host.test.mjs` 有回归守卫。
+   （实测踩过：改列表项吃掉了文末两行）。`test/host.test.mjs` 有回归守卫。
 9. **`package.json` 的 `dsh.client.inject` 是「包依赖边」，不是服务依赖**。它声明的是
    "这一行的 factory 到位前必须先到位的**包**"（DSH `dsh-client-modules` 的 `WebBootEntry`：
    "names package rows whose factories must arrive before this row materializes"），
@@ -74,8 +78,8 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
 ## 命令
 
 ```powershell
-npm install          # 只有 devDependencies（esbuild / typescript / @types/react）
-npm test             # node --test：渲染 golden + 块模型 + diff + 批注 + 存储
+npm install          # 只有 devDependencies（esbuild / typescript / @types/react / @types/react-dom / @deepseek-ai/cordis）
+npm test             # node --test：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + 主题规格 + bundle + 快捷键 + 挂载
 npm run typecheck    # 客户端 TSX 类型检查
 npm run build        # esbuild → lib/client.js（__ModuleLoader__ 形态）
 npm run check:build  # 构建后确认 lib/ 无漂移（CI 用）
