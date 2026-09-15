@@ -17,7 +17,6 @@ import { createMd, makeStyler, collectBlocks } from './markdown.mjs'
 import { classifyTheme } from './theme-info.mjs'
 
 // ── 1. 微信脚注：正文外链转上标 + 文末「参考资料」────────────────
-// ── 1. 微信脚注：正文外链转上标 + 文末「参考资料」────────────────
 // 站点做法：把 <a> 换成 <span>，沿用该 <a> 已经拿到的主题链接样式（含 border-bottom），
 // 再补一个 cursor: default 的 <sup>；文末追加纯文本「参考资料」（微信不支持正文外链）。
 const A_TAG_RE = /<a\s([^>]*?)href="([^"]*)"([^>]*)>([\s\S]*?)<\/a>/g
@@ -280,7 +279,64 @@ export function simplifyForPublish(html) {
   return html
 }
 
-// ── 4. 微信底色兼容（background 简写 → 长写）───────────────────
+// ── 4. 微信列表项兼容（`<li>` 的首个行内片段整条包 span）────────
+
+/** `<li>` 里可能出现的块级子元素：包裹 span 不能把它们套进去。 */
+const LI_BLOCK_CHILD = /<(?:ul|ol|table|pre|blockquote|section|div|h[1-6])\b/i
+
+/** 把一条 li 的内部内容按"行内片段 + 块级尾巴"切开，只包行内那一段。 */
+function wrapInlineHead(inner) {
+  const lead = /^\s*/.exec(inner)[0]
+  const rest = inner.slice(lead.length)
+  if (!rest.startsWith('<')) return inner // 已经是文字开头：微信不会拆（实测 C/G 两种形态都正常）
+  const blockAt = rest.search(LI_BLOCK_CHILD)
+  const head = blockAt < 0 ? rest : rest.slice(0, blockAt)
+  const tail = blockAt < 0 ? '' : rest.slice(blockAt)
+  if (!head) return inner
+  return `<span>${head}</span>${tail}`
+}
+
+/**
+ * `wrapText` 的第二半：把每个 `<li>` 开头的**行内片段整条包进一个 `<span>`**。
+ *
+ * 为什么（实测，7 种形态对照）：微信的编辑器把列表项的**第一个行内元素**当成"标签"单独起一行——
+ * `**批注**：光标停在哪一段…` 粘过去变成两行（"批注"一行、`：光标…`一行）；
+ * 而不加粗的一条、粗体在**中段**的一条、以及**段落**里的粗体开头都不会被拆。
+ * 与元素类型无关（`<strong>` / 自定义 `<span>` / 主题色粗体都中），是微信列表模型的既有行为。
+ *
+ * 包一层之后，li 的第一个子节点虽然还是行内元素，但它已经包含整条内容——
+ * 微信再"单独起行"也无处可断，最终渲染与面板一致。嵌套列表要留在包裹 span 外面
+ * （span 里套 `<ul>` 是非法结构，微信会拆坏）。
+ */
+export function wrapListItemRuns(html) {
+  if (!html || !html.includes('<li')) return html
+  const tagRe = /<\/?li\b[^>]*>/gi
+  const spans = []
+  let depth = 0
+  let start = -1
+  let m
+  while ((m = tagRe.exec(html)) !== null) {
+    if (m[0][1] === '/') {
+      depth -= 1
+      if (depth === 0 && start >= 0) {
+        spans.push([start, m.index])
+        start = -1
+      }
+    } else {
+      if (depth === 0) start = tagRe.lastIndex
+      depth += 1
+    }
+  }
+  for (let i = spans.length - 1; i >= 0; i--) {
+    const [from, to] = spans[i]
+    const inner = html.slice(from, to)
+    const wrapped = wrapInlineHead(inner)
+    if (wrapped !== inner) html = html.slice(0, from) + wrapped + html.slice(to)
+  }
+  return html
+}
+
+// ── 5. 微信底色兼容（background 简写 → 长写）───────────────────
 /**
  * 微信编辑器的安全过滤是**按属性名**过的：`background-color` 在名单里，`background` 简写不在。
  * 于是主题里 `background: #f0f8f0` 这种写法粘进公众号后整条声明被丢掉——
@@ -306,7 +362,7 @@ export function splitBackgroundsInHtml(html) {
   return html.replace(/\sstyle="([^"]*)"/g, (full, styleText) => ` style="${splitBackgrounds(styleText)}"`)
 }
 
-// ── 5. 预览锚点（annotate）─────────────────────────────────────
+// ── 6. 预览锚点（annotate）─────────────────────────────────────
 
 /** 每个顶层块前插一个不可见锚点元素；只给预览的滚动同步与块高亮用，绝不进复制/导出结果。 */
 function renderWithAnchors(md, markdown, env) {
@@ -326,7 +382,7 @@ function renderWithAnchors(md, markdown, env) {
   return { html: md.renderer.render(out, md.options, env), blocks }
 }
 
-// ── 6. 图片内嵌（复制/导出用）──────────────────────────────────
+// ── 7. 图片内嵌（复制/导出用）──────────────────────────────────
 /** 用宿主给的解析器把 <img src> 换成 data URI；解析器返回 null 表示保持原样。 */
 function rewriteImages(html, resolver) {
   return html.replace(/<img\b([^>]*?)\bsrc="([^"]*)"([^>]*)>/g, (full, pre, src, post) => {
@@ -402,6 +458,8 @@ export function render(markdownText, opts = {}) {
   if (opts.publish !== false && !opts.annotate) {
     body = prepareForPublish(body, { simple: !!opts.simple })
   }
+  // wrapText 的第二半：列表项开头的行内片段整条包 span（微信会把首个行内元素单独起一行）
+  if (opts.wrapText) body = wrapListItemRuns(body)
   // 微信底色兼容：放在最后（代码块 span 的内联色、图片补的样式都已就位），正文与 wrapper 一起规范化
   if (opts.wechatBackground) {
     body = splitBackgroundsInHtml(body)
@@ -440,7 +498,7 @@ export function themeCatalog() {
   }))
 }
 
-// ── 7. CLI（本地排查用；插件本身走 tools/routes）────────────────
+// ── 8. CLI（本地排查用；插件本身走 tools/routes）────────────────
 function main(argv) {
   const args = argv.slice(2)
   if (args.includes('--list')) {

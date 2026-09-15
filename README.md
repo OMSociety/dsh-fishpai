@@ -129,7 +129,7 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 
 ```powershell
 npm install        # 只有 devDependencies（esbuild / typescript / @types/react）
-npm test           # 170 项：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + bundle 形态 + 快捷键
+npm test           # 178 项：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + bundle 形态 + 快捷键
 npm run typecheck  # 客户端 TSX 类型检查
 npm run build      # 重新打包 lib/client.js（改完客户端必须跑，并提交产物）
 npm run check:build  # 确认 lib/ 无漂移
