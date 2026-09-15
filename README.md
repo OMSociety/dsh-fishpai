@@ -18,23 +18,17 @@
 ## 🐟 这是什么
 
 **鱼排**把 Markdown 排成**内联样式 HTML**：整段粘进微信公众号编辑器就得到成品排版。
+
 它同时是一个**人在回路里的改稿台**——面板与模型看的是同一篇文档，谁改了什么一目了然。
 
 渲染内核与主题来自 [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT），
 本仓库把同一套管线重构为 DSH 插件。署名与许可链条见 [`NOTICE.md`](NOTICE.md)。
 
-| | 墨排网页版 | 鱼排 |
-|---|---|---|
-| 编辑位置 | 独立网页 | DSH 右侧栏（官方右侧栏为主，`dsh-better-sidebar` 为回退） |
-| 与模型的关系 | 无（自带一个 AI 助手面板） | **模型能读能写**：块级 diff + 批注 + `base_revision` 防覆盖 |
-| 排版结果 | 复制到公众号 | 同一套渲染器，同一份输出；复制 / 导出 / 预览三处一致 |
-| 发布 | 复制粘贴（或多平台分发） | **只做复制粘贴**（不做公众号 API、不做多平台分发） |
-
 ## ✨ 核心特性
 
 | | 特性 | 说明 |
 |---|---|---|
-| ⌨ | **Markdown 快捷键** | 选中后 `Ctrl/⌘+B` 加粗、`+I` 斜体、`+K` 链接、`+Alt+1/2/3` 标题、`+Shift+8/7` 列表；列表里回车自动续写；`Ctrl+Z` 撤销照旧可用 |
+| ⌨ | **Markdown 快捷键** | 选中后 `Ctrl/⌘+B` 加粗、`+I` 斜体、`+K` 链接、`+Alt+1/2/3` 标题、`+Shift+8/7` 列表；列表里回车自动续写 |
 | 🖼 | **图片直接粘进来** | 截图 `Ctrl/⌘+V` 粘入（也可以拖进来）→ 存到文档同级的 `assets/`，正文自动插入引用，预览立刻可见 |
 | 👀 | **实时预览 + 手机宽度** | 打字 300ms 后预览跟着变；栏位够宽左右并排，窄了自动单栏；可切 375px 看公众号真实观感 |
 | 📝 | **批注与占位** | 光标所在段落加批注（模型下次 `fishpai_read` 就能看到）；正文里写 `<!-- 鱼排: 这里补个过渡 -->` 也一样；点批注「定位」直接选中它引用的那段 |
@@ -49,11 +43,11 @@
 <table>
 <tr>
 <td width="64%" align="center"><img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/panel-fishpai.png" alt="鱼排编辑器面板：左侧源码、右侧实时预览" width="540"></td>
-<td width="36%" align="center"><a href="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.jpg"><img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.jpg" alt="复制后粘进公众号编辑器的实际效果（点图看原图）" width="235"></a></td>
+<td width="36%" align="center"><a href="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.jpg"><img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.jpg" alt="复制后粘进公众号编辑器的实际效果" width="235"></a></td>
 </tr>
 <tr>
 <td align="center">面板：左边写 Markdown，右边实时预览；主题、字号、脚注开关都在顶部一行</td>
-<td align="center">粘进公众号的实拍（点图看原图）</td>
+<td align="center">粘进公众号的实拍</td>
 </tr>
 </table>
 
