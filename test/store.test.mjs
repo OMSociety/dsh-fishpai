@@ -67,7 +67,7 @@ const result = await build({
   charset: 'utf8',
   plugins: [stubPlugin],
 })
-const { createFishpaiStore } = await import(
+const { createFishpaiStore, buildSrcdoc } = await import(
   `data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text, 'utf8').toString('base64')}`
 )
 
@@ -249,4 +249,17 @@ test('自动保存：外部横幅在场时跳过，不把提示换成语义重�
   assert.equal(saveCalls, 0, 'external 在场时不应发起必然 409 的保存')
   assert.notEqual(store.getSnapshot().external, null, '横幅仍在，等用户点按钮')
   store.dispose()
+})
+
+test('buildSrcdoc：hljs 配色注入预览 iframe，不注入时代码块是黑的', () => {
+  // 预览 iframe 是沙箱 srcdoc，里面没有 highlight.js 样式表：宿主把同一份色表生成 CSS
+  // 随预览响应下发，这里要保证它真的落进 srcdoc，且只在给了的时候才出现
+  const html = '<pre><code><span class="hljs-keyword">const</span> x = 1;</code></pre>'
+  const withCss = buildSrcdoc(html, {}, '.hljs-keyword{color: rgb(198, 120, 221);}')
+  assert.match(withCss, /\.hljs-keyword\{color: rgb\(198, 120, 221\);\}/, '配色要进 srcdoc 的样式表')
+  assert.match(withCss, /<span class="hljs-keyword">/, '预览正文本身仍是 class（内联在 publish 那条路上做）')
+
+  const noCss = buildSrcdoc(html)
+  assert.doesNotMatch(noCss, /\.hljs-keyword\{/, '没给配色时不该凭空出现')
+  assert.match(noCss, /<span class="hljs-keyword">/, '正文不受影响')
 })

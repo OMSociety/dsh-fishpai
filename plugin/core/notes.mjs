@@ -95,6 +95,11 @@ export function makeNote({ blockId = null, quote = '', text = '', author = 'huma
  * 重锚批注：人改过正文之后，原来的 blockId 可能已经不存在。
  * 顺序：id 命中 → hash 命中 → 引用片段模糊命中 → orphan。
  *
+ * 性能：模糊命中那一步是 notes × blocks 的 `containment`，但每对内部已截断到
+ * 400 × 4000 字符（见 markdown.mjs），实测 50 注 × 200 块的全失锚最坏情况约 40ms——
+ * 预览那条路有 300ms 防抖，够用。外层不需要再加批注数上限：真加出 500 注的文档时，
+ * 该担心的是批注本身而不是这里。
+ *
  * @param {Array<object>} notes  sidecar 里的批注
  * @param {Array<object>} blocks 当前文档的块
  * @returns {Array<object>} 锚定结果（新对象；不修改入参）

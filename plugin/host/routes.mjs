@@ -17,7 +17,7 @@
  *      正文仍只能由 `/doc` 改。
  */
 import fs from 'node:fs'
-import { render as renderCore, themeCatalog } from '../core/render.mjs'
+import { render as renderCore, themeCatalog, hljsPreviewCss } from '../core/render.mjs'
 import { clearCustomTheme, customCatalogEntry, themeFor, CUSTOM_THEME_KEY } from './custom-theme.mjs'
 import { colorPresets } from '../core/runtime.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
@@ -424,6 +424,11 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
           html: out.html,
           themeKey: out.themeKey,
           themeName: out.themeName,
+          // 预览 iframe 是沙箱 srcdoc，里面没有 highlight.js 样式表：代码块的 token
+          // 只有 class、没有颜色，预览看起来是黑的，而复制/导出的成品是彩色的。
+          // 把同一份色表（hljs-map.json）生成 CSS 一起带下去，客户端注入 srcdoc。
+          // 发布产物不吃它（走 inlineCodeStyles 内联），golden 不受影响。
+          hljsCss: hljsPreviewCss(),
           // 「脚注 / Mac 代码框」这两个开关能不能点，由**渲染结果**说话：
           // 以前面板拿正则猜正文（只认带 `//` 的链接、只认 ``` 围栏），
           // 于是 `github.com/x/y` 生成了「参考资料」而开关是灰的、缩进式代码块也漏。

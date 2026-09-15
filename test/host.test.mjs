@@ -1072,13 +1072,23 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   }
 
   // 6) POST /render preview + publish —— 预览与复制
-  const preview = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: session, docKey, markdown: `${ARTICLE}\n新增一段。\n`, meta: { theme: 'sspai' }, mode: 'preview' } })
+  const preview = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: session, docKey, markdown: `${ARTICLE}\n新增一段。\n\`\`\`js\nconst x = 1;\n\`\`\`\n`, meta: { theme: 'sspai' }, mode: 'preview' } })
   assert.equal(preview.status, 200)
   assert.ok(Array.isArray(preview.json.blocks))
   assert.match(preview.json.html, /<fp-block data-b="/)
-  const publish = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: session, docKey, markdown: `${ARTICLE}\n新增一段。\n`, mode: 'publish' } })
+  // 预览 iframe 是沙箱 srcdoc，里面没有 highlight.js 样式表：宿主把同一份色表（hljs-map.json）
+  // 生成 CSS 随预览下发，客户端注入。不带着，代码块在面板里就是黑的，而复制出来的成品是彩的。
+  assert.equal(typeof preview.json.hljsCss, 'string', 'preview 响应必须带 hljsCss')
+  assert.match(preview.json.hljsCss, /\.hljs-keyword\{/, '色表里要有 keyword 这一条')
+  // 只发单段选择器：复合选择器（".hljs-meta .hljs-string"）在 srcdoc 里用不上
+  // （hljsStyleFor 的兜底逻辑保证复合写法仍能命中单段规则）
+  assert.doesNotMatch(preview.json.hljsCss, /\.hljs-[a-z-]+ \./, '复合选择器不该出现在预览 CSS 里')
+  // 发布产物不吃这份 CSS（走 inlineCodeStyles 内联），golden 不受影响
+  const publish = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: session, docKey, markdown: `${ARTICLE}\n新增一段。\n\`\`\`js\nconst x = 1;\n\`\`\`\n`, mode: 'publish' } })
   assert.equal(publish.status, 200)
   assert.equal(typeof publish.json.html, 'string')
+  assert.ok(!('hljsCss' in publish.json), 'publish 响应不该带 hljsCss（它走内联）')
+  assert.match(publish.json.html, /hljs-keyword[^>]*style="[^"]*color/, 'publish 产物里代码块 token 是内联色的')
 
   // 7) POST /notes add / update / remove
   const blockId = doc.json.blocks[1].id

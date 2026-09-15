@@ -71,6 +71,12 @@ export interface FishpaiState {
   fonts: string[]
   sizes: string[]
   previewHtml: string
+  /**
+   * 预览 iframe 的 highlight.js 配色（宿主从同一份 hljs-map.json 生成）。
+   * 沙箱 srcdoc 里没有 hljs 样式表，代码块 token 只有 class、没有颜色——
+   * 不注入的话预览是黑的，而复制/导出的成品是彩色的。
+   */
+  hljsCss: string
   themeName: string
   previewing: boolean
   saving: boolean
@@ -117,6 +123,7 @@ function initialState(sessionId: string): FishpaiState {
     fonts: ['sans', 'serif', 'mono'],
     sizes: ['14px', '15px', '16px', '17px', '18px'],
     previewHtml: '',
+    hljsCss: '',
     themeName: '',
     previewing: false,
     saving: false,
@@ -147,14 +154,17 @@ function inlineImages(html: string, imageMap: Record<string, string>): string {
 /**
  * 预览 iframe 的 srcdoc：内联主题样式已在 html 里，这里只补容器样式、滚动上报脚本，
  * 以及本地图片的 data URI（见 `imageMap` 的说明）。
+ * `hljsCss` 是宿主从同一份 hljs-map.json 生成的配色：沙箱 srcdoc 里没有 highlight.js
+ * 样式表，不注入的话代码块只有 class、没有颜色（预览黑的，成品却是彩色的）。
  */
-export function buildSrcdoc(html: string, imageMap: Record<string, string> = {}): string {
+export function buildSrcdoc(html: string, imageMap: Record<string, string> = {}, hljsCss = ''): string {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
   html,body{margin:0;padding:0;background:#fff}
   fp-block{display:block;height:0;overflow:hidden}
   img{max-width:100%;height:auto}
+${hljsCss}
 </style></head><body>${inlineImages(html, imageMap)}
 <script>
 (function(){
@@ -286,6 +296,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       if (token !== previewToken) return // 有更新的渲染在路上，丢掉这次
       patch({
         previewHtml: res.html,
+        hljsCss: res.hljsCss || '',
         blocks: res.blocks,
         placeholders: res.placeholders,
         images: res.images,

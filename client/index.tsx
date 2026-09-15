@@ -86,7 +86,7 @@ export function apply(ctx: any): void {
     if (!sessionId || !store) {
       return React.createElement('div', { className: 'fp-root' }, '鱼排：拿不到当前会话，请在一个会话里打开。')
     }
-    return React.createElement(Panel, { store, sessionId, visible: props?.visible })
+    return React.createElement(Panel, { store, sessionId })
   }
 
   /**

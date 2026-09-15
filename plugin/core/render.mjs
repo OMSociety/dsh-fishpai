@@ -164,6 +164,25 @@ export function hljsStyleFor(cls) {
   return null
 }
 
+/**
+ * 同一份色表的 CSS 形式：预览 iframe（沙箱 srcdoc）里没有 highlight.js 的样式表，
+ * 代码块就只剩 class、没有颜色——面板预览看起来是「黑的」，而复制/导出的成品是彩色的。
+ * 宿主把它随预览响应下发给客户端注入，**只给预览用**：发布产物走 inlineCodeStyles 内联，
+ * 不吃这份 CSS（golden 不受影响）。
+ */
+export function hljsPreviewCss() {
+  const map = hljsMap()
+  const lines = []
+  for (const key of Object.keys(map)) {
+    // 复合选择器（".hljs-meta .hljs-string"）与无前缀的段（"function_"）在预览里用不上，
+    // 只发 `hljs-xxx` 这一类；hljsStyleFor 的兜底逻辑保证复合写法仍能命中单段规则
+    if (!/^hljs-[A-Za-z0-9-]*$/.test(key)) continue
+    const s = styleFrom(map[key])
+    if (s) lines.push(`.${key}{${s}}`)
+  }
+  return lines.join('\n')
+}
+
 /** mac 标题栏圆点/语言标签：站点也会被 inlineCodeTokenStyles 命中，补上计算样式 */
 export function macSpanStyle(cls) {
   if (/\bmac-dot\b/.test(cls)) {

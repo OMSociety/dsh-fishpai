@@ -528,7 +528,7 @@ function FontPicker(props: { fonts: string[]; value: string; onPick: (font: stri
   )
 }
 
-export function Panel(props: { store: FishpaiStore; sessionId: string; visible?: boolean }) {
+export function Panel(props: { store: FishpaiStore; sessionId: string }) {
   const { store, sessionId } = props
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot)
   const [mode, setMode] = React.useState<ViewMode>('side')
@@ -985,6 +985,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
             iframeRef={iframeRef}
             html={state.previewHtml}
             imageMap={state.imageMap}
+            hljsCss={state.hljsCss}
             mobile={state.meta.mobile}
             previewing={state.previewing}
             themeName={state.themeName}
@@ -1273,6 +1274,8 @@ function Preview(props: {
   html: string
   /** 本地图片的 data URI：预览 iframe 是沙箱 srcdoc，相对路径在它里面拿不到（见 store 的说明）。 */
   imageMap: Record<string, string>
+  /** hljs 配色（宿主从 hljs-map.json 生成）：srcdoc 里没有 highlight.js 样式表，不注入代码块是黑的 */
+  hljsCss: string
   mobile: boolean
   previewing: boolean
   themeName: string
@@ -1294,7 +1297,7 @@ function Preview(props: {
             title="公众号预览"
             sandbox="allow-scripts"
             data-mobile={props.mobile ? 'true' : 'false'}
-            srcDoc={buildSrcdoc(props.html, props.imageMap)}
+            srcDoc={buildSrcdoc(props.html, props.imageMap, props.hljsCss)}
             onLoad={props.onLoad}
           />
         ) : (

@@ -206,12 +206,17 @@ export const api = {
    *
    * `linkCount` / `hasCode` 同样来自**渲染结果**：面板靠它们决定「脚注」「Mac 代码框」
    * 两个开关该不该置灰，而不是自己拿正则猜正文。
+   *
+   * `hljsCss` 是 highlight.js 配色：预览 iframe 是沙箱 srcdoc，里面没有它的样式表，
+   * 代码块 token 只有 class、没有颜色——宿主把同一份色表（hljs-map.json）生成 CSS 带下来，
+   * 客户端注入 srcdoc。发布产物不吃它（走内联），所以 golden 不受影响。
    */
   renderPreview: (sessionId: string, docKey: string, markdown: string, meta: Partial<DocMeta>) =>
     call<{
       ok: true
       html: string
       themeName: string
+      hljsCss: string
       linkCount: number
       hasCode: boolean
       blocks: Block[]
