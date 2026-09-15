@@ -94,7 +94,8 @@ test('默认渲染路径保持原样（wrapText 关着，混排块照旧存在�
 })
 
 test('兼容层是纯叠加：去掉它加的那层裸 span，就回到默认产物', () => {
-  const stripBareSpans = (html) => html.replace(/<span>/g, '').replace(/<\/span>/g, '')
+  // 兼容层现在是"裸 span + 条目开头一个不换行空格"，两者都剥掉才算纯叠加
+  const stripBareSpans = (html) => html.replace(/<span>/g, '').replace(/<\/span>/g, '').replace(/\u00a0/g, '')
   for (const fixture of manifest.fixtures) {
     const markdown = readFixture(fixture)
     const opts = { theme: 'default', publish: true, footnotes: true, macCodeBlock: true, fontSize: '16px' }
@@ -103,6 +104,30 @@ test('兼容层是纯叠加：去掉它加的那层裸 span，就回到默认产
     assert.equal(stripBareSpans(wrapped), stripBareSpans(plain), `${fixture}：兼容层不只是"多包一层 span"`)
     assert.match(wrapped, /<span>/, `${fixture}：wrapText 应当真的包了 span`)
   }
+})
+
+/**
+ * 列表项前面那个 `&nbsp;`。
+ *
+ * 微信会把列表项**开头**的行内片段单独起一行（`1. **块级 diff**：AI 读到的…` 粘过去变成
+ * "块级 diff"一行、`：AI 读到的…`一行）。两轮对照样张在真实公众号里量出来的边界：
+ * 以文字开头的条目正常、加粗在中段正常、段落里的加粗开头正常、"整条 li 包一个 span"照样拆；
+ * **以 `&nbsp;` 开头的条目正常**（这就是采用它的原因）。见 HANDOFF 第 20 条。
+ */
+test('列表项：条目前面补一个 &nbsp;（微信会把开头的行内片段单独起一行）', () => {
+  const md = '1. **块级 diff**：AI 读到的不是全文\n2. 不加粗的一条\n\n- **甲** ｜ 乙\n  - 嵌套一条 **丙**\n'
+  const { html } = render(md, { theme: 'default', publish: true, wrapText: true })
+  // 每个 li 开标签后面必须紧跟一个不换行空格（嵌套条目也要）
+  assert.doesNotMatch(html, /<li\b[^>]*>(?!\u00a0)/, '有 li 没补 nbsp')
+  assert.match(html, /<li[^>]*>\u00a0<span>嵌套一条/, '嵌套条目同样要补')
+  const count = (html.match(/<li\b/g) || []).length
+  assert.ok(count >= 4, `li 数量不对：${count}`)
+  // 只补在 li 上：段落、标题都不该被塞 nbsp
+  assert.doesNotMatch(html, /<p[^>]*>\u00a0/, '段落不该被补 nbsp')
+  // 纯叠加：去掉补的 nbsp 与裸 span 就回到默认产物；默认路径本身不带 nbsp
+  const strip = (s) => s.replace(/\u00a0/g, '').replace(/<span>/g, '').replace(/<\/span>/g, '')
+  assert.equal(strip(html), strip(render(md, { theme: 'default', publish: true }).html))
+  assert.doesNotMatch(render(md, { theme: 'default', publish: true }).html, /<li[^>]*>\u00a0/, '默认路径不许动')
 })
 
 /**
