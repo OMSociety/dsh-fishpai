@@ -270,6 +270,31 @@ test('面板文案：改名与新增说明必须真的进产物（防"改了源�
   assert.ok(source.includes('没有外链') || source.includes('没有代码块'), '无效开关的说明文案')
 })
 
+test('面板必须有「字体」控件：主题自带的字体栈会被这个预设覆盖，少了它就换不成衬线', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  // 宿主一直在 /themes 里回 fonts，但面板曾经既没存也没用——
+  // 于是"把正文换成衬线"在界面上根本做不到（一套衬线主题会永远显示成黑体）。
+  assert.ok(source.includes('fonts: ["sans", "serif", "mono"]'), '字体预设没进初值（store 里也没存）')
+  assert.ok(source.includes('serif: "衬线"'), '字体预设要有中文名（黑体 / 衬线 / 等宽）')
+  assert.ok(source.includes('font: e.target.value'), '字体选择要接到 setMeta')
+})
+
+test('风险提示可关掉，但换主题后要重新出现（不能"关一次就再也不提醒"）', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  assert.ok(source.includes('fp-banner-x'), '风险提示缺关闭按钮')
+  assert.ok(source.includes('setRiskDismissed(currentTheme.key)'), '关闭按钮要记住"关掉的是哪一套"')
+  // 换主题时重置：否则切走再切回来提示就永远不出现了
+  assert.ok(source.includes('setRiskDismissed(null)'), '换主题时要重置"已关掉"的状态')
+})
+
+test('快捷键速查表：宽度随面板收缩（定宽会在窄栏里溢出、标签被裁掉）', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  assert.ok(source.includes('max-width:calc(100% - 12px)'), '速查表宽度要有上限，窄面板里才不会被裁')
+  assert.ok(!source.includes('z-index:3;width:266px'), '别再写死宽度（实测窄栏下标签全被切掉）')
+  // 定位上下文交给整行（.fp-pane-head），百分比宽度才有"面板宽度"可依
+  assert.ok(source.includes('position:relative') && source.includes('fp-pane-head'), '速查表挂在编辑器头上那一行')
+})
+
 test('面板文案：失败提示、批注定位、提示条分类必须真的进产物', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   assert.ok(source.includes('可以改用旁边的「导出 HTML」拿文件'), '复制失败要指向另一个按钮')

@@ -64,6 +64,11 @@ export interface FishpaiState {
   docs: Array<{ key: string; path: string; title: string; revision: number; updatedAt: number }>
   themes: ThemeInfo[]
   presets: Array<{ name: string; color: string }>
+  /**
+   * 字体预设（`sans` / `serif` / `mono`）。宿主一直在 `/themes` 里回它，但面板以前既没存也没用——
+   * 于是"把正文换成衬线"在界面上根本做不到，而主题自带的字体栈又会被这个预设覆盖（站点既有行为）。
+   */
+  fonts: string[]
   sizes: string[]
   previewHtml: string
   themeName: string
@@ -109,6 +114,7 @@ function initialState(sessionId: string): FishpaiState {
     docs: [],
     themes: [],
     presets: [],
+    fonts: ['sans', 'serif', 'mono'],
     sizes: ['14px', '15px', '16px', '17px', '18px'],
     previewHtml: '',
     themeName: '',
@@ -397,7 +403,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
    */
   async function refreshThemes() {
     const res = await api.themes(state.sessionId).catch(() => null)
-    if (res) patch({ themes: res.themes, presets: res.presets, sizes: res.sizes })
+    if (res) patch({ themes: res.themes, presets: res.presets, sizes: res.sizes, fonts: res.fonts })
   }
 
   async function init() {

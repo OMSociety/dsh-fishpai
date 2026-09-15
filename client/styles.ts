@@ -115,6 +115,9 @@ export const CSS = `
 .fp-pane-head{
   display:flex;align-items:center;gap:6px;padding:3px 8px;flex:none;
   color:var(--dsw-alias-label-secondary);font-size:11px;border-bottom:1px solid var(--dsw-alias-border-l2);
+  /* 速查表浮层挂在这一整行上（不是挂那个小按钮）：这样它的百分比宽度有"面板宽度"可依，
+     窄面板里才会跟着收缩，而不是定宽溢出被裁。 */
+  position:relative;
 }
 .fp-editor{
   flex:1 1 auto;min-height:0;width:100%;resize:none;border:0;outline:none;
@@ -156,6 +159,12 @@ export const CSS = `
 .fp-banner[data-kind="error"]{border-color:var(--dsw-alias-state-error-primary)}
 /* 主题风险提示：与"有未保存改动""冲突"共用同一块区域，各自一行 */
 .fp-banner[data-kind="warn"]{border-color:var(--dsw-alias-state-warn-primary)}
+/* 关掉风险提示的 ×：与"快捷键"按钮同一套口径（不抢视觉，但可点区域够大） */
+.fp-banner-x{
+  flex:none;font:inherit;font-size:13px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:5px;
+  border:1px solid transparent;background:transparent;color:var(--dsw-alias-label-secondary);
+}
+.fp-banner-x:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}
 .fp-banner .fp-spacer{flex:1 1 auto}
 .fp-toast{
   position:absolute;left:8px;right:8px;bottom:34px;padding:5px 9px;border-radius:7px;font-size:11px;
@@ -214,7 +223,9 @@ export const CSS = `
 .fp-warn{color:var(--dsw-alias-state-warn-primary)}
 
 /* 快捷键速查表：挂在编辑器头上的小按钮 + 一块列表（内容和键盘处理同源） */
-.fp-keys-wrap{position:relative;display:inline-flex;flex:none}
+/* 注意是 static：浮层的定位上下文交给 .fp-pane-head（整行），见那里的注释。
+   （这里是模板字符串里，注释别用反引号——会把字符串闭合掉，实测踩过一次。） */
+.fp-keys-wrap{display:inline-flex;flex:none}
 .fp-keys-btn{
   font:inherit;font-size:11px;line-height:1;cursor:pointer;padding:3px 6px;border-radius:5px;
   border:1px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-secondary);
@@ -222,14 +233,20 @@ export const CSS = `
 .fp-keys-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}
 .fp-keys-btn[data-on="true"]{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}
 .fp-keys{
-  position:absolute;top:calc(100% + 4px);right:0;z-index:3;width:266px;max-height:60vh;overflow:auto;
+  position:absolute;top:calc(100% + 4px);right:0;z-index:3;
+  /* 宽度**随面板收缩**：以前写死 266px，窄面板里比面板还宽、向左溢出被裁掉，
+     表现就是"快捷键标签全被切掉、只剩右边一排键帽"（实测截图）。 */
+  width:auto;min-width:min(232px,100%);max-width:calc(100% - 12px);
+  max-height:60vh;overflow:auto;
   padding:6px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);
   background:var(--dsw-alias-bg-layer-1);box-shadow:0 8px 24px rgba(0,0,0,.18);
   color:var(--dsw-alias-label-primary);font-size:11.5px;line-height:1.9;text-align:left;
 }
 .fp-keys-group{padding:2px 4px;color:var(--dsw-alias-label-secondary);font-size:11px}
-.fp-keys-row{display:flex;align-items:baseline;gap:8px;padding:0 4px}
-.fp-keys-row .fp-spacer{flex:1 1 auto}
+.fp-keys-row{display:flex;align-items:baseline;gap:8px;padding:0 4px;min-width:0}
+/* 标签列要能被压窄（中文按字换行），键帽保持一行不折 */
+.fp-keys-row > span:first-child{flex:0 1 auto;min-width:0}
+.fp-keys-row .fp-spacer{flex:1 1 auto;min-width:0}
 .fp-keys-note{
   margin-top:4px;padding:5px 4px 1px;border-top:1px solid var(--dsw-alias-border-l2);
   color:var(--dsw-alias-label-secondary);line-height:1.75;

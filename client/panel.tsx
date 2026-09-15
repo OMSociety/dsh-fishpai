@@ -61,6 +61,15 @@ function kindLabel(kind: string | null | undefined, fallback = '块'): string {
   return KIND_LABEL[kind] || kind
 }
 
+/**
+ * 字体预设的中文名（宿主回的是 `sans` / `serif` / `mono`）。
+ *
+ * 这个控件必须存在：主题自带的 `font-family` **总会被**字体预设覆盖（上游站点行为，
+ * `render()` 里就是拿预设去替换 wrapper 的 font-family），所以"想要衬线"只能从这里切——
+ * 少了它，一套衬线主题在面板里永远显示成黑体，而用户找不到任何地方能改。
+ */
+const FONT_LABEL: Record<string, string> = { sans: '黑体', serif: '衬线', mono: '等宽' }
+
 // ── 剪贴板 ─────────────────────────────────────────────────────
 
 async function copyRich(html: string, plain: string): Promise<void> {
@@ -356,6 +365,9 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
   const [tab, setTab] = React.useState<Tab>('notes')
   const [noteDraft, setNoteDraft] = React.useState('')
   const [narrow, setNarrow] = React.useState(false)
+  // 哪一套主题的风险提示被用户关掉了。换主题时清空（见下面的 effect）：
+  // 切走再切回来，提示要**重新出现**，而不是被永久关掉——那是"关一次就再也不提醒"的坏行为。
+  const [riskDismissed, setRiskDismissed] = React.useState<string | null>(null)
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
   const editorRef = React.useRef<HTMLTextAreaElement | null>(null)
@@ -365,6 +377,11 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
   React.useEffect(() => {
     void store.actions.init()
   }, [store])
+
+  // 换主题就重置"已关掉的风险提示"：切走再切回来，提示要重新出现（而不是被永久关掉）
+  React.useEffect(() => {
+    setRiskDismissed(null)
+  }, [state.meta.theme])
 
   // 宽度自适应：窄栏不允许并排
   React.useEffect(() => {
@@ -667,6 +684,19 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
 
           <select
             className="fp-select"
+            value={state.meta.font}
+            title="正文字体：衬线适合长文。注意它会覆盖主题自带的字体栈（站点既有行为，不是 bug）"
+            onChange={(e) => void store.actions.setMeta({ font: e.target.value })}
+          >
+            {state.fonts.map((f) => (
+              <option key={f} value={f}>
+                {FONT_LABEL[f] || f}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="fp-select"
             value={state.meta.fontSize}
             title="正文字号"
             onChange={(e) => void store.actions.setMeta({ fontSize: e.target.value })}
@@ -715,7 +745,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
         </div>
       </div>
 
-      {currentTheme && !currentTheme.wechatSafe ? (
+      {currentTheme && !currentTheme.wechatSafe && riskDismissed !== currentTheme.key ? (
         <div className="fp-banner" data-kind="warn">
           <span>
             {currentTheme.gradientText
@@ -723,6 +753,16 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
               : `「${currentTheme.name}」是深色底，粘进公众号会是一整块深色。`}
             建议用「导出」拿 HTML，或换回「默认公众号」。
           </span>
+          <span className="fp-spacer" />
+          <button
+            type="button"
+            className="fp-banner-x"
+            aria-label="关掉这条提示"
+            title="关掉这条提示（切回这套主题时会再出现）"
+            onClick={() => setRiskDismissed(currentTheme.key)}
+          >
+            ×
+          </button>
         </div>
       ) : null}
 
