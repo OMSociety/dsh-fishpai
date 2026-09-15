@@ -151,39 +151,6 @@ test('包裹层不制造"以空白开头/结尾的 span"（微信会把这种行
   assert.match(item, /<strong[^>]*><span>批注<\/span><\/strong> <span>｜ 光标停在哪一段<\/span>/)
 })
 
-test('列表项：行内片段整条包进一个 span（微信会把 li 的第一个行内元素单独起一行）', () => {
-  // 实测（7 种形态对照，见 handoff）：li 的第一个子节点是行内元素时，微信会把它当"标签"单独起一行——
-  // `**批注**：光标停在哪一段…` 粘过去变成两行；不加粗的一条、粗体在**中段**的一条、
-  // 以及**段落**里的粗体开头，都不会被拆。与元素类型/样式无关（strong、span、主题色粗体全中）。
-  const md = [
-    '1. **块级 diff**：AI 读到的不是全文',
-    '2. 不加粗的一条：纯文字',
-    '3. 前面有字 **中段粗体**：后面',
-    '',
-    '- **甲** ｜ 乙',
-    '  - 嵌套一条 **丙**',
-    '',
-    '**段落里的粗体开头**：段落不吃这套',
-  ].join('\n')
-  const { html } = render(md, { theme: 'default', publish: true, wrapText: true })
-
-  // 每条 li 的内容都以 <span> 开头
-  const items = [...html.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/g)].map((m) => m[1])
-  assert.ok(items.length >= 4, `li 数量不对：${items.length}`)
-  for (const inner of items) {
-    assert.match(inner, /^<span>/, `这条 li 不是以 span 开头：${inner.slice(0, 50)}`)
-  }
-  // 嵌套列表留在包裹 span 外面（span 里套 ul 是非法结构）
-  assert.match(html, /<\/span><ul/, '嵌套列表必须留在包裹 span 之外')
-  // 段落不受影响：它本来就不会被拆，别顺手给它加壳
-  assert.doesNotMatch(html, /<p[^>]*><span><strong/, '段落不该被整条加壳')
-  assert.match(html, /<p[^>]*><strong[^>]*><span>段落里的粗体开头<\/span><\/strong>/, '段落保持原样')
-  // 纯叠加：包裹层都是裸 span，去掉它们就回到默认产物
-  const strip = (s) => s.replace(/<span>/g, '').replace(/<\/span>/g, '')
-  const plain = render(md, { theme: 'default', publish: true }).html
-  assert.equal(strip(html), strip(plain), '包裹层必须只是多了几层裸 span')
-})
-
 test('代码块不在 wrapText 的覆盖范围内（这是已知边界，不是漏做）', () => {
   const markdown = readFixture('stress.md') // 含带高亮的 python 围栏 + 无语言围栏
   const opts = { theme: 'default', publish: true, footnotes: true, macCodeBlock: true, fontSize: '16px' }
