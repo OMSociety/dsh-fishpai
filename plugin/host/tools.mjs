@@ -438,10 +438,12 @@ export function registerTools(ctx, deps) {
           publish: args.publish !== false,
           // 导出的成品是要粘进公众号的，所以跟面板的「复制到公众号」走同一条兼容层：
           // ① 把文字包进 <span>，避开微信结构校验对"含行内元素的段落"的误报；
-          // ② 把 background 简写拆成微信肯保留的长写，否则引用块/表头底色会被丢。
+          // ② 把 background 简写拆成微信肯保留的长写，否则引用块/表头底色会被丢；
+          // ③ 把选定的字号推进到 p / li / 引用上（微信会剥掉最外层 wrapper 的样式）。
           // publish:false（预览原样 HTML）时不加，保持与站点一致的原始形态。
           wrapText: args.publish !== false,
           wechatBackground: args.publish !== false,
+          promoteFontSize: args.publish !== false,
           imageResolver: args.embed_images === false ? undefined : makeImageResolver({ cwd, docPath: abs }),
         })
         const target = args.out_path

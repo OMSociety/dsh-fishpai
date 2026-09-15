@@ -724,6 +724,32 @@ test('fishpai_render：默认（复制形态）加兼容层，publish:false 时�
   assert.doesNotMatch(fs.readFileSync(path.join(cwd, '预览原样.html'), 'utf8'), /<span>/)
 })
 
+test('fishpai_render 的兼容层与面板的「复制到公众号」同款：字号也推进，且不碰「参考资料」', async () => {
+  const cwd = tmpWorkspace()
+  const { tools, exec } = fakeHost(cwd)
+  const byName = (name) => tools.find((t) => t.name === name)
+  // 有链接才会有文末「参考资料」那一节（它自己带小字号，不该被推进）
+  const md = '# 标题\n\n正文一段，里面有一个[链接](https://example.com)。\n'
+  await byName('fishpai_open').execute({ markdown: md }, exec)
+  const key = store.activeKey(cwd, 's1')
+  store.updateMeta({ cwd, docPath: store.readState(cwd, key).docPath, meta: { fontSize: '17px' } })
+
+  const out = await byName('fishpai_render').execute({}, exec)
+  assert.equal(out.isError, false, out.text)
+  const html = fs.readFileSync(path.join(cwd, /已导出 HTML：(\S+)/.exec(out.text)[1]), 'utf8')
+  assert.match(html, /<p style="font-size: 17px; /, '选定的字号要推进到正文 p（与面板复制/导出那条路一致，否则导出的成品字号粘进去仍失效）')
+  const section = html.slice(html.indexOf('<section'))
+  assert.match(section, /font-size: 13px/, '参考资料那一节自带小字号')
+  assert.doesNotMatch(section, /font-size: 17px/, '小字不该被撑成正文字号')
+
+  // publish:false（预览原样形态）不推进：字号仍然只挂在 wrapper 上（那是原始形态）
+  const plain = await byName('fishpai_render').execute({ publish: false }, exec)
+  assert.equal(plain.isError, false, plain.text)
+  const raw = fs.readFileSync(path.join(cwd, /已导出 HTML：(\S+)/.exec(plain.text)[1]), 'utf8')
+  assert.match(raw, /font-size: 17px/, '原始形态下字号仍然在（挂在 wrapper 上）')
+  assert.doesNotMatch(raw, /<p style="font-size: 17px/, '原始形态不该把字号推进到元素上')
+})
+
 test('路由：Origin: null 的请求被拒（沙箱 iframe / data: 文档）', async () => {
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })

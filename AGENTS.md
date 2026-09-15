@@ -31,7 +31,8 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
    - `promoteFontSize`：把选定的字号从 wrapper 推进到 p / li / blockquote 上。微信粘进去
      会剥掉最外层 wrapper 的样式，字号只挂在 wrapper 上等于没设（正文退回 16px，预览里却好好的）。
      同样**纯叠加**：没传 `fontSize` 时不加任何字节；自带字号的元素（h1–h3、表格、部分主题的引用）
-     一律不动——表格字号不跟着正文字号走是**上游行为**，跟着改才是 bug。
+     一律不动——表格字号不跟着正文字号走是**上游行为**，跟着改才是 bug；文末「参考资料」那一节
+     自己带小字号（它的 `<section>` 粘进去后还在），也不推进。
    三条都**不要**改成默认开启，也不要用 `--from-core` 去"修"golden 失败。
    另有一条**平台限制**（不是渲染偏离，也没有开关）：公众号编辑器**只认黑体**（iOS 设备上才是
    苹方），`font-family` 里的衬线／等宽栈粘进编辑器会退回黑体，只有「导出 HTML」的文件保得住。
@@ -78,6 +79,21 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
     文件名由宿主生成（时间戳 + 按 MIME 定的白名单扩展名），客户端给的名字只当一段可读词、不参与路径拼接；
     大小上限是 `store.mjs` 的 `MAX_ASSET_BYTES`（与内嵌上限共用一个常量，避免"存得进来却内嵌不了"）。
     正文仍然只能由 `/doc` 改——存图不许顺手改字。
+14. **自定义主题是数据，不是代码**：`plugin/core/theme-spec.mjs` 只做**校验 + 合并**，**绝不求值模型给的代码**。
+    - 属性白名单（`SPEC_PROPS`）**统计自**内置 11 套主题实际用过的声明——那 11 套是真人实测能在公众号里活的；
+      要加属性得先给出"在公众号里活下来"的证据，并让 `test/theme-spec.test.mjs` 的"白名单不许漏"守卫仍然绿。
+    - 规格只认 `name` / `base` / `styles`：多写的键一律报错而**不是默默忽略**（写了没作用，比不让写更骗人）；
+      必须在某套内置主题上做**增量覆盖**——渲染器对缺槽位是"不加 style 属性"，从零写一套等于大部分元素没样式。
+    - `wrapper` 必须含 `font-family` / `font-size`：漏了面板的「字体」「字号」会变成点了没反应的死控件
+      （校验器会从 base 补齐并说明原因）；保留 `{{PRIMARY}}` / `{{PRIMARY_BG}}` 占位符（面板色板因此仍有效）；
+      `!important` 去掉（微信不保留它）。
+    - 存下来的那套是**工作目录级、只有一套**：`<cwd>/.fishpai/theme.json`，面板里是**一个**「自定义主题」占位，
+      由 `plugin/host/custom-theme.mjs` 的 `themeFor()` 解析——**没有主题库**，没有命名/列表管理，`set` 即覆盖；
+      文件缺失或被改坏时**静默退回默认主题**（与 `safeThemeKey` 同口径），不留"选不中的状态"。
+    - **图标不归模型**：合法图标名只在浏览器那半（66 个 `Icon*` 导出），让模型选就得在宿主再抄一份名单、迟早静默失配。
+      `.json` 只对**宿主拼死**的这条路径放行，`.fishpai/state/*.json` 仍然不可达。
+    - 最容易踩的一条：**换主题不动 `revision`**，所以面板靠 `/state` 的 `active.theme` 发现它，并且
+      **只换 meta、不重载正文**——别让用户正在打的字被换掉。
 
 ## 命令
 
@@ -100,6 +116,9 @@ npm run check:build  # 构建后确认 lib/ 无漂移（CI 用）
 - `%USERPROFILE%\.dsh\profiles\web\node_modules\dsh-context\lib\client.js`
   —— `sidebar.right.pane.tab` 席位注册、`--dsw-alias-*` 样式写法
 - `dsh-better-sidebar\src\client\service.ts` —— `TabDescriptor` 与 `registerTab` 的完整契约
+
+写样式时的一个坑：**`client/styles.ts` 的 CSS 装在模板字符串里**，注释里**别出现反引号字符**
+（想提变量名就直接写名字或用引号）——它会把字符串提前闭合，`tsc` 报 TS1005、构建直接失败（实测踩过一次）。
 
 ## 文档纪律
 

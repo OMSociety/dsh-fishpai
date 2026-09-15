@@ -353,11 +353,20 @@ const INHERITS_SIZE_TAGS = /^(?:p|li|blockquote)$/
 
 export function promoteFontSize(html, size) {
   if (!html || !size) return html
-  return html.replace(/<([a-zA-Z][\w-]*)([^>]*?)style="([^"]*)"/g, (full, tag, mid, style) => {
+  // 文末「参考资料」那一节**自己**带着 font-size（13px 小字）：它的 `<section>` 粘进微信
+  // 后照样在，字号不会因 wrapper 被剥而丢失，所以里面的 p 不需要推进——推进去反而把这节
+  // 撑成正文字号。先遮住、推进完再原样还原（这一节是唯一会出现在产物里的 `<section>`）。
+  const masked = []
+  const body = html.replace(/<section\b[^>]*>[\s\S]*?<\/section>/g, (m) => {
+    masked.push(m)
+    return `\x02${masked.length - 1}\x02`
+  })
+  const out = body.replace(/<([a-zA-Z][\w-]*)([^>]*?)style="([^"]*)"/g, (full, tag, mid, style) => {
     if (!INHERITS_SIZE_TAGS.test(tag)) return full
     if (/(^|;)\s*font-size\s*:/.test(style)) return full
     return `<${tag}${mid}style="font-size: ${size}; ${style}"`
   })
+  return out.replace(/\x02(\d+)\x02/g, (_, n) => masked[Number(n)] || '')
 }
 
 // ── 6. 预览锚点（annotate）─────────────────────────────────────

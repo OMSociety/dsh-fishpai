@@ -293,3 +293,16 @@ test('字号兼容层是纯叠加：没选字号时不加任何字节，默认�
   const own = render('> 引用\n', { theme: 'nyt', publish: true, fontSize: '15px', promoteFontSize: true }).html
   assert.doesNotMatch(own, /<blockquote style="font-size: 15px/, '引用自带字号时不被覆盖')
 })
+
+test('字号不推进文末「参考资料」：那一节自己带小字号，<section> 粘进微信后还在', () => {
+  const md = '正文里有一个[链接](https://example.com)。\n'
+  const html = render(md, { theme: 'default', publish: true, fontSize: '18px', promoteFontSize: true, footnotes: true }).html
+  // 正文该推进
+  assert.match(html, /<p style="font-size: 18px; /, '正文的 p 要补上字号')
+  // 参考资料那一节自己有 font-size: 13px，里面的 p 一个字都不动
+  const section = html.slice(html.indexOf('<section'))
+  assert.match(section, /font-size: 13px/, '这一节自带小字号')
+  assert.doesNotMatch(section, /font-size: 18px/, '小字不该被撑成正文字号')
+  // 遮罩用的哨兵不能留在产物里
+  assert.doesNotMatch(html, /\x02/, '遮罩哨兵必须还原干净')
+})
