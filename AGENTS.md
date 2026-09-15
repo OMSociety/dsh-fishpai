@@ -94,6 +94,15 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
       `.json` 只对**宿主拼死**的这条路径放行，`.fishpai/state/*.json` 仍然不可达。
     - 最容易踩的一条：**换主题不动 `revision`**，所以面板靠 `/state` 的 `active.theme` 发现它，并且
       **只换 meta、不重载正文**——别让用户正在打的字被换掉。
+15. **预览与发布是两条渲染路径，预览的样式问题不许改渲染内核**。`POST /render` 的 `publish`
+    模式才开三处兼容层（`wrapText` / `promoteFontSize` / `wechatBackground`）；`preview` 模式
+    （`annotate: true`）**不开，也不做 hljs 内联**——预览 HTML 里的 token 只有 class、没有 style。
+    **预览 iframe 是沙箱 srcdoc，里面没有任何外部样式表**：所以"预览里看起来该有却没有"的样式，
+    只能由宿主生成 CSS 随 preview 响应下发给客户端注入 srcdoc，**不能改 `render.mjs`**
+    （golden 守的是 publish + 默认路径，改内核会同时污染两条路）。已落地的例子是代码块配色：
+    `hljsPreviewCss()` → 响应字段 `hljsCss` → 客户端 `buildSrcdoc(html, imageMap, hljsCss)`；
+    发布产物仍走 `inlineCodeStyles` 内联，一个字节不吃这份 CSS。判据：**预览有差异、发布产物
+    正常 = 补在预览侧，不是内核 bug**。
 
 ## 命令
 
