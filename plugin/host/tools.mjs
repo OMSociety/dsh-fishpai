@@ -10,6 +10,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { render as renderCore, safeThemeKey } from '../core/render.mjs'
+import { themes } from '../core/runtime.mjs'
+import { buildCustomTheme, describeThemeSpec } from '../core/theme-spec.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
 import { diffBlocks } from '../core/diff.mjs'
 import { applyPatches } from '../core/patch.mjs'
@@ -393,6 +395,14 @@ export function registerTools(ctx, deps) {
         doc_key: { type: 'string', description: '文档键；省略则用本会话当前打开的那一份' },
         markdown: { type: 'string', description: '直接渲染这段 Markdown（不读文件）；与 doc_key 二选一' },
         theme: { type: 'string', description: '主题 key 或中文名，覆盖文档当前设置' },
+        theme_spec: {
+          type: 'object',
+          additionalProperties: true,
+          description:
+            '自定义主题（只用于这次导出，**不保存**）：{"name":"我的·灰底衬线","base":"elegant","styles":{"h2":"font-size: 19px;","blockquote":"background: #f4f4f5;"}}。' +
+            '只写想改的槽位，其余从 base 继承；base 省略时为 default。与 theme 同时给时以 theme_spec 为准。' +
+            '可用槽位与允许的 CSS 属性见技能 fishpai 的「自定义主题」一节（超出白名单会被拒绝并说明原因）。',
+        },
         out_path: { type: 'string', description: '输出 HTML 路径（工作目录内；可省略扩展名，会自动补 .html）；省略则与文档同名的 .html' },
         embed_images: { type: 'boolean', description: '是否把本地图片内嵌成 base64，默认 true' },
         publish: { type: 'boolean', description: 'true（默认）=「复制到公众号」形态；false = 预览原样 HTML' },
@@ -405,8 +415,11 @@ export function registerTools(ctx, deps) {
       try {
         const { cwd, key, abs, state } = locate(deps, exec, args)
         const markdown = typeof args.markdown === 'string' ? args.markdown : readText(abs)
+        // 自定义主题（模型给的规格）：校验成数据再合并到 base 上，**不求值任何模型给的代码**。
+        // 校验不过就直接失败——错误文案是写给模型看的，让它自己改对再来一次。
+        const custom = args.theme_spec ? buildCustomTheme(args.theme_spec, themes()) : null
         // 主题名可能来自状态（那两套被移除的主题）或模型手写：认不出就退回默认，别让导出整个失败
-        const theme = safeThemeKey(args.theme ? String(args.theme) : state.theme)
+        const theme = custom ? custom.theme : safeThemeKey(args.theme ? String(args.theme) : state.theme)
         const out = renderCore(markdown, {
           theme,
           color: state.color || undefined,
@@ -428,14 +441,20 @@ export function registerTools(ctx, deps) {
           : store.resolveInCwd(cwd, path.join(path.dirname(abs), `${path.basename(abs, path.extname(abs))}.html`), { exts: ['.html', '.htm'] })
         fs.mkdirSync(path.dirname(target), { recursive: true })
         fs.writeFileSync(target, out.html, 'utf8')
-        return ok(
-          [
-            `已导出 HTML：${path.relative(cwd, target).replace(/\\/g, '/')}`,
-            `主题「${out.themeName}」　${out.html.length} 字符（约 ${Math.round(Buffer.byteLength(out.html, 'utf8') / 1024)} KB）`,
-            args.embed_images === false ? '本地图片未内嵌。' : '本地图片已内嵌 base64。',
-          ].join('\n'),
-          key,
-        )
+        const lines = [
+          `已导出 HTML：${path.relative(cwd, target).replace(/\\/g, '/')}`,
+          `主题「${out.themeName}」　${out.html.length} 字符（约 ${Math.round(Buffer.byteLength(out.html, 'utf8') / 1024)} KB）`,
+          args.embed_images === false ? '本地图片未内嵌。' : '本地图片已内嵌 base64。',
+        ]
+        if (custom) {
+          lines.push(describeThemeSpec(custom.spec))
+          lines.push(
+            '这套主题**没有保存**（只写进了这份 HTML）：不要告诉用户"已经存进主题列表"。' +
+              '要把它变成面板里可点选的主题，等保存那一步（用户确认后再做）。',
+          )
+          for (const note of custom.spec.notes) lines.push(`提示：${note}`)
+        }
+        return ok(lines.join('\n'), key)
       } catch (error) {
         return err(`fishpai_render 失败：${error.message}`)
       }

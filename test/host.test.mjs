@@ -1245,3 +1245,44 @@ test('新建文档：标题里的控制字符不会进到文件路径里', async
   assert.ok(!/[\u0000-\u001f]/.test(res.json.path), `路径不该含控制字符：${JSON.stringify(res.json.path)}`)
   assert.ok(fs.existsSync(res.json.path))
 })
+
+test('fishpai_render 的自定义主题：theme_spec 校验后生效，越权规格当场被拒', async () => {
+  const cwd = tmpWorkspace()
+  const { tools, exec } = fakeHost(cwd)
+  // 正文里必须真的有引用块：不然自定义的 blockquote 槽位没有任何元素可以作用，断言就成了空的
+  await tools
+    .find((t) => t.name === 'fishpai_open')
+    .execute({ markdown: `${ARTICLE}\n> 引用一句。\n`, theme: 'default' }, exec)
+  const renderTool = tools.find((t) => t.name === 'fishpai_render')
+
+  const good = await renderTool.execute(
+    {
+      theme_spec: {
+        name: '我的·灰底',
+        base: 'elegant',
+        styles: { blockquote: 'background: #f4f4f5;', p: 'line-height: 2.2;' },
+      },
+    },
+    exec,
+  )
+  assert.equal(good.isError, false, good.text)
+  assert.match(good.text, /我的·灰底/)
+  // 必须说清楚"没保存"：否则模型会告诉用户"已经存进主题列表了"，而面板里什么都不会出现
+  assert.match(good.text, /没有保存/)
+  const rel = /已导出 HTML：(\S+)/.exec(good.text)[1]
+  const html = fs.readFileSync(path.join(cwd, rel), 'utf8')
+  assert.match(html, /f4f4f5/, '自定义槽位的声明要进产物')
+  assert.match(html, /line-height: 2\.2/)
+
+  // 越权规格与写错的 base：拒绝 + 说清哪里不对（模型据此自己改对再来）
+  const bad = await renderTool.execute({ theme_spec: { base: 'default', styles: { p: 'position: fixed;' } } }, exec)
+  assert.equal(bad.isError, true)
+  assert.match(bad.text, /不支持的属性/)
+  const badBase = await renderTool.execute({ theme_spec: { base: '火星主题', styles: { p: 'color: #000;' } } }, exec)
+  assert.equal(badBase.isError, true)
+  assert.match(badBase.text, /base 必须是已有的主题 key/)
+  // 不给 theme_spec 时，老的 theme 参数那条路照旧
+  const plain = await renderTool.execute({ theme: 'bamboo' }, exec)
+  assert.equal(plain.isError, false, plain.text)
+  assert.match(plain.text, /竹林/)
+})

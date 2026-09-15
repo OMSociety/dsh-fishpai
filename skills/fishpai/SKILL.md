@@ -70,6 +70,40 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
   （文件不存在、在工作目录之外、超过 5 MB）——这几类要在编辑器里手动上传，`fishpai_read` 会把它们单独列出来
 - **外链**：正文里的 `[文字](url)` 会自动转成文末「参考资料」脚注（微信正文不支持外链）
 
+## 自定义主题（`fishpai_render` 的 `theme_spec`）
+
+用户说"想要 XX 那种观感"（衬线、灰底引用、行距更大、标题不要主题色…）时，可以在**某套内置主题上改几个槽位**，
+交给 `fishpai_render` 导出给他看。**这是临时主题：只写进这份 HTML，不会出现在面板的主题列表里**——
+别告诉用户"已经存好了"。
+
+```json
+{ "name": "我的·灰底衬线",
+  "base": "elegant",
+  "styles": {
+    "p": "line-height: 2; color: #2b2b2b;",
+    "h2": "font-size: 19px; border-left: 4px solid {{PRIMARY}}; padding-left: 12px;",
+    "blockquote": "background: #f4f4f5; border-left: 3px solid #a1a1aa; color: #3f3f46;"
+  } }
+```
+
+规矩（写错会被拒绝，并在返回里说明原因，改对再来一次）：
+
+- **只写想改的槽位**，其余自动从 `base` 继承。19 个槽位：
+  `wrapper` `h1` `h2` `h3` `p` `blockquote` `code_inline` `code_block` `ul` `ol` `li` `img` `a`
+  `table` `th` `td` `hr` `strong` `em`
+- **属性白名单**（就是内置主题实际用过的那批）：`color` `background` `font-family` `font-size`
+  `font-weight` `font-style` `line-height` `letter-spacing` `text-align` `text-decoration` `text-indent`
+  `margin` `padding` `padding-left` `padding-bottom` `border` `border-top` `border-bottom` `border-left`
+  `border-radius` `border-collapse` `border-image` `width` `height` `max-width` `display` `overflow-x`
+  `box-shadow` `-webkit-background-clip` `-webkit-text-fill-color`
+- **`wrapper` 里必须同时有 `font-family` 与 `font-size`**（漏了会被自动补上，但那是给你兜底：
+  少了它们，面板的「字体」「字号」会变成点了没反应的死控件）
+- 想跟「主题色」联动就用 `{{PRIMARY}}` / `{{PRIMARY_BG}}` 占位符
+- 不许出现 `{}` `<` `>` `url(...)` `expression(...)` `@import` `!important`；不要写图标或 emoji
+  （图标由鱼排统一给）
+- 白色/深色底、渐变文字这类**微信会掉样式**的组合：`fishpai_render` 会照做，但你要当场提醒用户
+  "这套更适合导出 HTML，发公众号可能变形"
+
 ## 支持的 Markdown（比标准多几种）
 
 | 语法 | 效果 |

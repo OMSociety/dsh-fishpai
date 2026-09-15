@@ -387,6 +387,8 @@ function rewriteImages(html, resolver) {
  * @param {boolean}[opts.publish]      true=按「复制到公众号」的清洗规则输出（默认），false=预览原样
  * @param {boolean}[opts.macCodeBlock] 代码块是否用 mac 标题栏形态，默认 true
  * @param {boolean}[opts.simple]       站点「一键发布 14 平台」那条白名单路径
+ * @param {string|object} [opts.theme] 主题 key 或中文名；也可以直接给一个**主题对象**
+ *        （模型自定义主题，见 `theme-spec.mjs`）——那条路只走数据，不求值任何模型给的代码
  * @param {boolean}[opts.annotate]     预览锚点（隐含 publish=false），默认 false
  * @param {boolean}[opts.wrapText]     把文字包进 `<span>`（微信结构校验的兼容层），默认 false
  * @param {boolean}[opts.wechatBackground] 把 `background` 简写拆成微信肯保留的长写，默认 false
@@ -394,10 +396,13 @@ function rewriteImages(html, resolver) {
  * @returns {{html: string, themeKey: string, themeName: string, blocks?: Array<object>}}
  */
 export function render(markdownText, opts = {}) {
-  const key = resolveTheme(opts.theme)
-  if (!key) throw new Error(`未知主题: ${opts.theme}（可用 GET /fishpai/api/themes 查看，或在面板里选）`)
   const THEMES = themes()
-  const theme = THEMES[key]
+  // 主题既可以是 key/中文名（内置），也可以直接给一个对象（模型自定义主题）。
+  // 走对象这条路时不查内置表，所以自定义主题不会影响内置主题的任何字节（golden 不受影响）。
+  const custom = opts.theme && typeof opts.theme === 'object' ? opts.theme : null
+  const key = custom ? String(custom.key || 'custom') : resolveTheme(opts.theme)
+  if (!custom && !key) throw new Error(`未知主题: ${opts.theme}（可用 GET /fishpai/api/themes 查看，或在面板里选）`)
+  const theme = custom || THEMES[key]
   const styles = makeStyler(theme, opts.color)
   const md = createMd(styles, { macCodeBlock: opts.macCodeBlock, wrapText: opts.wrapText })
 
