@@ -69,3 +69,26 @@ test('default 主题的发布输出与站点真实剪贴板内容一致（规范
   }
   assert.equal(a, b)
 })
+
+/**
+ * 对照本身要能红。
+ *
+ * 这条守卫只有 1 个用例、1 个 fixture、1 个主题（default），范围就这么大——
+ * 所以至少证明"改动真的会被看见"：如果把 gold 的某条样式改掉，`canon` 必须给出不同结果。
+ * 少了这一条，`canon` 一旦被改得过宽（把差异全吃掉），上面那个 `assert.equal` 会永远变绿。
+ */
+test('对照会红：gold 被改动一个字符，规范化后的比较就必须不同', () => {
+  const gold = readFileSync(path.join(ROOT, 'test', 'golden', 'site-clip.default.html'), 'utf8')
+
+  // 1) 丢掉一整条声明 → 必须能看出来
+  const dropped = gold.replace(/style="([^"]*)"/, 'style=""')
+  assert.notEqual(canon(dropped), canon(gold), '整条 style 被丢掉都发现不了，这个对照就是假的')
+
+  // 2) 改一个可见字符 → 必须能看出来
+  const typo = gold.replace(/>([^<>]{4,})</, (m, text) => `>${text.slice(0, -1)}改<`)
+  assert.notEqual(canon(typo), canon(gold), '正文改字都发现不了')
+
+  // 3) 刻意归一化的那几类不算差异（说明范围，避免以后误当 bug）
+  assert.equal(canon(gold.replace(/\sdata-[a-z-]+="[^"]*"/g, '')), canon(gold), 'data-* 是刻意剥离的')
+  assert.equal(canon(gold.replace(/\r\n/g, '\n')), canon(gold), '换行差异被折叠掉了')
+})

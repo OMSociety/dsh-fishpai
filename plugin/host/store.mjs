@@ -92,6 +92,12 @@ export function resolveInCwd(cwd, target, opts = {}) {
   const exts = opts.exts || DOC_EXTS
   if (typeof target !== 'string' || !target.trim()) throw new Error('路径不能为空')
   if (target.includes('\0')) throw new Error('路径非法')
+  // Windows 的 NTFS 备用数据流（ADS）：`notes.md:stream.txt` 的 extname 是 `.txt`，
+  // 能骗过扩展名白名单，写进去的内容挂在既有文件的隐藏流里（`readdir` 看不见，
+  // 于是出现"文件系统里有、列表里没有"的黑户）。除盘符外 `:` 只可能来自 ADS，一律拒。
+  if (process.platform === 'win32' && target.replace(/^[a-zA-Z]:/, '').includes(':')) {
+    throw new Error(`路径非法（不能包含 :）：${target}`)
+  }
 
   const rootReal = realOrSelf(path.resolve(cwd))
   const abs = path.resolve(rootReal, target)
@@ -258,7 +264,9 @@ export function docTitle(markdown, absPath) {
 
 function slugify(title) {
   const base = String(title || '')
-    .replace(/[\\/:*?"<>|#]+/g, '')
+    // 控制字符（含 NUL）一并去掉：`\s` 不匹配 `\u0000`，漏掉它就会拿一个含 NUL 的路径去建文件，
+    // 换来一个 Node 内部报错（`ERR_INVALID_ARG_VALUE`）而不是"新建文档失败"这种能读懂的话。
+    .replace(/[\u0000-\u001f\u007f\\/:*?"<>|#]+/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
@@ -439,8 +447,14 @@ export function listDocs(cwd) {
 /**
  * 写文档（人改或 AI 改都走这里）。
  *
+ * `baseRevision` 是**必填**的：调用方必须说清"我读的是哪一版"。
+ * **缺失不等于强制覆盖**——这正是"绝不静默覆盖人的手改"要挡的那条路。
+ * 曾经写成"有版本才比对"，于是不传 `baseRevision` 就能连续覆盖人的手改：
+ * `Number(undefined)` 是 `NaN`，连"版本号非法"都识别不出来。
+ * 所以这里把"拿不出合法版本号"与"版本不匹配"合并成同一个结果：冲突。
+ *
  * @param {object} p
- * @param {number} p.baseRevision 调用方读到的 revision；不匹配就拒绝（防覆盖）
+ * @param {number} p.baseRevision 调用方读到的 revision；缺失或不匹配都拒绝（防覆盖）
  * @param {'human'|'ai'} p.by
  * @returns {{ok: true, state: object} | {ok: false, conflict: true, revision: number, markdown: string}}
  */
@@ -455,7 +469,9 @@ export function saveDoc({ cwd, docPath, markdown, baseRevision, by = 'human', me
     state.revision = 1
   }
 
-  if (baseRevision !== undefined && baseRevision !== null && Number(baseRevision) !== state.revision) {
+  const hasBase =
+    baseRevision !== undefined && baseRevision !== null && Number.isFinite(Number(baseRevision))
+  if (!hasBase || Number(baseRevision) !== state.revision) {
     return { ok: false, conflict: true, revision: state.revision, markdown: prevContent, path: abs, key }
   }
 
@@ -520,6 +536,15 @@ const ASSET_MIME_EXT = {
   'image/bmp': '.bmp',
 }
 
+/**
+ * 允许**上传**（存成资产）的扩展名。
+ *
+ * 比 `IMAGE_EXTS` 少一个 `.svg`：`.svg` 留在 `IMAGE_EXTS` 里是为了能解析正文里
+ * 已经引用的图（宿主只读它、不改它），但上传入口只收栅格图——
+ * 少了这一行，`name=x.svg` 会绕过 MIME 白名单存进来，与"只支持 PNG / JPEG / GIF / WebP / BMP"的提示自相矛盾。
+ */
+const UPLOAD_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']
+
 function stamp(at = new Date()) {
   const p = (n) => String(n).padStart(2, '0')
   return `${at.getFullYear()}${p(at.getMonth() + 1)}${p(at.getDate())}-${p(at.getHours())}${p(at.getMinutes())}${p(at.getSeconds())}`
@@ -528,11 +553,15 @@ function stamp(at = new Date()) {
 /**
  * 从文件名里取一段能认人的词。剪贴板里的图一律叫 `image.png` / `blob`，
  * 拿它当名字等于没有名字，所以这类通用名换成 `paste`。
+ *
+ * 扩展名按**名字自己的**扩展名切（不是按最终落盘的那个）：否则 `x.svg` 被改存成 `.png` 时，
+ * `path.basename('x.svg', '.png')` 会原样返回 `x.svg`，落盘变成 `…-x.svg.png`。
  */
-function assetStem(name, ext) {
+function assetStem(name) {
+  const raw = String(name || '')
   const base = path
-    .basename(String(name || ''), ext)
-    .replace(/[\\/:*?"<>|#\s]+/g, '-')
+    .basename(raw, path.extname(raw))
+    .replace(/[\\/:*?"<>|#\s\u0000-\u001f\u007f]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 24)
@@ -559,19 +588,21 @@ export function saveAsset({ cwd, docPath, name, mime, data, maxBytes = MAX_ASSET
   }
   const ext =
     ASSET_MIME_EXT[String(mime || '').toLowerCase()] ||
-    IMAGE_EXTS.find((e) => e === path.extname(String(name || '')).toLowerCase())
+    UPLOAD_EXTS.find((e) => e === path.extname(String(name || '')).toLowerCase())
   if (!ext) throw new Error('只支持 PNG / JPEG / GIF / WebP / BMP 图片')
 
   const dir = path.join(path.dirname(abs), ASSET_DIR)
-  const stem = assetStem(name, ext)
+  const stem = assetStem(name)
   const base = `${stamp()}-${stem}`
-  let file = path.join(dir, `${base}${ext}`)
-  for (let n = 2; fs.existsSync(file); n++) file = path.join(dir, `${base}-${n}${ext}`)
+  let target = path.join(dir, `${base}${ext}`)
+  for (let n = 2; fs.existsSync(target); n++) target = path.join(dir, `${base}-${n}${ext}`)
 
-  fs.mkdirSync(dir, { recursive: true })
-  fs.writeFileSync(file, buf)
-  // 落盘后再过一次守卫：挡住符号链接之类的意外，别让它变成"写文件"的新入口
-  const safe = resolveInCwd(cwd, file, { exts: IMAGE_EXTS })
+  // 守卫必须在**落盘之前**：`assets/` 若是指向工作目录之外的目录 junction，
+  // 事后才报错就晚了——字节已经写到了外面，接口回 400 也收不回来。
+  // resolveInCwd 对"还不存在的文件"同样有效（逐段向上找真实祖先再 realpath），所以先判后写可行。
+  const safe = resolveInCwd(cwd, target, { exts: IMAGE_EXTS })
+  fs.mkdirSync(path.dirname(safe), { recursive: true })
+  fs.writeFileSync(safe, buf)
   return { src: path.relative(path.dirname(abs), safe).split(path.sep).join('/'), path: safe, bytes: buf.length }
 }
 

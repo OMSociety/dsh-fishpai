@@ -9,11 +9,12 @@
  *      再用 `resolveInCwd` 复检（挡 `../`、挡符号链接逃逸、挡非白名单扩展名）。
  *      docKey 必须存在于**该 sessionId 工作目录**的索引里，所以跨会话读要先知道对方的
  *      sessionId **与** docKey；本机单用户场景下这条不是授权边界，同源校验才是。
- *   3. **revision 守卫**：写入必须带 `baseRevision`，不匹配返回 409 并回带服务端最新文本，
- *      绝不静默覆盖人的手改。
- *   4. **唯一一处"写新文件"是 `POST /upload`**：粘贴进来的图片落在**文档同级的 `assets/`**，
- *      文件名由宿主生成（时间戳 + 白名单扩展名），客户端给的名字只当作一段可读词，
- *      不参与路径拼接；大小与格式都在 `store.saveAsset` 里卡。正文仍只能由 `/doc` 改。
+ *   3. **revision 守卫**：写入**必须**带 `baseRevision`（数字），缺失、非法或不匹配一律拒绝：
+ *      路由层回 400/409，存储层把"没有版本号"也当冲突。绝不静默覆盖人的手改。
+ *   4. **新建只有两处**：`POST /upload`（图片资产，落在文档同级的 `assets/`）与
+ *      `POST /doc`（文档，路径由宿主在 `.fishpai/docs/` 下生成）。两处的文件名都由宿主生成，
+ *      客户端给的名字只当作一段可读词、不参与路径拼接；大小与格式在 `store.saveAsset` 里卡。
+ *      正文仍只能由 `/doc` 改。
  */
 import fs from 'node:fs'
 import { render as renderCore, safeThemeKey, themeCatalog } from '../core/render.mjs'
@@ -148,7 +149,6 @@ function docPayload({ cwd, key }) {
   const state = store.readState(cwd, key)
   if (!state) throw new Error(`文档状态缺失：${key}`)
   const markdown = readText(abs)
-  const index = store.readIndex(cwd)
   return {
     doc: {
       key,
@@ -172,8 +172,8 @@ function docPayload({ cwd, key }) {
     },
     ...liveSurface({ cwd, key, abs, markdown }),
     history: publicHistory(state.history),
-    docs: index.docs,
-    active: index.active,
+    // 刻意不回 `docs` / `active`：那是**全量** sessionId → docKey 映射，
+    // 面板不用它（「最近打开」走 /state），回给任何能发同源 GET 的调用方只是白送别人的会话 id。
   }
 }
 
@@ -246,10 +246,22 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         const { sessionId, cwd } = sessionOf(body, url)
         const key = String(body.docKey || '')
         const abs = docPathByKey(cwd, key)
+        // 正文是用户唯一的资产：缺字段不等于"清空"。要清空就显式传 `markdown: ''`。
+        if (typeof body.markdown !== 'string') {
+          return fail(res, 400, 'markdown 必须是字符串（要清空正文请显式传空字符串）')
+        }
+        // 版本号在路由层先卡类型：这是调用方的编程错误，给 400 比让它落进"版本不匹配"里更好读。
+        // 真正的不覆盖保证在 store.saveDoc（"没有版本号"也算冲突），这里是第二道、不是唯一一道。
+        if (body.baseRevision === undefined || body.baseRevision === null) {
+          return fail(res, 400, '写入必须带 baseRevision（面板版本过旧时刷新页面）')
+        }
+        if (typeof body.baseRevision !== 'number' || !Number.isFinite(body.baseRevision)) {
+          return fail(res, 400, 'baseRevision 必须是数字')
+        }
         const saved = store.saveDoc({
           cwd,
           docPath: abs,
-          markdown: String(body.markdown ?? ''),
+          markdown: body.markdown,
           baseRevision: body.baseRevision,
           by: 'human',
           meta: body.meta || {},

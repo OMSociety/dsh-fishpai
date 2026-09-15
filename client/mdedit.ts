@@ -228,7 +228,11 @@ const LINE_MARKER = /^([ \t]*)([-*+]|\d+[.)]|>)\s+(.*)$/
  */
 export function continueList(text: string, start: number, end: number): EditResult | null {
   const { from, to } = lineBounds(text, start, end)
-  const line = text.slice(from, to)
+  const raw = text.slice(from, to)
+  // CRLF：行尾那个 `\r` 不算正文。JS 的 `.` **不匹配 `\r`**，带着它去匹配行标记会整条失败——
+  // 实测 CRLF 文本里"在列表行中间按回车"返回 null（不续列表），而同样的 LF 文本正常。
+  const line = raw.endsWith('\r') ? raw.slice(0, -1) : raw
+  const lineEnd = from + line.length // 本行正文的结束位置（不含 `\r`）
   const m = LINE_MARKER.exec(line)
   if (!m) return null
   const [full, indent, marker, rest] = m
@@ -236,12 +240,15 @@ export function continueList(text: string, start: number, end: number): EditResu
   if (start < restStart) return null // 光标还在标记里：别自作聪明
 
   // 空条目 + 光标在行尾：退出（嵌套的先退一级）
-  if (!rest.trim() && start >= to) {
+  if (!rest.trim() && start >= lineEnd) {
+    // 替换范围截到 `lineEnd`：CRLF 文本里不能把行尾那个 `\r` 一起换掉，
+    // 否则这一行会从 CRLF 变成孤立的 LF（同一份文档里混两种行尾）。
+    const cut = Math.min(to, lineEnd)
     if (indent.length >= 2) {
       const insert = `${indent.slice(0, -2)}${marker} `
-      return { from, to, insert, start: from + insert.length, end: from + insert.length }
+      return { from, to: cut, insert, start: from + insert.length, end: from + insert.length }
     }
-    return { from, to, insert: '', start: from, end: from }
+    return { from, to: cut, insert: '', start: from, end: from }
   }
 
   const nextMarker = marker === '>' ? '>' : /^\d/.test(marker) ? `${parseInt(marker, 10) + 1}.` : marker

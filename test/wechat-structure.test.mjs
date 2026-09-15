@@ -131,6 +131,28 @@ test('列表项：条目前面补一个 &nbsp;（微信会把开头的行内片�
 })
 
 /**
+ * 松散列表（条目之间有空行）：条目首个子元素是**块级** `<p>`，这时**不许**补 nbsp。
+ *
+ * 补上去的那个文字节点会落在 `<p>` 外面、成为 `<li>` 的直接文字子节点——恰好是这一层
+ * 想消除的形态（微信里等于凭空多一个匿名行盒）。判据原本只写了"li 后面紧跟 `<`"，
+ * 不区分行内/块级，于是把 nbsp 塞到了 `<p>` 前面；现有用例全用紧凑列表，测不出这个差异。
+ */
+test('列表项：块级元素开头的条目（松散列表）不补 nbsp', () => {
+  const md = '- 甲\n\n- 乙\n\n- 甲\n\n  同一条目的第二段\n'
+  const { html } = render(md, { theme: 'default', publish: true, wrapText: true })
+  assert.match(html, /<li\b[^>]*><p /, '这个样本必须真的是"p 开头"的松散列表，否则这条测试没有意义')
+  assert.doesNotMatch(html, /<li\b[^>]*>\u00a0/, '松散列表不该补：会变成 <p> 外面的文字节点')
+
+  // 紧凑列表照旧要补——别把真机验证过的那条修掉了
+  const tight = render('- **甲**：乙\n- 丙\n', { theme: 'default', publish: true, wrapText: true })
+  assert.match(tight.html, /<li\b[^>]*>\u00a0<strong/, '紧凑列表（行内元素开头）仍然要补')
+  assert.match(tight.html, /<li\b[^>]*>\u00a0<span>丙/, '纯文字条目包了 span 之后同样补')
+  // 列表里嵌引用块、代码块：块级开头的条目一律不动
+  const mixed = render('- 甲\n\n  > 引用\n', { theme: 'default', publish: true, wrapText: true })
+  assert.doesNotMatch(mixed.html, /<li\b[^>]*>\u00a0<(?:p|blockquote)/)
+})
+
+/**
  * `<pre>` / `<code>` 里**直接挂着的文字**（含空白）——这也是"代码块仍会被官方校验器标出"
  * 的原因：那里的文字走 markdown-it 的 `fence` 规则（不是 `text` 规则），`wrapText` 包不到，
  * 而代码块天然多行，于是同一套"内容高度 ÷ 矩形数"的算法照样算小（上游形态也一样，见 README）。

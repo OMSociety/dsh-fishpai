@@ -45,6 +45,8 @@ export interface Note {
 
 export interface Placeholder {
   line: number
+  /** 这一行里的字符偏移（同一行多处占位时用来区分，也是列表的 React key 的一部分）。 */
+  col: number
   text: string
   raw: string
   blockId: string | null

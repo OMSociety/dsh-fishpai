@@ -172,6 +172,19 @@ test('回车：空条目退出列表，嵌套空条目先退一级', () => {
   assert.equal(md.continueList('# 标题', 4, 4), null)
 })
 
+test('回车：CRLF 文本与 LF 行为一致（JS 的 `.` 不匹配 \\r，带着它匹配行标记会整条失败）', () => {
+  // 光标贴在该行正文末尾（`\r` 之前）——LF 下这四条都会续出标记，CRLF 下必须一样
+  assert.equal(run('- a\r\n', md.continueList('- a\r\n', 3, 3)).text, '- a\n- \r\n')
+  assert.equal(run('1. 甲\r\n', md.continueList('1. 甲\r\n', 4, 4)).text, '1. 甲\n2. \r\n')
+  assert.equal(run('> 引用\r\n', md.continueList('> 引用\r\n', 4, 4)).text, '> 引用\n> \r\n')
+  assert.equal(run('  - a\r\n', md.continueList('  - a\r\n', 5, 5)).text, '  - a\n  - \r\n', '嵌套层级跟着走')
+  // 空条目照样退出
+  assert.equal(run('- \r\n', md.continueList('- \r\n', 2, 2)).text, '\r\n')
+  // 不是列表行，CRLF 也不许误判（`.` 不匹配 `\r` 正是以前这里 diff 的来头）
+  assert.equal(md.continueList('普通段落\r\n', 4, 4), null)
+  assert.equal(md.continueList('# 标题\r\n', 4, 4), null)
+})
+
 // ── 快捷键表 ───────────────────────────────────────────────────
 
 test('快捷键表：id 不重复、label 不为空、速查表两组都有', () => {

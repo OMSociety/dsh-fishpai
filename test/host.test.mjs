@@ -49,16 +49,36 @@ test('路径容错：只写名字时补默认扩展名，写了扩展名（哪�
   assert.equal(store.resolveInCwd(cwd, store.withDefaultExt('草稿', '.md')), path.join(cwd, '草稿.md'))
 })
 
-test('路径守卫：符号链接指向外部时被拒（平台不支持建链接则跳过）', () => {
+test('路径守卫：链接指向外部时被拒（目录 junction 与文件级链接走的是不同分支）', (t) => {
   const cwd = tmpWorkspace()
   const outside = tmpWorkspace()
   fs.writeFileSync(path.join(outside, 'secret.md'), 'secret\n')
   try {
     fs.symlinkSync(outside, path.join(cwd, 'link'), 'junction')
   } catch {
-    return // Windows 无权限建链接：跳过
+    // 显式 skip，不再 `return`：以前那样等于把断言静默吞掉——测试空跑也算过，
+    // 在没有权限建链接的环境里既没有信号、也没有保护。
+    t.skip('本平台不允许建链接，越界用例无法执行')
+    return
   }
   assert.throws(() => store.resolveInCwd(cwd, path.join('link', 'secret.md')), /越界/)
+  // 文件级链接是另一条分支（第一次探测就命中 abs 本身，不靠向上找祖先），单独钉一条
+  fs.symlinkSync(path.join(outside, 'secret.md'), path.join(cwd, 'file-link.md'), 'file')
+  assert.throws(() => store.resolveInCwd(cwd, 'file-link.md'), /越界/)
+  assert.throws(() => store.openDoc({ cwd, docPath: 'file-link.md', by: 'ai' }), /越界/)
+})
+
+test('路径守卫：NTFS 备用数据流（ADS）路径被拒，正常路径不受影响', (t) => {
+  const cwd = tmpWorkspace()
+  if (process.platform !== 'win32') {
+    t.skip('ADS 只在 Windows 的 NTFS 上存在')
+    return
+  }
+  // `notes.md:stream.txt` 的 extname 是 `.txt`，能骗过扩展名白名单，
+  // 写进去的内容挂在 notes.md 的隐藏流里（readdir 看不见）——"文件系统里有、列表里没有"的黑户。
+  assert.throws(() => store.resolveInCwd(cwd, 'notes.md:stream.txt'), /非法/)
+  assert.throws(() => store.openDoc({ cwd, docPath: 'notes.md:stream.txt', by: 'ai' }), /非法/)
+  assert.equal(store.resolveInCwd(cwd, 'notes.md'), path.join(cwd, 'notes.md'))
 })
 
 // ── 文档生命周期 ───────────────────────────────────────────────
@@ -220,6 +240,23 @@ test('revision 守卫：baseRevision 不匹配就拒绝，且盘上内容不变'
   assert.match(fs.readFileSync(path.join(cwd, 'a.md'), 'utf8'), /人加了一句/)
 })
 
+test('revision 守卫：**缺** baseRevision 不等于强制覆盖（存储层自己也要挡住）', () => {
+  const cwd = tmpWorkspace()
+  store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.saveDoc({ cwd, docPath: 'a.md', markdown: `${ARTICLE}\n人的手改。\n`, baseRevision: 1, by: 'human' })
+  const human = fs.readFileSync(path.join(cwd, 'a.md'), 'utf8')
+
+  // 曾经写成"有版本才比对"：不传 baseRevision 就能连续覆盖人的手改，178 条测试全绿也抓不住。
+  // `Number(undefined)` 是 NaN，连"版本号非法"都识别不出来，所以这里逐个钉住"拿不出合法版本号"的各种形态。
+  for (const bad of [undefined, null, NaN, 'abc', {}]) {
+    const res = store.saveDoc({ cwd, docPath: 'a.md', markdown: '模型静默覆盖。\n', baseRevision: bad, by: 'ai' })
+    assert.equal(res.ok, false, `baseRevision=${String(bad)} 必须被拒`)
+    assert.equal(res.conflict, true)
+    assert.equal(res.revision, 2, '回带的应当是服务端当前版本，冲突流程据此继续')
+    assert.equal(fs.readFileSync(path.join(cwd, 'a.md'), 'utf8'), human, '被拒的写入一个字都不许碰正文')
+  }
+})
+
 test('baseline 只在 AI 写入时前移：人的手改会成为下一次 read 的 diff', () => {
   const cwd = tmpWorkspace()
   store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
@@ -359,10 +396,10 @@ test('同源守卫：跨站与伪造 Origin 一律拒绝', () => {
   assert.equal(sameOrigin({ headers: {} }), false)
 })
 
-/** 最小 req/res 桩，够跑通路由分支。 */
-function callRoute(handler, { method, url, body, raw, headers = {} }) {
-  const hasBody = raw !== undefined || body !== undefined
-  const payload = raw !== undefined ? [raw] : body === undefined ? [] : [Buffer.from(JSON.stringify(body), 'utf8')]
+/** 最小 req/res 桩，够跑通路由分支。`chunks` 可以指定分块；`failAfter` 注入一次流错误。 */
+function callRoute(handler, { method, url, body, raw, chunks, emitError = false, headers = {} }) {
+  const hasBody = raw !== undefined || body !== undefined || chunks !== undefined
+  const payload = chunks !== undefined ? chunks : raw !== undefined ? [raw] : body === undefined ? [] : [Buffer.from(JSON.stringify(body), 'utf8')]
   const req = {
     method,
     url,
@@ -373,8 +410,15 @@ function callRoute(handler, { method, url, body, raw, headers = {} }) {
       ...headers,
     },
     on(event, cb) {
-      if (event === 'data') for (const p of payload) cb(p)
-      if (event === 'end') cb()
+      if (event === 'data') {
+        if (emitError) return this
+        for (const p of payload) cb(p)
+      }
+      if (event === 'error' && emitError) cb(new Error('socket hang up'))
+      if (event === 'end') {
+        if (emitError) return this
+        cb()
+      }
       return this
     },
   }
@@ -388,8 +432,10 @@ function callRoute(handler, { method, url, body, raw, headers = {} }) {
         this.headers = h || {}
       },
       end(chunk) {
-        this.body = chunk ? String(chunk) : ''
-        resolve({ status: this.statusCode, headers: this.headers, json: tryParse(this.body) })
+        // 图片响应是 Buffer：留一份原始字节，别只用字符串形态（那会把二进制读坏）
+        this.raw = Buffer.isBuffer(chunk) ? Buffer.from(chunk) : Buffer.from(chunk ? String(chunk) : '', 'utf8')
+        this.body = this.raw.toString('utf8')
+        resolve({ status: this.statusCode, headers: this.headers, json: tryParse(this.body), raw: this.raw })
       },
     }
     handler(req, res)
@@ -611,6 +657,18 @@ test('面板开关的判据由渲染结果给出：linkCount / hasCode 随预览
   const plain = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: 's1', docKey: opened.key, markdown: '只有正文，没有链接也没有代码。', mode: 'preview' } })
   assert.equal(plain.json.linkCount, 0)
   assert.equal(plain.json.hasCode, false)
+
+  // 关掉「脚注」之后 linkCount 必须照实（还是 1）。
+  // 曾经这里写成 `opts.footnotes === false ? 0 : …`：面板拿 linkCount > 0 判断开关能不能点，
+  // 于是关一次就变 0 → 开关置灰 → 再也打不开（自锁），提示还写着"正文里没有外链"而正文其实有。
+  const off = await callRoute(handler, {
+    method: 'POST',
+    url: '/fishpai/api/render',
+    body: { sessionId: 's1', docKey: opened.key, meta: { footnotes: false }, mode: 'preview' },
+  })
+  assert.equal(off.json.linkCount, 1, '「脚注」开关关着也要照实报链接数，否则开关自锁')
+  assert.doesNotMatch(off.json.html, /参考资料/, '开关关着就不该生成参考资料')
+  assert.match(off.json.html, /<a /, '关的是"转脚注"，不是把链接本身去掉')
 })
 
 test('状态里存着已移除的主题（ft/medium）：退回默认，不让文档打不开', async () => {
@@ -880,9 +938,14 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   // 4) GET /doc —— 面板初始化
   const doc = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=${session}&docKey=${docKey}` })
   assert.equal(doc.status, 200)
-  for (const field of ['doc', 'meta', 'blocks', 'notes', 'placeholders', 'images', 'history', 'docs', 'active']) {
+  for (const field of ['doc', 'meta', 'blocks', 'notes', 'placeholders', 'images', 'history']) {
     assert.ok(field in doc.json, `GET /doc 应当返回 ${field}`)
   }
+  // 反过来也要钉住：`/doc` 只回这一篇要用的东西。
+  // `active` 是**全量** sessionId → docKey 映射（面板自己要的那一项走 /state 就有了），
+  // 回给任何能发同源 GET 的调用方等于白送别的会话 id；`docs` 与 /state 的清单重复。
+  assert.ok(!('active' in doc.json), 'GET /doc 不该回带全量 sessionId → docKey 映射')
+  assert.ok(!('docs' in doc.json), 'GET /doc 不该重复回文档清单（/state 已提供）')
   assert.equal(doc.json.meta.theme, 'sspai', 'fishpai_open 传的主题要落到状态里')
   for (const field of ['key', 'path', 'title', 'markdown', 'revision', 'updatedAt', 'updatedBy', 'baseline']) {
     assert.ok(field in doc.json.doc, `doc.${field} 缺失`)
@@ -1009,4 +1072,176 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
     body: { sessionId: session, docKey, mime: 'image/png', data: PNG_BYTES.toString('base64') },
   })
   assert.equal(crossSite.status, 403)
+})
+
+// ── 写入守卫的第二道（路由层）与两条关键路径的测试盲区 ──────────
+//
+// 这一组是补洞用的：以前**所有** PUT /doc 用例都带 baseRevision，
+// 于是"不传版本号就能静默覆盖人的手改"那个洞在 178 条里一条也抓不住。
+
+test('路由守卫：PUT /doc 缺/非法 baseRevision 一律 400，过期版本 409 并回带最新正文', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const url = '/fishpai/api/doc'
+  const human = `${ARTICLE}\n人加的一句。\n`
+
+  const first = await callRoute(handler, { method: 'PUT', url, body: { sessionId: 's1', docKey: opened.key, markdown: human, baseRevision: 1 } })
+  assert.equal(first.status, 200)
+  assert.equal(first.json.revision, 2)
+
+  for (const baseRevision of [undefined, null, '2', true, {}]) {
+    const res = await callRoute(handler, { method: 'PUT', url, body: { sessionId: 's1', docKey: opened.key, markdown: '模型静默覆盖。\n', baseRevision } })
+    assert.equal(res.status, 400, `baseRevision=${JSON.stringify(baseRevision)} 必须被 400 挡住`)
+    assert.match(res.json.error, /baseRevision/)
+    assert.equal(fs.readFileSync(opened.path, 'utf8'), human, '被拒的写入不许碰正文')
+  }
+
+  // 过期（但合法）的版本走另一条路：409 + 服务端最新正文，面板据此进冲突流程
+  const stale = await callRoute(handler, { method: 'PUT', url, body: { sessionId: 's1', docKey: opened.key, markdown: '过期。\n', baseRevision: 1 } })
+  assert.equal(stale.status, 409)
+  assert.equal(stale.json.conflict, true)
+  assert.equal(stale.json.markdown, human)
+  assert.equal(fs.readFileSync(opened.path, 'utf8'), human)
+})
+
+test('路由守卫：PUT /doc 的 markdown 缺字段是 400，不是"把正文清空"', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const url = '/fishpai/api/doc'
+
+  for (const markdown of [undefined, { a: 1 }, 42, ['x']]) {
+    const res = await callRoute(handler, { method: 'PUT', url, body: { sessionId: 's1', docKey: opened.key, markdown, baseRevision: 1 } })
+    assert.equal(res.status, 400, `markdown=${JSON.stringify(markdown)} 必须是 400`)
+    assert.equal(fs.readFileSync(opened.path, 'utf8'), ARTICLE, '缺字段/错类型都不许动正文')
+    assert.equal(store.readState(cwd, opened.key).revision, 1, '被拒的请求不该留下一条历史')
+  }
+
+  // 显式空串是"确实要清空"，放行（并且要能靠历史取回）
+  const cleared = await callRoute(handler, { method: 'PUT', url, body: { sessionId: 's1', docKey: opened.key, markdown: '', baseRevision: 1 } })
+  assert.equal(cleared.status, 200)
+  assert.equal(fs.readFileSync(opened.path, 'utf8'), '')
+  assert.equal(store.readHistoryEntry(cwd, opened.key, 1).content, ARTICLE, '清空前的正文要留在历史里')
+})
+
+test('并发写：同一个 baseRevision 的两个 PUT 只允许一个落盘', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const put = (markdown) =>
+    callRoute(handler, { method: 'PUT', url: '/fishpai/api/doc', body: { sessionId: 's1', docKey: opened.key, markdown, baseRevision: 1 } })
+
+  const [a, b] = await Promise.all([put(`${ARTICLE}\nA\n`), put(`${ARTICLE}\nB\n`)])
+  assert.deepEqual([a.status, b.status].sort(), [200, 409], '一个落盘、一个冲突，不能两个都写进去')
+  const final = fs.readFileSync(opened.path, 'utf8')
+  assert.ok(final === `${ARTICLE}\nA\n` || final === `${ARTICLE}\nB\n`, `盘上是两次写入之一，实际是：${JSON.stringify(final)}`)
+  assert.equal(store.readState(cwd, opened.key).revision, 2, '只前移一格')
+})
+
+test('请求体：分块累加按字节来（切在汉字中间的 chunk 也不会读坏）', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+
+  const markdown = '中文正文，一字不能少。\n'
+  const payload = Buffer.from(JSON.stringify({ sessionId: 's1', docKey: opened.key, markdown, baseRevision: 1 }), 'utf8')
+  const at = payload.indexOf(Buffer.from('中', 'utf8')) + 1 // 故意切在一个三字节汉字的中间
+  const res = await callRoute(handler, {
+    method: 'PUT',
+    url: '/fishpai/api/doc',
+    chunks: [payload.subarray(0, at), payload.subarray(at, at + 5), payload.subarray(at + 5)],
+  })
+  assert.equal(res.status, 200)
+  assert.equal(fs.readFileSync(opened.path, 'utf8'), markdown, '拼接必须按 Buffer 累加，不能按字符串')
+})
+
+test('请求体：流上出错时回 400 而不是挂住', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  // body:{} 只为带上 content-type（否则走 415 分支）；emitError 会让桩不投递任何数据
+  const res = await callRoute(handler, { method: 'PUT', url: '/fishpai/api/doc', body: {}, emitError: true })
+  assert.equal(res.status, 400)
+  assert.equal(fs.readFileSync(opened.path, 'utf8'), ARTICLE)
+})
+
+test('请求体超过上限：413，且盘上正文一个字不动', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const res = await callRoute(handler, { method: 'PUT', url: '/fishpai/api/doc', raw: Buffer.alloc(9 * 1024 * 1024, 0x61) })
+  assert.equal(res.status, 413)
+  assert.match(res.json.error, /上限/)
+  assert.equal(fs.readFileSync(opened.path, 'utf8'), ARTICLE)
+})
+
+test('GET /asset：成功路径回真图与 content-type；越界/远程/不存在一律 404', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const saved = store.saveAsset({ cwd, docPath: opened.path, name: 'image.png', mime: 'image/png', data: PNG_BYTES.toString('base64') })
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const get = (src) => callRoute(handler, { method: 'GET', url: `/fishpai/api/asset?sessionId=s1&docKey=${opened.key}&src=${encodeURIComponent(src)}` })
+
+  // 以前这里只有失败分支，而"路由被删掉"同样回 404——那条断言区分不了
+  // "路由在且正确回 404"与"路由不存在"，`readAsset` 的成功分支也从没被执行过。
+  const ok = await get(saved.src)
+  assert.equal(ok.status, 200)
+  assert.equal(ok.headers['content-type'], 'image/png')
+  assert.deepEqual(ok.raw, PNG_BYTES, '回的必须是原字节')
+
+  assert.equal((await get('assets/nope.png')).status, 404)
+  assert.equal((await get('../outside.png')).status, 404, '越界不是"没找到"，是根本不许读')
+  assert.equal((await get('https://example.com/x.png')).status, 404, '远程图不归宿主读')
+})
+
+test('存图守卫在落盘**之前**：assets/ 指向工作目录之外时，一个字节都不许写出去', (t) => {
+  const cwd = tmpWorkspace()
+  const outside = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  try {
+    fs.symlinkSync(outside, path.join(cwd, 'assets'), 'junction')
+  } catch {
+    t.skip('本平台不允许建目录链接')
+    return
+  }
+
+  assert.throws(
+    () => store.saveAsset({ cwd, docPath: opened.path, name: 'x.png', mime: 'image/png', data: PNG_BYTES.toString('base64') }),
+    /越界/,
+  )
+  // 这条才是关键：以前是"先 writeFileSync、再 resolveInCwd"，接口虽然回 400，
+  // 但字节已经写到了工作目录外面。所以断言的不是"抛错"，而是"外面干干净净"。
+  assert.deepEqual(fs.readdirSync(outside), [], '守卫必须挡在 writeFileSync 之前')
+})
+
+test('存图：上传只收栅格图，名字里的扩展名不会叠进落盘文件名', () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  const data = PNG_BYTES.toString('base64')
+
+  // `.svg` 留在 IMAGE_EXTS 里是为了能解析正文已引用的图，但它不该是**上传**入口
+  //（否则与"只支持 PNG / JPEG / GIF / WebP / BMP"的提示自相矛盾）
+  assert.throws(() => store.saveAsset({ cwd, docPath: opened.path, name: 'x.svg', mime: 'text/plain', data }), /只支持/)
+  assert.throws(() => store.saveAsset({ cwd, docPath: opened.path, name: 'x.svg', mime: 'image/svg+xml', data }), /只支持/)
+
+  // mime 说了是 PNG，名字里的 `.svg` 只当一段可读词——不该变成 `…-x.svg.png`
+  const saved = store.saveAsset({ cwd, docPath: opened.path, name: 'x.svg', mime: 'image/png', data })
+  assert.match(path.basename(saved.path), /-x\.png$/)
+})
+
+test('新建文档：标题里的控制字符不会进到文件路径里', async () => {
+  const cwd = tmpWorkspace()
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const res = await callRoute(handler, { method: 'POST', url: '/fishpai/api/doc', body: { sessionId: 's1', title: '名\u0000字\u001b' } })
+  assert.equal(res.status, 200)
+  assert.ok(!/[\u0000-\u001f]/.test(res.json.path), `路径不该含控制字符：${JSON.stringify(res.json.path)}`)
+  assert.ok(fs.existsSync(res.json.path))
 })

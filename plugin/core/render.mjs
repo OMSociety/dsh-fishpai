@@ -295,13 +295,21 @@ export function simplifyForPublish(html) {
  *   - 结构校验那边安全：它的判据是"直接文字子节点的 `textContent.trim()` 非空"，
  *     而 `'\u00a0'.trim() === ''`——li 不会因此变成"直接文字 + 子元素"的候选；
  *   - 视觉上约 1/4 字的缩进，看不出来。
+ *
+ * **只补"以行内元素开头"的条目**：块级标签（`<p>`/`<ul>`/`<blockquote>`…）开头的条目一律不动。
+ * 松散列表（条目之间有空行）的条目首个子元素正是 `<p>`，补进去的文字节点会落在 `<p>` **外面**、
+ * 变成 `<li>` 的直接文字子节点——那恰好是这一层想消除的形态（微信多一个匿名行盒）。
  */
+const BLOCK_TAGS = /^(?:p|ul|ol|blockquote|table|pre|h[1-6]|hr|div|dl|dt|dd|figure|section|article)\b/i
+
 export function padListItems(html) {
   if (!html || !html.includes('<li')) return html
-  // 只补"紧跟 li 开标签就是元素"的条目；已经是文字开头的不用动。
+  // 只补"紧跟 li 开标签就是**行内**元素"的条目；已经是文字开头、或以块级元素开头的都不用动。
   // 用**真的 U+00A0 字符**而不是 `&nbsp;` 实体：真 DOM 和"直接文字子节点"的判定都把它当空白，
   // 而实体在源码级扫描（我们自己的结构测试）里会被当成普通文字。
-  return html.replace(/(<li\b[^>]*>)(\s*)(?=<)/g, (full, open, ws) => `${open}\u00a0${ws}`)
+  return html.replace(/(<li\b[^>]*>)(\s*)(?=<([a-zA-Z][^\s/>]*))/g, (full, open, ws, tag) =>
+    BLOCK_TAGS.test(tag) ? full : `${open}\u00a0${ws}`,
+  )
 }
 
 // ── 5. 微信底色兼容（background 简写 → 长写）───────────────────
@@ -406,7 +414,10 @@ export function render(markdownText, opts = {}) {
   // 面板要靠"渲染结果"而不是猜正文来决定两个开关能不能点：
   //   脚注开关 —— 正文里到底有没有会被转成脚注的链接（`github.com/x` 这种没写协议的也算）
   //   Mac 代码框开关 —— 正文里到底有没有代码块（缩进式代码块也算，只认 ``` 会漏）
-  const linkCount = opts.footnotes === false ? 0 : footnoteLinks(body).length
+  // 数链接**与开关无关**：若关掉「脚注」就把 linkCount 记成 0，面板会据此把开关置灰，
+  // 于是关一次就再也打不开（自锁），提示还写着"正文里没有外链"而正文其实有。
+  // 开关只决定要不要真的转成脚注，不决定"正文里有没有链接"。
+  const linkCount = footnoteLinks(body).length
   const hasCode = /<pre\b/.test(body)
   if (opts.footnotes !== false) body = linksToFootnotes(md, body, styles)
   body = cleanForWechat(body)

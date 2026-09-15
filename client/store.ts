@@ -47,9 +47,9 @@ export interface FishpaiState {
   placeholders: Placeholder[]
   images: ImageInfo[]
   /** 正文里会被转成脚注的链接数（来自渲染结果，决定「脚注」开关能不能点）。 */
-  linkCount: number
+  linkCount: number | null
   /** 正文里有没有代码块（同样来自渲染结果，决定「Mac 代码框」开关能不能点）。 */
-  hasCode: boolean
+  hasCode: boolean | null
   /**
    * 预览要用的本地图片：`src` → data URI。
    *
@@ -210,6 +210,9 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
   let toastSeq = 0
   let saveTimer: ReturnType<typeof setTimeout> | null = null
   let previewTimer: ReturnType<typeof setTimeout> | null = null
+  // 提示条自己会消失，但它的定时器也必须能被 dispose 收走——否则面板卸载后
+  // 这个闭包还攥着 state 不放，在已卸载的 store 上 patch 一次。
+  const toastTimers = new Set<ReturnType<typeof setTimeout>>()
 
   const emit = () => {
     for (const fn of listeners) fn()
@@ -223,9 +226,11 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     const id = toastSeq
     patch({ toast: { id, text, kind } })
     // 提示自己会消失，不需要用户去关
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      toastTimers.delete(timer)
       if (state.toast && state.toast.id === id) patch({ toast: null })
     }, kind === 'error' ? 5000 : 2600)
+    toastTimers.add(timer)
   }
 
   // ── 预览里的本地图片 ───────────────────────────────────────
@@ -261,6 +266,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
   // 批注是唯一会被两条路同时写的东西（预览回带的 vs 加/删批注的），所以它单独带一个 epoch：
   // 预览出发时记下号，回来时号变了就只更新正文相关的东西，不覆盖刚改完的批注。
   let previewToken = 0
+  let loadToken = 0
   let notesEpoch = 0
 
   async function refreshPreview(markdown: string, meta: DocMeta) {
@@ -282,6 +288,8 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         ...(epoch === notesEpoch ? { notes: res.notes } : {}),
         themeName: res.themeName,
         previewing: false,
+        // 成功即清掉上一次的失败红条——否则一次瞬时失败会一直挂到点「重试」或重载文档为止
+        error: null,
       })
       void ensureImages(res.images, docKey)
     } catch (error) {
@@ -337,10 +345,21 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
   }
 
   // ── 载入 ───────────────────────────────────────────────────
-  async function loadDoc(docKey: string, opts: { keepLocal?: boolean } = {}) {
+  /**
+   * 载入一篇文档。
+   *
+   * 带请求令牌：快速切文档、或轮询（`onActiveDoc`）与点击同时发生时，先发的响应可能后到——
+   * 没有令牌就会把已经切过去的那一篇盖回来（面板显示 A、宿主当前却是 B，
+   * 此后打的字会按 `docKey = A` 存进 A）。`refreshPreview` 一直有同款 `previewToken`，这里补齐。
+   *
+   * 未保存的改动由调用方负责：`reloadSafely` / `restore` 都是"先落盘再重载"；
+   * 轮询那条路（`onActiveDoc`）碰到 dirty 时只挂 `external` 提示，根本不进来。
+   */
+  async function loadDoc(docKey: string) {
     if (!docKey) return
+    const token = ++loadToken
     const res = await api.doc(state.sessionId, docKey)
-    const keep = opts.keepLocal && state.dirty && state.docKey === docKey
+    if (token !== loadToken) return // 已经有更新的一次载入在路上，丢掉这次
     notesEpoch += 1
     patch({
       status: 'ready',
@@ -348,18 +367,19 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       docKey,
       path: res.doc.path,
       title: res.doc.title,
-      markdown: keep ? state.markdown : res.doc.markdown,
+      markdown: res.doc.markdown,
       savedMarkdown: res.doc.markdown,
-      dirty: keep ? true : false,
+      dirty: false,
       revision: res.doc.revision,
       meta: res.meta,
       blocks: res.blocks,
       notes: res.notes,
       placeholders: res.placeholders,
       images: res.images,
-      // /doc 不带渲染信息：先按"没有"起手，紧随其后的那次预览会把它们填准
-      linkCount: 0,
-      hasCode: false,
+      // `/doc` 不带渲染信息：置 `null` 表示"还不知道"，开关因此**不会闪一下变灰**。
+      // 紧随其后的那次预览会给出真值（`false`/`0` 才是"确实没有"）。
+      linkCount: null,
+      hasCode: null,
       imageMap: Object.fromEntries(imageCache.get(docKey) || []),
       history: res.history,
       conflict: null,
@@ -367,7 +387,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     })
     onDocLoaded?.(docKey)
     void ensureImages(res.images, docKey)
-    void refreshPreview(keep ? state.markdown : res.doc.markdown, res.meta)
+    void refreshPreview(res.doc.markdown, res.meta)
   }
 
   async function init() {
@@ -520,6 +540,19 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
 
     async restore(id: string, label: string) {
       if (!state.docKey) return
+      // 与 `reloadSafely` 同一个约定：回滚会整篇换掉正文，先把未保存的输入落盘。
+      // 少了这一步，"回滚到某一版"就顺带静默丢掉了用户刚打的字。
+      if (state.conflict) {
+        toast('先处理上方的冲突再回滚', 'error')
+        return
+      }
+      if (state.dirty) {
+        await saveNow()
+        if (state.dirty) {
+          toast('保存没成功，已取消回滚以免丢字', 'error')
+          return
+        }
+      }
       try {
         await api.history(state.sessionId, state.docKey, { action: 'restore', id })
         await loadDoc(state.docKey)
@@ -643,6 +676,8 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     dispose() {
       if (saveTimer) clearTimeout(saveTimer)
       if (previewTimer) clearTimeout(previewTimer)
+      for (const timer of toastTimers) clearTimeout(timer)
+      toastTimers.clear()
       listeners.clear()
     },
   }

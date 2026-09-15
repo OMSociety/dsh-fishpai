@@ -49,7 +49,9 @@ export function extractPlaceholders(markdown) {
     const re = new RegExp(PLACEHOLDER_RE.source, 'g')
     let m
     while ((m = re.exec(mask[i])) !== null) {
-      out.push({ line: i + 1, text: m[1].trim(), raw: m[0], blockId: null })
+      // `col` = 这一行里的字符偏移：同一行有两处**文字相同**的占位时，
+      // 只按 `行号-文字` 做 React key 会撞（重复 key → 警告与错渲染）
+      out.push({ line: i + 1, col: m.index, text: m[1].trim(), raw: m[0], blockId: null })
     }
   }
   return out

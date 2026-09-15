@@ -226,10 +226,13 @@ test('linkCount 由渲染结果给出：没写协议的裸域名也算（面板�
   assert.equal(none.linkCount, 0)
   assert.doesNotMatch(none.html, /参考资料/)
 
-  // 关掉脚注：HTML 里不再有「参考资料」，计数也归零（面板据此把开关显示为关）
+  // 关掉脚注：HTML 里不再有「参考资料」，但**计数照旧**——计数说的是"正文里有没有链接"，
+  // 与开关无关。曾经这里把 off.linkCount 也记成 0：面板拿 linkCount > 0 判断开关能不能点，
+  // 于是关一次 → 变 0 → 置灰 → 再也打不开（自锁）。这条断言就是那个 bug 的守卫。
   const off = render('看 [仓库](https://github.com/OMSociety/dsh-fishpai)', { theme: 'default', footnotes: false })
-  assert.equal(off.linkCount, 0)
+  assert.equal(off.linkCount, 1, '关的是"转脚注"，不是"正文里没有链接"')
   assert.doesNotMatch(off.html, /参考资料/)
+  assert.match(off.html, /<a /, '链接本身还在，只是没转成参考资料')
 
   // 只锚到本文档的链接、以及图片语法，都不算脚注
   assert.equal(render('见 [上一节](#小标题)', { theme: 'default' }).linkCount, 0)

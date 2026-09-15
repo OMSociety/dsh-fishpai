@@ -183,6 +183,8 @@ function ThemePicker(props: { themes: ThemeInfo[]; value: string; onPick: (key: 
   const [open, setOpen] = React.useState(false)
   const [active, setActive] = React.useState(0)
   const wrapRef = React.useRef<HTMLDivElement | null>(null)
+  const menuRef = React.useRef<HTMLDivElement | null>(null)
+  const btnRef = React.useRef<HTMLButtonElement | null>(null)
 
   // 分组标题分两行显示：一行是组名，一行是**小字提示**。
   // 挤成一行（"其它风格（微信可能掉样式）"）在窄面板里会被折成两截，看着像没排好版。
@@ -211,14 +213,31 @@ function ThemePicker(props: { themes: ThemeInfo[]; value: string; onPick: (key: 
     setActive(index < 0 ? 0 : index)
     setOpen(true)
   }
+  const closeMenu = (refocus = false) => {
+    setOpen(false)
+    if (refocus) btnRef.current?.focus()
+  }
   const commit = (key: string | undefined) => {
     if (key) props.onPick(key)
-    setOpen(false)
+    closeMenu(true)
   }
+  /**
+   * 打开后把焦点交给 listbox 自己，罗列项一律 `tabIndex={-1}`。
+   *
+   * 键盘处理必须挂在**容器**上：以前只挂在触发按钮上，一点开菜单再按 Tab，
+   * 焦点就落到某一项上，此后 ↑↓ 不动、Esc 也关不掉（只有点外部还能关）。
+   * 现在焦点进了容器，方向键/Esc 由容器统一接，Tab 直接走出去。
+   */
+  React.useEffect(() => {
+    if (open) menuRef.current?.focus()
+  }, [open])
+
+  const activeKey = flat[active] ? flat[active].key : undefined
 
   return (
     <div className="fp-picker" ref={wrapRef}>
       <button
+        ref={btnRef}
         type="button"
         className="fp-picker-btn"
         aria-haspopup="listbox"
@@ -227,24 +246,11 @@ function ThemePicker(props: { themes: ThemeInfo[]; value: string; onPick: (key: 
         title="主题：默认公众号是给微信做的；其它风格更适合导出 HTML"
         onClick={() => (open ? setOpen(false) : openMenu())}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            setOpen(false)
-            return
-          }
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          // 菜单开着时焦点已经在容器里了，这里只负责"从按钮打开"
+          if (open) return
+          if (event.key === 'Escape' || event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ') {
             event.preventDefault()
-            if (!open) {
-              openMenu()
-              return
-            }
-            const step = event.key === 'ArrowDown' ? 1 : -1
-            setActive((index) => (flat.length ? (index + step + flat.length) % flat.length : 0))
-            return
-          }
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            if (!open) openMenu()
-            else commit(flat[active]?.key)
+            openMenu()
           }
         }}
       >
@@ -254,10 +260,41 @@ function ThemePicker(props: { themes: ThemeInfo[]; value: string; onPick: (key: 
       </button>
 
       {open ? (
-        <div className="fp-menu" role="listbox" aria-label="主题">
+        <div
+          className="fp-menu"
+          role="listbox"
+          aria-label="主题"
+          ref={menuRef}
+          tabIndex={-1}
+          aria-activedescendant={activeKey ? `fp-theme-opt-${activeKey}` : undefined}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault()
+              closeMenu(true)
+              return
+            }
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault()
+              const step = event.key === 'ArrowDown' ? 1 : -1
+              setActive((index) => (flat.length ? (index + step + flat.length) % flat.length : 0))
+              return
+            }
+            if (event.key === 'Home' || event.key === 'End') {
+              event.preventDefault()
+              setActive(event.key === 'Home' ? 0 : Math.max(0, flat.length - 1))
+              return
+            }
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              commit(activeKey)
+            }
+          }}
+        >
           {groups.map((group) => (
-            <div key={group.key}>
-              <div className="fp-menu-group" data-risk={group.risk ? 'true' : undefined}>
+            // role="presentation"：分组标题是排版用的，`<div>` 直接坐在 role="listbox" 里
+            // 属于非法子节点（listbox 只允许 option 与分组）
+            <div key={group.key} role="presentation">
+              <div className="fp-menu-group" role="presentation" data-risk={group.risk ? 'true' : undefined}>
                 <span className="fp-menu-group-title">{group.label}</span>
                 {group.note ? <span className="fp-menu-group-note">{group.note}</span> : null}
               </div>
@@ -267,8 +304,10 @@ function ThemePicker(props: { themes: ThemeInfo[]; value: string; onPick: (key: 
                 return (
                   <button
                     key={theme.key}
+                    id={`fp-theme-opt-${theme.key}`}
                     type="button"
                     role="option"
+                    tabIndex={-1}
                     aria-selected={on}
                     className="fp-menu-row"
                     data-on={on ? 'true' : undefined}
@@ -417,8 +456,10 @@ export function Panel(props: { store: FishpaiStore; sessionId: string; visible?:
   // 判据来自**宿主渲染结果**（linkCount / hasCode），不是在这里拿正则猜正文——
   // 猜的话 `github.com/x/y` 这种没写协议的链接会漏（它照样生成了「参考资料」），
   // 缩进式代码块也会漏，结果就是"开关灰着、效果却在"。
-  const docHasLinks = state.linkCount > 0
-  const docHasCode = state.hasCode
+  // `null` 表示"刚载入、渲染信息还没回来"（`/doc` 不带渲染结果）——按"能点"处理，
+  // 否则每开一篇文档这两个开关都会闪一下灰，看着像坏了。只有拿到确切的 0/false 才置灰。
+  const docHasLinks = state.linkCount !== 0
+  const docHasCode = state.hasCode !== false
   // 内嵌不了的图（文件不在/越界/超上限）粘进公众号大概率不显示，要在编辑器里手动传
   const manualImages = state.images.filter((i) => !i.embed)
 
@@ -855,6 +896,9 @@ function Editor(props: {
   const { editorRef } = props
   const [sheet, setSheet] = React.useState(false)
   const keysRef = React.useRef<HTMLDivElement | null>(null)
+  // 稳定引用：KeySheet 的 effect 依赖它——写成内联箭头的话，速查表开着的时候
+  // 每次渲染都会重订阅一遍 document 的 mousedown/keydown。
+  const closeSheet = React.useCallback(() => setSheet(false), [])
   const caretOf = (el: HTMLTextAreaElement) => el.value.slice(0, el.selectionStart || 0).split('\n').length
 
   /**
@@ -960,7 +1004,7 @@ function Editor(props: {
           >
             快捷键
           </button>
-          {sheet ? <KeySheet wrapRef={keysRef} onClose={() => setSheet(false)} /> : null}
+          {sheet ? <KeySheet wrapRef={keysRef} onClose={closeSheet} /> : null}
         </span>
       </div>
       <textarea
@@ -978,6 +1022,9 @@ function Editor(props: {
         onPaste={(e) => {
           const files = imageFiles(e.clipboardData)
           if (!files.length) return // 文本粘贴照旧交给浏览器
+          // 剪贴板里同时有文字和图片时（从网页、Word、微信里复制常常两样都带），让文字优先：
+          // 只要拦下这一次粘贴，同一份剪贴板里的文字就被整条吞掉了，与"绝不拦文本"的约定相反。
+          if ((e.clipboardData?.getData('text/plain') || '') !== '') return
           e.preventDefault()
           void insertImages(files)
         }}
@@ -1124,7 +1171,7 @@ function Drawer(props: {
             <div className="fp-empty">没有待补占位。在正文里写 <code>&lt;!-- 鱼排: 这里补一句 --&gt;</code> 即可。</div>
           ) : (
             props.placeholders.map((p) => (
-              <div className="fp-item" key={`${p.line}-${p.text}`}>
+              <div className="fp-item" key={`${p.line}-${p.col}`}>
                 <div className="fp-item-head">
                   <span>第 {p.line} 行</span>
                   <span className="fp-spacer" />

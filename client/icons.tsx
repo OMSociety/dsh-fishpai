@@ -34,7 +34,11 @@ const PRIMITIVES = loadPrimitives()
 /** 按导出名取一个内置图标；没有就返回 null，由调用方降级成纯文字。 */
 function builtin(name: string, props: GlyphProps, fallbackSize: number): React.ReactElement | null {
   const Icon = PRIMITIVES[name]
-  if (typeof Icon !== 'function') return null
+  // 内置图标目前都是普通函数组件，但 `memo` / `forwardRef` 返回的是**对象**（带 `$$typeof`），
+  // 只判 `typeof === 'function'` 会把它们误判成"没有这个图标"而静默退回纯文字。
+  // 真正不能交给 React 的是那种既不是函数、又没有 `$$typeof` 的东西（会整块崩），那种才降级。
+  const usable = typeof Icon === 'function' || (!!Icon && typeof Icon === 'object' && Icon.$$typeof)
+  if (!usable) return null
   return <Icon size={props.size ?? fallbackSize} className={props.className} />
 }
 

@@ -104,7 +104,10 @@ test('宿主插件能在真实 Cordis 里挂载，并注册四个工具、一条
   assert.equal(opened.isError, false, opened.text)
   const readBack = await read.execute({ include: 'summary' }, exec)
   assert.equal(readBack.isError, false, readBack.text)
-  assert.match(readBack.text, /还没有基线|没有改动正文|标题/)
+  // 钉住**唯一**那一支：`open({markdown})` 刚建好文档、baseline 就是这一版，
+  // 所以这里必然是"没有改动正文"。写成三选一等于没有判据（任一支命中都算过）。
+  assert.match(readBack.text, /自你上次写入以来，用户没有改动正文/)
+  assert.doesNotMatch(readBack.text, /还没有基线|无法计算/)
 
   // 卸载要把所有贡献收干净
   await fiber.dispose()
