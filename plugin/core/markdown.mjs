@@ -220,12 +220,24 @@ export function createMd(styles, opts = {}) {
    * （官方校验器实测 `isValid: true`）。视觉上零影响——span 不带任何样式；
    * 而且这正是微信自己插入内容后的结构（`<span leaf="">`）。
    *
+   * **但首尾空白要留在 span 外面**（实测踩过）：微信的编辑器会把"以空白开头"的行内元素
+   * 当成新的行/块——列表项 `**批注** ｜ 光标…` 粘过去会变成两行（"批注"一行、`｜` 开头一行），
+   * 而面板预览里是正常的一行。空白放在 span 外一样挡得住结构校验（那条规则只看**非空白**的直接文字子节点），
+   * 顺带也不再有 `<span></span>` 这种空壳。
+   *
    * 默认关闭：默认路径必须与 `test/golden/**` 逐字节一致（那是本项目的地基）。
    * 复制到公众号/导出这条路径才开（见 plugin/host/routes.mjs 与 tools.mjs）。
    */
   if (opts.wrapText) {
     const escapeHtml = md.utils.escapeHtml
-    md.renderer.rules.text = (tokens, idx) => `<span>${escapeHtml(tokens[idx].content)}</span>`
+    md.renderer.rules.text = (tokens, idx) => {
+      const raw = String(tokens[idx].content)
+      const lead = /^\s*/.exec(raw)[0]
+      const tail = /\s*$/.exec(raw)[0]
+      const core = raw.slice(lead.length, raw.length - tail.length)
+      if (!core) return escapeHtml(raw) // 纯空白：原样输出，不包空壳 span
+      return `${escapeHtml(lead)}<span>${escapeHtml(core)}</span>${escapeHtml(tail)}`
+    }
   }
 
   return md

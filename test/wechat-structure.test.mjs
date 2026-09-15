@@ -136,6 +136,21 @@ function bareCodeTexts(html) {
   return out
 }
 
+test('包裹层不制造"以空白开头/结尾的 span"（微信会把这种行内元素当成新的行/块）', () => {
+  // 实测：列表项 `**批注** ｜ 光标…` 粘进公众号会变成两行（"批注"一行、`｜` 开头一行），
+  // 而面板预览里是正常的一行。原因是包裹层生成了 `<span> ｜ 光标…</span>`——
+  // 微信的编辑器把"以空白开头"的行内元素当新行/新块。空白留在 span 外面即可（校验只看非空白直接文字）。
+  for (const entry of publishEntries) {
+    const { html } = render(readFixture(entry.fixture), { theme: entry.theme, ...entry.opts, wrapText: true })
+    assert.doesNotMatch(html, /<span>\s/, `${entry.file}：有 span 以空白开头`)
+    assert.doesNotMatch(html, /\s<\/span>/, `${entry.file}：有 span 以空白结尾`)
+    assert.doesNotMatch(html, /<span><\/span>/, `${entry.file}：有空壳 span`)
+  }
+  // 列表项这一例单独钉住：空白必须在 strong 与 span 之间，而不是 span 里面
+  const item = render('- **批注** ｜ 光标停在哪一段', { theme: 'default', publish: true, wrapText: true }).html
+  assert.match(item, /<strong[^>]*><span>批注<\/span><\/strong> <span>｜ 光标停在哪一段<\/span>/)
+})
+
 test('代码块不在 wrapText 的覆盖范围内（这是已知边界，不是漏做）', () => {
   const markdown = readFixture('stress.md') // 含带高亮的 python 围栏 + 无语言围栏
   const opts = { theme: 'default', publish: true, footnotes: true, macCodeBlock: true, fontSize: '16px' }
