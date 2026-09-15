@@ -46,14 +46,18 @@
 
 ## 📷 效果
 
-**面板**：左边写 Markdown，右边是实时预览；主题、字号、脚注开关都在顶部一行，写完点「复制到公众号」。
+<table>
+<tr>
+<td width="64%" align="center"><img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/panel-fishpai.png" alt="鱼排编辑器面板：左侧源码、右侧实时预览" width="540"></td>
+<td width="36%" align="center"><a href="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.jpg"><img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.jpg" alt="复制后粘进公众号编辑器的实际效果（点图看原图）" width="235"></a></td>
+</tr>
+<tr>
+<td align="center">面板：左边写 Markdown，右边实时预览；主题、字号、脚注开关都在顶部一行</td>
+<td align="center">粘进公众号的实拍（点图看原图）</td>
+</tr>
+</table>
 
-<img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/panel-fishpai.png" alt="鱼排编辑器面板：左源码右预览" width="820">
-
-**粘进公众号**：把这篇推文（`docs/promo-fishpai.md`）复制后**直接粘进公众号编辑器**的实拍——
 同一份 HTML 用「导出 HTML」存成文件、在浏览器里打开，看到的就是面板右侧那个样子。
-
-<p align="center"><img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.jpg" alt="粘进公众号编辑器后的实际效果" width="380"></p>
 
 ## 🚀 快速开始
 
