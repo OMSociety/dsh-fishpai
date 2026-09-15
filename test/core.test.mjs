@@ -24,7 +24,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const fixture = (name) => readFileSync(path.join(ROOT, 'test', 'fixtures', name), 'utf8').replace(/\r\n/g, '\n')
 
 const EDGE = fixture('edge.md')
-const READING = fixture('reading-group.md')
+const READING = fixture('sample-article.md')
 
 // ── 块模型 ─────────────────────────────────────────────────────
 
@@ -55,8 +55,8 @@ test('信息卡片被认成 card 块并带上类型', () => {
 
 test('标题路径随层级正确嵌套', () => {
   const blocks = splitBlocks(READING)
-  assert.deepEqual(blocks[4].headingPath, ['暑期活动预告第二弹 | 专题', '截至目前报名'])
-  assert.deepEqual(blocks[8].headingPath, ['暑期活动预告第二弹 | 专题', '截至目前报名'])
+  assert.deepEqual(blocks[4].headingPath, ['示例文档：排版测试稿', '示例小节'])
+  assert.deepEqual(blocks[8].headingPath, ['示例文档：排版测试稿', '示例小节'])
 })
 
 test('块 id 是内容寻址：插入新段不改变其它块 id，改内容才改 id', () => {
@@ -93,15 +93,15 @@ test('相同文档没有差异', () => {
 })
 
 test('改一段 → 一条 changed，并带前后文', () => {
-  const current = READING.replace('后续更新，欢迎大家。', '后续更新，欢迎大家。（已截止）')
+  const current = READING.replace('下面是一段示例说明。', '下面是一段示例说明。（已截止）')
   const d = diffBlocks(READING, current)
   assert.equal(d.entries.length, 1)
   const e = d.entries[0]
   assert.equal(e.status, 'changed')
   assert.equal(e.kind, 'paragraph')
-  assert.match(e.before, /后续更新/)
+  assert.match(e.before, /下面是一段/)
   assert.match(e.after, /已截止/)
-  assert.deepEqual(e.headingPath, ['暑期活动预告第二弹 | 专题', '截至目前报名'])
+  assert.deepEqual(e.headingPath, ['示例文档：排版测试稿', '示例小节'])
 })
 
 test('加一段 / 删一段 → added / removed，且块 id 指向当前文档那一块', () => {
@@ -164,7 +164,7 @@ test('批注在正文未改时保持锚定，改动其它块不受影响', () =>
   assert.equal(anchored[0].orphan, false)
   assert.equal(anchored[0].blockIndex, 5)
 
-  const editedOther = splitBlocks(READING.replace('**示例**', '**示例（宣）**'))
+  const editedOther = splitBlocks(READING.replace('**示例署名**', '**示例署名（宣）**'))
   const still = reanchorNotes([note], editedOther)
   assert.equal(still[0].orphan, false)
   assert.equal(still[0].blockIndex, 5)
@@ -172,9 +172,9 @@ test('批注在正文未改时保持锚定，改动其它块不受影响', () =>
 
 test('人改了那段文字后，批注按引用片段重锚', () => {
   const blocks = splitBlocks(READING)
-  const note = makeNote({ blockId: blocks[5].id, quote: '后续更新，欢迎大家。', text: '改成已截止' })
+  const note = makeNote({ blockId: blocks[5].id, quote: '下面是一段示例说明。', text: '改成已截止' })
   // 原句没被整段保留，但大部分还在 → 应重锚到同一块
-  const edited = splitBlocks(READING.replace('后续更新，欢迎大家。', '后续更新，欢迎大家尽快。'))
+  const edited = splitBlocks(READING.replace('下面是一段示例说明。', '下面是一段示例说明（补充版）。'))
   const anchored = reanchorNotes([note], edited)
   assert.equal(anchored[0].orphan, false)
   assert.equal(anchored[0].blockId, edited[5].id)
@@ -182,16 +182,16 @@ test('人改了那段文字后，批注按引用片段重锚', () => {
 
 test('那句话被整段重写后，批注标 orphan 而不是乱挂', () => {
   const blocks = splitBlocks(READING)
-  const note = makeNote({ blockId: blocks[5].id, quote: '后续更新，欢迎大家。', text: '改成已截止' })
-  const edited = splitBlocks(READING.replace('后续更新，欢迎大家。', '名单已定，另行通知。'))
+  const note = makeNote({ blockId: blocks[5].id, quote: '下面是一段示例说明。', text: '改成已截止' })
+  const edited = splitBlocks(READING.replace('下面是一段示例说明。', '名单已定，另行通知。'))
   const anchored = reanchorNotes([note], edited)
   assert.equal(anchored[0].orphan, true)
 })
 
 test('那块被删掉后批注标 orphan，而不是悄悄消失', () => {
   const blocks = splitBlocks(READING)
-  const note = makeNote({ blockId: blocks[9].id, quote: '**示例**', text: '这里加联系方式' })
-  const without = splitBlocks(READING.replace('**示例**', '**另一个署名**'))
+  const note = makeNote({ blockId: blocks[9].id, quote: '**示例署名**', text: '这里加联系方式' })
+  const without = splitBlocks(READING.replace('**示例署名**', '**另一个署名**'))
   const anchored = reanchorNotes([note], without)
   const grouped = groupNotes(anchored)
   assert.equal(grouped.orphan.length, 1)

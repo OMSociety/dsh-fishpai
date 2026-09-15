@@ -236,7 +236,7 @@ test('底色兼容层：引用的框、表头底色在复制形态里确实是�
 })
 
 test('默认渲染路径不受底色兼容层影响（关着的时候一个字节不动）', () => {
-  const markdown = readFixture('reading-group.md')
+  const markdown = readFixture('sample-article.md')
   const opts = { theme: 'bamboo', publish: true, footnotes: true, macCodeBlock: true, fontSize: '16px' }
   assert.equal(render(markdown, { ...opts, wechatBackground: false }).html, render(markdown, opts).html)
 })

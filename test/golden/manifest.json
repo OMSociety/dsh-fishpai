@@ -16,7 +16,7 @@
   ],
   "fixtures": [
     "edge.md",
-    "reading-group.md",
+    "sample-article.md",
     "stress.md",
     "stress_real_img.md",
     "test_input.md"
@@ -173,8 +173,8 @@
       }
     },
     {
-      "file": "reading-group.md.default.publish.html",
-      "fixture": "reading-group.md",
+      "file": "sample-article.md.default.publish.html",
+      "fixture": "sample-article.md",
       "theme": "default",
       "mode": "publish",
       "opts": {
@@ -185,8 +185,8 @@
       }
     },
     {
-      "file": "reading-group.md.tech.publish.html",
-      "fixture": "reading-group.md",
+      "file": "sample-article.md.tech.publish.html",
+      "fixture": "sample-article.md",
       "theme": "tech",
       "mode": "publish",
       "opts": {
@@ -197,8 +197,8 @@
       }
     },
     {
-      "file": "reading-group.md.elegant.publish.html",
-      "fixture": "reading-group.md",
+      "file": "sample-article.md.elegant.publish.html",
+      "fixture": "sample-article.md",
       "theme": "elegant",
       "mode": "publish",
       "opts": {
@@ -209,8 +209,8 @@
       }
     },
     {
-      "file": "reading-group.md.deep_read.publish.html",
-      "fixture": "reading-group.md",
+      "file": "sample-article.md.deep_read.publish.html",
+      "fixture": "sample-article.md",
       "theme": "deep_read",
       "mode": "publish",
       "opts": {
@@ -221,8 +221,8 @@
       }
     },
     {
-      "file": "reading-group.md.nyt.publish.html",
-      "fixture": "reading-group.md",
+      "file": "sample-article.md.nyt.publish.html",
+      "fixture": "sample-article.md",
       "theme": "nyt",
       "mode": "publish",
       "opts": {
@@ -233,8 +233,8 @@
       }
     },
     {
-      "file": "reading-group.md.apple.publish.html",
-      "fixture": "reading-group.md",
+      "file": "sample-article.md.apple.publish.html",
+      "fixture": "sample-article.md",
       "theme": "apple",
       "mode": "publish",
       "opts": {
@@ -245,8 +245,8 @@
       }
     },
     {
-      "file": "reading-group.md.claude.publish.html",
-      "fixture": "reading-group.md",
+      "file": "sample-article.md.claude.publish.html",
+      "fixture": "sample-article.md",
       "theme": "claude",
       "mode": "publish",
       "opts": {
@@ -257,8 +257,8 @@
       }
     },
     {
-      "file": "reading-group.md.sspai.publish.html",
-      "fixture": "reading-group.md",
+      "file": "sample-article.md.sspai.publish.html",
+      "fixture": "sample-article.md",
       "theme": "sspai",
       "mode": "publish",
       "opts": {
@@ -269,8 +269,8 @@
       }
     },
     {
-      "file": "reading-group.md.bamboo.publish.html",
-      "fixture": "reading-group.md",
+      "file": "sample-article.md.bamboo.publish.html",
+      "fixture": "sample-article.md",
       "theme": "bamboo",
       "mode": "publish",
       "opts": {
@@ -281,8 +281,8 @@
       }
     },
     {
-      "file": "reading-group.md.dark_night.publish.html",
-      "fixture": "reading-group.md",
+      "file": "sample-article.md.dark_night.publish.html",
+      "fixture": "sample-article.md",
       "theme": "dark_night",
       "mode": "publish",
       "opts": {
@@ -293,8 +293,8 @@
       }
     },
     {
-      "file": "reading-group.md.gradient.publish.html",
-      "fixture": "reading-group.md",
+      "file": "sample-article.md.gradient.publish.html",
+      "fixture": "sample-article.md",
       "theme": "gradient",
       "mode": "publish",
       "opts": {
@@ -305,8 +305,8 @@
       }
     },
     {
-      "file": "reading-group.md.default.preview.html",
-      "fixture": "reading-group.md",
+      "file": "sample-article.md.default.preview.html",
+      "fixture": "sample-article.md",
       "theme": "default",
       "mode": "preview",
       "opts": {

@@ -19,7 +19,7 @@ function tmpWorkspace() {
   return store.canonicalCwd(fs.mkdtempSync(path.join(os.tmpdir(), 'fishpai-')))
 }
 
-const ARTICLE = '# 预告\n\n本周四晚七点， 206。\n\n## 报名\n\n。\n'
+const ARTICLE = '# 示例标题\n\n这是第一段示例文本。\n\n## 示例小节\n\n这是第二段示例文本。\n'
 
 // ── 路径守卫 ───────────────────────────────────────────────────
 
@@ -226,7 +226,7 @@ test('baseline 只在 AI 写入时前移：人的手改会成为下一次 read �
   const beforeRead = store.readState(cwd, store.docKey(path.join(cwd, 'a.md')))
   assert.equal(beforeRead.baseline.rev, 1)
 
-  store.saveDoc({ cwd, docPath: 'a.md', markdown: ARTICLE.replace('本周四晚七点', '本周五晚七点'), baseRevision: 1, by: 'human' })
+  store.saveDoc({ cwd, docPath: 'a.md', markdown: ARTICLE.replace('这是第一段示例文本。', '这是改过的示例文本。'), baseRevision: 1, by: 'human' })
   const afterHuman = store.readState(cwd, store.docKey(path.join(cwd, 'a.md')))
   assert.equal(afterHuman.baseline.rev, 1, '人的手改不移动 baseline')
   assert.equal(store.baselineContent(cwd, afterHuman), ARTICLE)
@@ -256,7 +256,7 @@ test('历史：每次写入留快照，可按 revision 回滚', () => {
 test('批注增删改与打开请求', () => {
   const cwd = tmpWorkspace()
   store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
-  const note = store.addNote({ cwd, docPath: 'a.md', note: { blockId: 'x', quote: '报名', text: '这里加个二维码' } })
+  const note = store.addNote({ cwd, docPath: 'a.md', note: { blockId: 'x', quote: '示例', text: '这里加个二维码' } })
   assert.ok(note.id)
   const updated = store.updateNote({ cwd, docPath: 'a.md', id: note.id, patch: { resolved: true } })
   assert.equal(updated.resolved, true)
@@ -275,29 +275,29 @@ test('批注增删改与打开请求', () => {
 
 test('块级补丁：只改指定块，其余字节原样保留', () => {
   const blocks = splitBlocks(ARTICLE)
-  const target = blocks.find((b) => b.text.includes('本周四晚七点'))
-  const result = applyPatches(ARTICLE, blocks, [{ block_id: target.id, op: 'replace', markdown: '本周五晚七点， 206。' }])
+  const target = blocks.find((b) => b.text.includes('这是第一段示例文本'))
+  const result = applyPatches(ARTICLE, blocks, [{ block_id: target.id, op: 'replace', markdown: '这是改过的示例文本。' }])
   assert.deepEqual(result.errors, [])
   assert.equal(result.applied.length, 1)
-  assert.equal(result.markdown.includes('本周五晚七点， 206。'), true)
-  assert.equal(result.markdown.includes('## 报名'), true, '其它块应原样保留')
-  assert.equal(ARTICLE.includes('## 报名'), true)
+  assert.equal(result.markdown.includes('这是改过的示例文本。'), true)
+  assert.equal(result.markdown.includes('## 示例小节'), true, '其它块应原样保留')
+  assert.equal(ARTICLE.includes('## 示例小节'), true)
 })
 
 test('块级补丁：insert_after 与 delete', () => {
   const blocks = splitBlocks(ARTICLE)
   const heading = blocks.find((b) => b.kind === 'heading' && b.text.startsWith('##'))
   const inserted = applyPatches(ARTICLE, blocks, [
-    { block_id: heading.id, op: 'insert_after', markdown: '\n 9 月 10 日。\n' },
+    { block_id: heading.id, op: 'insert_after', markdown: '\n这是插入的示例文本。\n' },
   ])
   assert.deepEqual(inserted.errors, [])
-  assert.match(inserted.markdown, /## 报名\n\n 9 月 10 日。\n\n。/)
+  assert.match(inserted.markdown, /## 示例小节\n\n这是插入的示例文本。\n\n这是第二段示例文本。/)
 
-  const para = blocks.find((b) => b.text.includes(''))
+  const para = blocks.find((b) => b.text.includes('这是第二段示例文本'))
   const deleted = applyPatches(ARTICLE, blocks, [{ block_id: para.id, op: 'delete' }])
   assert.deepEqual(deleted.errors, [])
-  assert.equal(deleted.markdown.includes(''), false)
-  assert.equal(deleted.markdown.includes('## 报名'), true)
+  assert.equal(deleted.markdown.includes('这是第二段示例文本'), false)
+  assert.equal(deleted.markdown.includes('## 示例小节'), true)
 })
 
 test('块级补丁：找不到的块给出可读错误而不是乱改', () => {
@@ -319,7 +319,7 @@ test('块级补丁：多个补丁从下往上应用，行号不会互相顶偏',
   assert.deepEqual(result.errors, [])
   assert.match(result.markdown, /^# 换了个标题\n/)
   assert.match(result.markdown, /改过的结尾。\n$/)
-  assert.match(result.markdown, /## 报名/)
+  assert.match(result.markdown, /## 示例小节/)
 })
 
 test('块级补丁：replace 保住块尾的分隔空行，后面的块不会被吞掉', () => {
@@ -564,7 +564,7 @@ test('微信结构兼容层只走复制/导出：publish 包 span，preview 不�
   assert.equal(publish.status, 200)
   // 微信的结构校验用「内容高度 ÷ 行框矩形数」估行高，含行内元素的段落会被误判成行高过小；
   // 把文字包进 span（块级元素不再有直接文字子节点）就不命中——这条只该出现在复制/导出产物里。
-  assert.match(publish.json.html, /<span>本周四晚七点/, '复制/导出产物应当把文字包进 span')
+  assert.match(publish.json.html, /<span>这是第一段示例文本/, '复制/导出产物应当把文字包进 span')
 
   const preview = await callRoute(handler, {
     method: 'POST',
@@ -638,7 +638,7 @@ test('fishpai_render：默认（复制形态）加兼容层，publish:false 时�
 
   const wrapped = await byName('fishpai_render').execute({ out_path: '导出成品' }, exec)
   assert.equal(wrapped.isError, false, wrapped.text)
-  assert.match(fs.readFileSync(path.join(cwd, '导出成品.html'), 'utf8'), /<span>本周四晚七点/)
+  assert.match(fs.readFileSync(path.join(cwd, '导出成品.html'), 'utf8'), /<span>这是第一段示例文本/)
 
   const plain = await byName('fishpai_render').execute({ out_path: '预览原样', publish: false }, exec)
   assert.equal(plain.isError, false, plain.text)
@@ -753,7 +753,7 @@ test('端到端：open → 人改 + 加批注 → read 看到 diff → write 局
   const docPath = state.docPath
   const blocks = splitBlocks(ARTICLE)
   store.addNote({ cwd, docPath, note: { blockId: blocks[1].id, quote: blocks[1].text, text: '时间改成周五' } })
-  const edited = ARTICLE.replace('本周四晚七点， 206。', '本周四晚七点， 206。\n\n<!-- 鱼排: 这里补一个地点地图 -->')
+  const edited = ARTICLE.replace('这是第一段示例文本。', '这是第一段示例文本。\n\n<!-- 鱼排: 这里补一个地点地图 -->')
   store.saveDoc({ cwd, docPath, markdown: edited, baseRevision: state.revision, by: 'human' })
 
   const read = await byName('fishpai_read').execute({ include: 'outline' }, exec)
@@ -769,7 +769,7 @@ test('端到端：open → 人改 + 加批注 → read 看到 diff → write 局
       base_revision: 2,
       mode: 'patch',
       patches: [
-        { block_id: blocks[1].id, op: 'replace', markdown: '本周五晚七点， 206。' },
+        { block_id: blocks[1].id, op: 'replace', markdown: '这是改过的示例文本。' },
         { block_id: blocks[blocks.length - 1].id, op: 'insert_after', markdown: '\n\n（地图见群公告）\n' },
       ],
     },
@@ -782,9 +782,9 @@ test('端到端：open → 人改 + 加批注 → read 看到 diff → write 局
   assert.equal(after.isError, false)
   assert.match(after.text, /用户没有改动正文/)
   const onDisk = fs.readFileSync(docPath, 'utf8')
-  assert.match(onDisk, /本周五晚七点/)
+  assert.match(onDisk, /这是改过的示例文本/)
   assert.match(onDisk, /（地图见群公告）/)
-  assert.match(onDisk, /## 报名/, '未被 patch 的块必须原样保留')
+  assert.match(onDisk, /## 示例小节/, '未被 patch 的块必须原样保留')
 })
 
 test('端到端：write 用过期 revision 会被拒绝，并回带最新差异', async () => {
