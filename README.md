@@ -13,7 +13,7 @@
   </p>
 </div>
 
-<a href="#-这是什么">这是什么</a> • <a href="#-核心特性">核心特性</a> • <a href="#-效果">效果</a> • <a href="#-快速开始">快速开始</a> • <a href="#-模型工具">模型工具</a> • <a href="#-面板快捷键">面板快捷键</a> • <a href="#-与墨排一致的验证">与墨排一致</a> • <a href="#-开发">开发</a> • <a href="#-许可证">许可证</a>
+<a href="#-这是什么">这是什么</a> • <a href="#-核心特性">核心特性</a> • <a href="#-效果">效果</a> • <a href="#-快速开始">快速开始</a> • <a href="#-模型工具">模型工具</a> • <a href="#-面板快捷键">面板快捷键</a> • <a href="#-开发">开发</a> • <a href="#-许可证">许可证</a>
 
 ## 🐟 这是什么
 
@@ -43,7 +43,6 @@
 | 🎨 | **主题与主题色** | 11 套主题，按"是否适合公众号"分组；主题色只对「默认公众号」生效（用不上的取色行会自动隐藏），有风险的主题直接提示原因 |
 | 📦 | **复制与导出** | 复制为 `text/html` + `text/plain` 双格式；本地图片内嵌 base64，粘过去**不用手动重传**；也能导出成自包含 `.html` |
 | 🧩 | **四个模型工具** | `fishpai_open` / `read` / `write` / `render`，配一份教模型怎么用的技能 |
-| 🔒 | **零运行时依赖** | 渲染与主题都是仓库内的 vendor 资产；不出网、不调公众号 API、不读工作目录之外的路径 |
 
 ## 📷 效果
 
@@ -80,7 +79,7 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 > 装好后右侧栏会多出「鱼排编辑器」入口（官方右侧栏的 `+` 菜单 / 引导页里也能找到）。
 > 本插件零运行时依赖，不受 `minimumReleaseAge` 影响；客户端产物 `lib/client.js` 已入库，不需要本地构建。
 
-**装完怎么验**
+**装完怎么用**
 
 1. 让模型 `fishpai_open` 打开一篇 Markdown → 右侧栏应**自动弹出**鱼排并显示正文与预览
 2. 在面板里打字 → 预览跟着变；选中文字按 `Ctrl/⌘+B` → 变成 `**加粗**`，`Ctrl+Z` 能撤销
@@ -89,7 +88,6 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 5. 让模型 `fishpai_read` → 它应当说出**你改了哪一块、批注要求什么、占位在哪一行**
 6. 让模型 `fishpai_write`（`mode: "patch"`）→ 只有那块变了，你其它改动原样保留
 7. 点「复制到公众号」→ 粘进公众号编辑器，版式正确（标题 / 列表 / 引用 / 表格 / 信息卡片）
-8. 让模型用**旧** revision 写入 → 应当被拒绝并回带"你改了什么"
 
 ## 🧩 模型工具
 
@@ -127,29 +125,6 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 | `.fishpai/history/` | 历史快照（最多 50 份） | 面板「历史」抽屉里可一键回滚 |
 | `.fishpai/.gitignore` | 忽略上面两项 | 插件自建，不动你的 `.gitignore` |
 
-## ✅ 与墨排一致的验证
-
-`plugin/core/render.mjs` 是上游渲染管线的 ESM 移植：**在预览锚点（`annotate`）与图片内嵌（`imageResolver`）
-都不生效时，输出与迁移前的 `render.js` 逐字节相同**——`test/golden/**` 由冻结的迁移前实现
-`test/oracle/render.cjs` 生成，两份独立代码互为对照。`test/site-parity.test.mjs` 再用**从墨排线上站点
-抓下来的真实剪贴板内容**做金标准，规范化后逐字符比对。上游 SPA 原样留在 `legacy-site/`，需要时可本地起站复跑。
-
-**复制 / 导出**在渲染之后多加两层微信兼容处理（都是显式开启、只走这一条路径、默认路径一个字节不动）：
-
-| 兼容层 | 做什么 | 为什么 |
-|---|---|---|
-| `wrapText` | 把文字包进 `<span>` | 公众号的结构校验用「内容高度 ÷ 行框矩形数」估行高，而行内元素（`span` / `a` / `strong`）会把一行拆成多个矩形——含链接或加粗的段落会被误报成「行高小于字体大小，且存在多行文本，可能导致文字重叠」。包一层后块级元素不再有直接文字子节点，这条规则就不再命中，而且这正是微信自己插入内容后的形态（`<span leaf="">`） |
-| `wechatBackground` | 把 `background:` 简写拆成 `background-color:` / `background-image:` | 微信的安全过滤是**按属性名**过的：`background-color` 在名单里、简写不在。不拆的话，引用块的框、表头底色、行内代码底色粘过去会整条丢掉 |
-
-两条都有测试守着性质：`wrapText` 是**纯叠加**（去掉它加的那层裸 `span` 就回到默认产物）、
-`wechatBackground` 是**纯规范化**（除了这几个属性名，别的字节一个都不动）。
-想自己复验结构校验，用微信官方实现
-[wechatjs/verify-article-structure-spec](https://github.com/wechatjs/verify-article-structure-spec)
-（CLI 用 puppeteer 真机测量；本机 Chrome 即可，见下节命令）。正文段落、引用、列表、表格、信息卡片都能过；
-`tech` / `gradient` 会被另一条 `darkmode-no-gradient` 标出，与面板里"微信可能掉样式"的提示一致。
-唯一还在的是**围栏代码块**（```）：它天然多行、且文字走 markdown-it 的 `fence` 规则（上游的 mac 标题栏
-结构不能动），素材里有代码块时官方校验器仍会标出那条 line-height——上游形态也一样。
-
 ## 🛠 开发
 
 ```powershell
@@ -183,10 +158,9 @@ $env:PUPPETEER_EXECUTABLE_PATH='C:\Program Files\Google\Chrome\Application\chrom
 npx tsx src/index.ts <导出的 article.html> --json    # isValid: true 即通过
 ```
 
-## 🤝 支持
+## ⭐ 支持
 
-- 效果图怎么来的：把 docs/promo-fishpai.md 按「复制到公众号」的形态渲染后截图（与面板同一个渲染路径）
-- 遇到问题或有排版需求：开 [Issue](https://github.com/OMSociety/dsh-fishpai/issues)，附上主题名与出问题的 Markdown 片段最有效
+- 如果这个插件对你有帮助，欢迎点亮 Star ⭐，有问题和建议请提交 [Issue](https://github.com/OMSociety/maibot_plugin_schedule_assistant/issues) 或 [Pull Request](https://github.com/OMSociety/maibot_plugin_schedule_assistant/pulls)。
 - 想改主题或加一套自己的：主题定义集中在 `plugin/vendor/themes.js`，加完跑 `node scripts/regen-golden.mjs` 重生成 golden
 
 ## 🙏 致谢

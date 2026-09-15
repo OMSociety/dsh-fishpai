@@ -184,10 +184,12 @@ function ThemePicker(props: { themes: ThemeInfo[]; value: string; onPick: (key: 
   const [active, setActive] = React.useState(0)
   const wrapRef = React.useRef<HTMLDivElement | null>(null)
 
+  // 分组标题分两行显示：一行是组名，一行是**小字提示**。
+  // 挤成一行（"其它风格（微信可能掉样式）"）在窄面板里会被折成两截，看着像没排好版。
   const groups = React.useMemo(
     () => [
-      { label: '适合公众号', items: themes.filter((t) => t.wechatSafe) },
-      { label: '其它风格（微信可能掉样式）', items: themes.filter((t) => !t.wechatSafe) },
+      { key: 'safe', label: '适合公众号', note: '', risk: false, items: themes.filter((t) => t.wechatSafe) },
+      { key: 'risky', label: '其它风格', note: '微信可能掉样式', risk: true, items: themes.filter((t) => !t.wechatSafe) },
     ],
     [themes],
   )
@@ -254,8 +256,11 @@ function ThemePicker(props: { themes: ThemeInfo[]; value: string; onPick: (key: 
       {open ? (
         <div className="fp-menu" role="listbox" aria-label="主题">
           {groups.map((group) => (
-            <div key={group.label}>
-              <div className="fp-menu-group">{group.label}</div>
+            <div key={group.key}>
+              <div className="fp-menu-group" data-risk={group.risk ? 'true' : undefined}>
+                <span className="fp-menu-group-title">{group.label}</span>
+                {group.note ? <span className="fp-menu-group-note">{group.note}</span> : null}
+              </div>
               {group.items.map((theme) => {
                 const index = flat.indexOf(theme)
                 const on = theme.key === value

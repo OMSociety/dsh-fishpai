@@ -322,6 +322,31 @@ test('块级补丁：多个补丁从下往上应用，行号不会互相顶偏',
   assert.match(result.markdown, /## 报名/)
 })
 
+test('块级补丁：replace 保住块尾的分隔空行，后面的块不会被吞掉', () => {
+  // 块的行范围含末尾那个空行（块与块的分隔符）。replace 若把它一起吃掉，
+  // 下一块会被 markdown 的"懒延续"并进列表/段落，而人下一轮再改那个被并大的块时，
+  // **被吞掉的块就被整段删掉**（实测踩过：改一次列表项，吃掉了文末的「项目地址」两行）。
+  const doc = '第一段。\n\n1. 甲\n2. 乙\n\n**项目地址：**\nexample.com\n'
+  const before = splitBlocks(doc)
+  assert.equal(before.length, 3, '应当是 段落 / 列表 / 段落 三块')
+  assert.equal(before[1].kind, 'list')
+
+  const once = applyPatches(doc, before, [{ block_id: before[1].id, op: 'replace', markdown: '1. 丙' }])
+  assert.deepEqual(once.errors, [])
+  const after = splitBlocks(once.markdown)
+  assert.equal(after.length, 3, '替换列表后仍应是三块（分隔空行必须补回来）')
+  assert.equal(after[2].kind, 'paragraph')
+  assert.match(after[2].text, /项目地址/)
+  assert.match(once.markdown, /\n\n\*\*项目地址：\*\*\n/, '列表与地址之间要留一个空行')
+
+  // 第二轮：再改一次列表（这次改的是替换后的新块 id），地址仍不能被吃掉
+  const twice = applyPatches(once.markdown, after, [{ block_id: after[1].id, op: 'replace', markdown: '1. 丁\n2. 戊' }])
+  assert.deepEqual(twice.errors, [])
+  assert.match(twice.markdown, /项目地址/, '第二次 replace 不许吃掉后面的块')
+  assert.match(twice.markdown, /example\.com/)
+  assert.equal(splitBlocks(twice.markdown).length, 3)
+})
+
 // ── HTTP 路由 ──────────────────────────────────────────────────
 
 test('同源守卫：跨站与伪造 Origin 一律拒绝', () => {

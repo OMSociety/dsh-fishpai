@@ -33,6 +33,9 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
 6. **样式只用 `--dsw-alias-*` 主题变量**；旧名（`--dsw-text-secondary` 一类）在新版 DSH 里一个都不存在。
 7. **文件只能落在会话工作目录内**（`header.cwd`），并过扩展名白名单；不做任意路径读写。
 8. **绝不静默覆盖人的手改**：任何写入都要带 `base_revision`，不匹配就拒绝并回带最新 diff。
+   **块的行范围包含末尾那个空行**（块与块的分隔符）：`applyPatches` 的 `replace` 必须把分隔空行补回去，
+   否则下一块会被 markdown 的"懒延续"并进列表/段落，下一轮再改那个被并大的块就**会把它整段删掉**
+   （实测踩过一次：改列表项吃掉了文末两行）。`test/host.test.mjs` 有回归守卫。
 9. **`package.json` 的 `dsh.client.inject` 是「包依赖边」，不是服务依赖**。它声明的是
    "这一行的 factory 到位前必须先到位的**包**"（DSH `dsh-client-modules` 的 `WebBootEntry`：
    "names package rows whose factories must arrive before this row materializes"），

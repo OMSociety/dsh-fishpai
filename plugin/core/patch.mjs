@@ -53,7 +53,12 @@ export function applyPatches(markdown, blocks, patches) {
         errors.push(`replace 需要 markdown：块 ${block.id}`)
         continue
       }
-      lines.splice(from, to - from, ...newLines)
+      // 块的行范围**包含末尾那个空行**（它就是块与块之间的分隔符）。替换时必须把分隔符补回去：
+      // 少了它，下一块会与这里的结尾粘在一起——markdown 的"懒延续"会把下一段并进列表/段落，
+      // 而下一轮再 replace 这个被并大了的块时，**被吞掉的块就被一起删掉了**。
+      // 实测踩过：改一次列表项，吃掉了文末的「项目地址」两行。
+      const keepsBlank = to > from && lines[to - 1] === ''
+      lines.splice(from, to - from, ...newLines, ...(keepsBlank ? [''] : []))
     } else if (op === 'delete') {
       lines.splice(from, to - from)
     } else {

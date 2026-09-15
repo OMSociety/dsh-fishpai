@@ -73,7 +73,18 @@ export const CSS = `
   border:1px solid var(--dsw-alias-border-l2);border-radius:8px;
   background:var(--dsw-alias-bg-layer-1);box-shadow:var(--dsw-shadow-lv3,0 4px 14px rgba(0,0,0,.28));
 }
-.fp-menu-group{padding:4px 6px 2px;font-size:11px;color:var(--dsw-alias-label-secondary)}
+/* 分组标题：组名一行、小字提示一行（挤成一行在窄面板里会折得很难看） */
+.fp-menu-group{
+  display:flex;flex-direction:column;gap:1px;
+  padding:6px 6px 3px;font-size:11px;line-height:1.45;color:var(--dsw-alias-label-secondary);
+}
+.fp-menu-group-title{font-weight:500}
+.fp-menu-group-note{font-size:10px;color:var(--dsw-alias-label-secondary);opacity:.8}
+/* 第二组之前来一条细分隔线：一眼能看出"上面是能直接用的，下面是另一类" */
+.fp-menu-group[data-risk="true"]{
+  margin-top:5px;padding-top:7px;border-top:1px solid var(--dsw-alias-border-l2);
+}
+.fp-menu-group[data-risk="true"] .fp-menu-group-note{color:var(--dsw-alias-state-warn-primary);opacity:1}
 .fp-menu-row{
   display:flex;align-items:center;gap:6px;width:100%;text-align:left;font:inherit;cursor:pointer;
   padding:3px 6px;border-radius:5px;border:0;background:transparent;color:var(--dsw-alias-label-primary);
