@@ -52,11 +52,24 @@ function service(ctx: any, key: string): any {
   }
 }
 
-function currentSessionId(ctx: any): string | null {
+/**
+ * 「界面上当前选中的会话」，两代宿主各有一条读法，全都拿不到时退到"只有一个会话"：
+ *   - 0.1.5 线：选中态挂在会话列表快照上（`list.getSnapshot().current`）；
+ *   - 0.1.7 起客户端 Session 多实例共存，列表快照不再携带选中态（`current` 随
+ *     SessionListState 收窄而移除），屏幕上那个会话由右侧栏座位的挂载态公开
+ *     （`ISidebarRight.mounted`），所以走注入回调捕获的读取函数。
+ * 返回 null 就让轮询这一轮空转，下一轮再试——绝不瞎猜会话（猜错会把别的会话的
+ * 打开请求算到当前头上）。
+ */
+function currentSessionId(ctx: any, readMounted?: () => string | null): string | null {
   try {
     const sessions = service(ctx, 'sessions')
     const snapshot = sessions?.list?.getSnapshot?.()
-    return snapshot?.current || null
+    if (snapshot?.current) return snapshot.current
+    const mounted = readMounted?.() || null
+    if (mounted) return mounted
+    if (Array.isArray(snapshot?.ids) && snapshot.ids.length === 1) return snapshot.ids[0]
+    return null
   } catch {
     return null
   }
@@ -66,6 +79,16 @@ export function apply(ctx: any): void {
   const stores = new Map<string, FishpaiStore>()
   const disposeStyles = ensureStyles()
   ctx.effect(() => () => disposeStyles(), 'fishpai: 面板样式')
+
+  // 右侧栏座位的挂载会话读取函数，由通道一的注入回调捕获（0.1.7 线读"当前会话"就靠它）。
+  let getMountedSession: (() => string | null) | null = null
+  const readMounted = (): string | null => {
+    try {
+      return getMountedSession ? getMountedSession() : null
+    } catch {
+      return null
+    }
+  }
 
   const storeFor = (sessionId: string): FishpaiStore => {
     let store = stores.get(sessionId)
@@ -81,7 +104,7 @@ export function apply(ctx: any): void {
     // 优先用槽位给的 sessionId。拿不到时退回"界面上当前选中的会话"：这不只是兜底——
     // 右侧栏本身就是 per-session 的（rightbar.session 按当前会话挂载），
     // 所以"当前会话"与"这个面板所属会话"在实际产品里是同一个。
-    const sessionId = props?.sessionId || currentSessionId(ctx)
+    const sessionId = props?.sessionId || currentSessionId(ctx, readMounted)
     const store = React.useMemo(() => (sessionId ? storeFor(sessionId) : null), [sessionId])
     if (!sessionId || !store) {
       return React.createElement('div', { className: 'fp-root' }, '鱼排：拿不到当前会话，请在一个会话里打开。')
@@ -138,6 +161,16 @@ export function apply(ctx: any): void {
       const sidebarRight = pick(injected, 'sidebarRight')
       if (!tabs || typeof tabs.register !== 'function') return
 
+      // 0.1.7 线读"当前会话"：右侧栏座位挂载的会话就是屏幕上那个（ISidebarRight.mounted）。
+      // 旧版没有这个公开字段，读不到就返回 null、走别的读法。
+      getMountedSession = () => {
+        try {
+          return sidebarRight?.mounted?.getSnapshot?.() || null
+        } catch {
+          return null
+        }
+      }
+
       const disposers: Array<() => void> = []
       disposers.push(
         tabs.register({
@@ -147,6 +180,9 @@ export function apply(ctx: any): void {
           title: () => '鱼排编辑器',
           guide: [
             {
+              // 0.1.7 起 guide 条目契约要求稳定 id（注册时的唯一性检查与渲染 key 都按它走）；
+              // 旧版注册处不读这个字段，多了无害。
+              id: 'editor',
               order: 45,
               title: () => '鱼排编辑器',
               description: () => '公众号排版：Markdown + 实时预览 + 与模型来回改稿',
@@ -197,6 +233,7 @@ export function apply(ctx: any): void {
         }
         officialReady = false
         openOfficial = null
+        getMountedSession = null
       }
       return dispose
     })
@@ -248,7 +285,7 @@ export function apply(ctx: any): void {
     const seenSessions = new Set<string>()
     const tick = async () => {
       if (stopped || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return
-      const sessionId = currentSessionId(ctx)
+      const sessionId = currentSessionId(ctx, readMounted)
       if (!sessionId) return
       try {
         const st = await api.state(sessionId)

@@ -10,8 +10,13 @@
  *
  * 兜底：万一某个 DSH 版本没提供这个模块，插件不能因此整块加载不了 ——
  * 取不到就退回"自绘的鱼形标 + 纯文字"，主题列表少几个图标而已，功能不受影响。
+ *
+ * 另有一层版本兜底：0.1.7 起这套图标的导出名整体改了拼写（去尺寸后缀、改字重后缀），
+ * 所以调用点写**稳定名**、运行时按对照表找两代拼写（见 `icon-names.ts`），
+ * 一份 bundle 在两代宿主上都画得出图标。
  */
 import * as React from 'react'
+import { resolveIconExport } from './icon-names'
 
 // 客户端 bundle 是 CJS 形态的 factory(require)，这里的 require 由模块表提供（见 scripts/build-client.mjs）。
 declare function require(id: string): any
@@ -31,14 +36,10 @@ function loadPrimitives(): Record<string, any> {
 
 const PRIMITIVES = loadPrimitives()
 
-/** 按导出名取一个内置图标；没有就返回 null，由调用方降级成纯文字。 */
+/** 按稳定名取一个内置图标（两代导出拼写都认，见 `icon-names.ts`）；没有就返回 null，由调用方降级成纯文字。 */
 function builtin(name: string, props: GlyphProps, fallbackSize: number): React.ReactElement | null {
-  const Icon = PRIMITIVES[name]
-  // 内置图标目前都是普通函数组件，但 `memo` / `forwardRef` 返回的是**对象**（带 `$$typeof`），
-  // 只判 `typeof === 'function'` 会把它们误判成"没有这个图标"而静默退回纯文字。
-  // 真正不能交给 React 的是那种既不是函数、又没有 `$$typeof` 的东西（会整块崩），那种才降级。
-  const usable = typeof Icon === 'function' || (!!Icon && typeof Icon === 'object' && Icon.$$typeof)
-  if (!usable) return null
+  const Icon = resolveIconExport(PRIMITIVES, name)
+  if (!Icon) return null
   return <Icon size={props.size ?? fallbackSize} className={props.className} />
 }
 
@@ -64,9 +65,11 @@ export function FishGlyph({ size = 16, className }: GlyphProps) {
 }
 
 /**
- * 每套主题各自的图标，值是 `@deepseek-ai/dsh-client-ui-primitives` 的导出名。
+ * 每套主题各自的图标，值是 `@deepseek-ai/dsh-client-ui-primitives` 的**稳定名**
+ * （两代导出拼写的对照与解析见 `icon-names.ts`）。
  *
- * 加主题时在这里补一行即可；`test/theme-info.test.mjs` 会检查"每套主题都有图标"，
+ * 加主题时在这里补一行（新图标名还要去 `icon-names.ts` 补对照）；
+ * `test/theme-info.test.mjs` 会检查"每套主题都有图标"，
  * 漏了会红（主题列表退化成没有图标也能用，但不该悄悄漏）。
  */
 const THEME_GLYPH: Record<string, string> = {
@@ -82,7 +85,7 @@ const THEME_GLYPH: Record<string, string> = {
   dark_night: 'IconDarkOutline16', // 暗夜模式
   gradient: 'IconEnhanceOutline16', // 渐变彩虹（增色）
   // 「自定义主题」：工作目录里那**一套**模型生成的主题，图标固定这一个。
-  // 为什么不让模型挑：合法图标名的名单只在浏览器这半（66 个 Icon* 导出），而校验器在宿主那半——
+  // 为什么不让模型挑：合法图标名的名单只在浏览器这半（`icon-names.ts` 的对照表），而校验器在宿主那半——
   // 让模型选就得在宿主再抄一份、跟着 DSH 升级维护，抄漏一个的后果是"图标静默消失且不报错"。
   custom: 'IconEditOutline16',
 }

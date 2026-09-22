@@ -69,6 +69,10 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
     鱼排自己的标在 `client/icons.tsx` 里按同一口径自绘（16px 网格、约 1.05 描边、圆角连接）。
     **颜色只走 `currentColor` 与 `--dsw-alias-*` 令牌**，浅色/深色共用一套图，绝不硬编码颜色。
     取不到那个基线模块时必须降级（退回纯文字）而不是让插件整块加载不了。
+    **导出名两个时代两套拼写**（0.1.7 起去尺寸后缀、改字重后缀，旧名在 0.1.7 导出表里消失）：
+    调用点只写**稳定名**，对照与解析集中在 `client/icon-names.ts`，两代拼写都收、运行时探测——
+    别在调用点直接写某一时代的拼写。加引用就补一行对照，
+    `test/icons-compat.test.mjs` 拿两代导出清单逐个核落点。
     加了主题就往 `THEME_GLYPH` 补一行，`test/theme-info.test.mjs` 会检查不漏。
 12. **编辑器的快捷键与格式化动作只有一份实现**（`client/mdedit.ts`，纯函数）：
     `SHORTCUTS` 一张表同时喂键盘匹配 `matchShortcut()`、界面上的速查表 `shortcutHint()` 与测试——
@@ -91,7 +95,8 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
     - 存下来的那套是**工作目录级、只有一套**：`<cwd>/.fishpai/theme.json`，面板里是**一个**「自定义主题」占位，
       由 `plugin/host/custom-theme.mjs` 的 `themeFor()` 解析——**没有主题库**，没有命名/列表管理，`set` 即覆盖；
       文件缺失或被改坏时**静默退回默认主题**（与 `safeThemeKey` 同口径），不留"选不中的状态"。
-    - **图标不归模型**：合法图标名只在浏览器那半（66 个 `Icon*` 导出），让模型选就得在宿主再抄一份名单、迟早静默失配。
+    - **图标不归模型**：合法图标名只在浏览器那半（`@deepseek-ai/dsh-client-ui-primitives` 的 `Icon*` 导出，
+      数量与拼写随 DSH 版本变，见 `client/icon-names.ts` 的对照表），让模型选就得在宿主再抄一份名单、迟早静默失配。
       `.json` 只对**宿主拼死**的这条路径放行，`.fishpai/state/*.json` 仍然不可达。
     - 最容易踩的一条：**换主题不动 `revision`**，所以面板靠 `/state` 的 `active.theme` 发现它，并且
       **只换 meta、不重载正文**——别让用户正在打的字被换掉。

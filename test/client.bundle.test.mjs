@@ -251,9 +251,11 @@ test('图标：主题图标用 DSH 内建的图标集（基线模块），鱼形
   // 自绘的鱼形标：16px 网格、currentColor（深浅色共用一套，不做两套图）
   assert.ok(source.includes('M2.1 8C3.2 5.6'), '鱼形标的路径要在产物里')
   assert.ok(source.includes('currentColor'), '图标颜色走 currentColor')
-  // 每套主题的图标名必须都是内置图标的导出名
-  const names = [...source.matchAll(/'?(Icon[A-Za-z0-9]+Outline?\d+)'?/g)].map((m) => m[1])
-  assert.ok(names.length >= 11, `主题图标名没进产物？只找到 ${names.length} 个`)
+  // 图标名两代拼写都要进产物：对照表同时收着 0.1.5 的尺寸后缀名与 0.1.7 的字重后缀名
+  // （逐个名字在两代导出清单里的落点由 test/icons-compat.test.mjs 核对）
+  const names = [...source.matchAll(/["'](Icon[A-Za-z0-9]+)["']/g)].map((m) => m[1])
+  assert.ok(names.length >= 28, `主题图标名与对照表没进产物？只找到 ${names.length} 个`)
+  assert.ok(names.includes('IconListPenOutline16') && names.includes('IconListPenOutlineRegular'), '对照表应同时收两代拼写')
   // 自绘 listbox：原生 <option> 里放不进 SVG，这是 emoji 换成图标的前提
   assert.ok(source.includes('fp-picker-btn') && source.includes('fp-menu-row'), '主题选择器与弹出列表')
   assert.ok(source.includes('"aria-selected"'), '主题列表要有 listbox/option 语义')
@@ -435,6 +437,56 @@ test('官方席位：注册 tab 类型与两个槽位，openRequest 到达时自
   const tabOpened = harness.fetchCalls.find((c) => String(c.url).includes('/tab-opened'))
   assert.ok(tabOpened, '应回调 /tab-opened 清掉打开请求')
   assert.match(String(tabOpened.init.body), /"docKey":"k1"/)
+})
+
+test('0.1.7 形态的服务面（列表快照不带 current）：轮询从右侧栏挂载态拿当前会话', async () => {
+  const harness = loadBundle({
+    services: {
+      sessions: { list: { getSnapshot: () => ({ ids: ['s9'], byId: { s9: { id: 's9' } } }) } },
+      sidebarRight: { mounted: { getSnapshot: () => 's9' }, openTab: () => {} },
+    },
+    fetchImpl: () => ({ ok: true }),
+  })
+  harness.apply()
+  await flush()
+  harness.timers[0]()
+  await flush()
+
+  const polled = harness.fetchCalls.find((c) => String(c.url).startsWith('/fishpai/api/state'))
+  assert.ok(polled, '0.1.7 上轮询必须照常发起（否则 fishpai_open 后面板不会自动弹）')
+  assert.match(String(polled.url), /sessionId=s9/, '应轮到右侧栏座位挂载的那个会话')
+})
+
+test('0.1.7 形态 + 没有挂载座位：单会话退到唯一的那个，多会话宁可空转也不猜', async () => {
+  const single = loadBundle({
+    services: {
+      sessions: { list: { getSnapshot: () => ({ ids: ['only'], byId: {} }) } },
+      sidebarRight: { openTab: () => {} },
+    },
+    fetchImpl: () => ({ ok: true }),
+  })
+  single.apply()
+  await flush()
+  single.timers[0]()
+  await flush()
+  assert.ok(single.fetchCalls.some((c) => /sessionId=only/.test(String(c.url))), '只有一个会话时没有别的候选')
+
+  const multi = loadBundle({
+    services: {
+      sessions: { list: { getSnapshot: () => ({ ids: ['a', 'b'], byId: {} }) } },
+      sidebarRight: { openTab: () => {} },
+    },
+    fetchImpl: () => ({ ok: true }),
+  })
+  multi.apply()
+  await flush()
+  multi.timers[0]()
+  await flush()
+  assert.equal(
+    multi.fetchCalls.filter((c) => String(c.url).startsWith('/fishpai/api/state')).length,
+    0,
+    '猜错会话会把别的会话的打开请求算到当前头上：多会话时读不出当前会话就该空转',
+  )
 })
 
 test('回退通道：只有 better-sidebar 时注册它的 tab', async () => {
