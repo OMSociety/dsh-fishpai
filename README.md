@@ -59,11 +59,11 @@
 
 ```powershell
 # 1) 先停掉 dsh web（运行中的服务会锁住依赖，装完再起）
-dsh plugin --profile web add "github:OMSociety/dsh-fishpai#v1.0.0"
+dsh plugin --profile web add "github:OMSociety/dsh-fishpai#v1.0.1"
 # 2) 重新启动 dsh web
 ```
 
-> 上面的 `#v1.0.0` 钉在已发布的版本上；想跟进最新就把尾巴换成 `#main`（最新的排版规则与兼容层都在这里）。
+> 上面的 `#v1.0.1` 钉在已发布的版本上；想跟进最新就把尾巴换成 `#main`（最新的排版规则与兼容层都在这里）。
 
 **方式二：clone 到本地再装**
 
@@ -128,7 +128,7 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 
 ```powershell
 npm install        # 只有 devDependencies（esbuild / typescript / @types/react / @types/react-dom / @deepseek-ai/cordis）
-npm test           # 全量回归：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + 主题规格 + bundle + 快捷键 + 挂载 + 客户端 store 时序
+npm test           # 全量回归：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + 主题规格 + 图标双版本对照 + bundle + 快捷键 + 挂载 + 客户端 store 时序
 npm run typecheck  # 客户端 TSX 类型检查
 npm run build      # 重新打包 lib/client.js（改完客户端必须跑，并提交产物）
 npm run check:build  # 确认 lib/ 无漂移
@@ -145,7 +145,7 @@ client/                 客户端源码（TSX → esbuild 打成 lib/client.js�
 lib/client.js           客户端 bundle（入库；dsh plugin add 不做构建）
 skills/fishpai/         鱼排技能：教模型怎么选主题、怎么按块改稿
 legacy-site/            上游 SPA 原样留存，便于复核渲染一致性
-test/                   golden、站点对照、块/diff/批注/补丁、宿主红线、微信兼容层、主题规格、bundle 形态、快捷键、真实 Cordis 挂载、客户端 store 时序
+test/                   golden、站点对照、块/diff/批注/补丁、宿主红线、微信兼容层、主题规格、图标双版本对照、bundle 形态、快捷键、真实 Cordis 挂载、客户端 store 时序
 ```
 
 用微信官方校验器复验（需要本机 Chrome，不进依赖）：
