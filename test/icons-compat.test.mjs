@@ -41,7 +41,7 @@ function referencedIcons() {
 
 test('清单是真货：两份导出清单就是 npm 发布包的运行时导出表（防"清空的 fixture 骗过对照"）', () => {
   assert.equal(legacyList.size, 75, '0.1.5-rc.2 的 Icon* 导出应为 75 个（尺寸后缀拼写）')
-  assert.equal(modernList.size, 186, '0.1.7-alpha.2 的 Icon* 导出应为 186 个（每图 Regular/Medium 两支）')
+  assert.equal(modernList.size, 184, '0.1.7-alpha.2 的 Icon* 组件导出应为 184 个（92 个图标的 Regular/Medium 各一支）')
   assert.ok(legacyList.has('IconThinkOutline16') && !modernList.has('IconThinkOutline16'), '旧名在新清单里应当已消失（这才叫改名）')
   assert.ok(modernList.has('IconThinkOutlineRegular'), '新名应当在新清单里')
 })

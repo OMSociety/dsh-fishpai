@@ -159,10 +159,10 @@ export function apply(ctx: any): void {
     seatHandle = ctx.inject(['sidebarRightTabs', 'sidebarRight'], (injected: any) => {
       const tabs = pick(injected, 'sidebarRightTabs')
       const sidebarRight = pick(injected, 'sidebarRight')
-      if (!tabs || typeof tabs.register !== 'function') return
 
       // 0.1.7 线读"当前会话"：右侧栏座位挂载的会话就是屏幕上那个（ISidebarRight.mounted）。
       // 旧版没有这个公开字段，读不到就返回 null、走别的读法。
+      // 装在 tab 注册守卫之前：挂载读法与注册无关，裁剪构建（有 mounted、没有席位注册）也要能读。
       getMountedSession = () => {
         try {
           return sidebarRight?.mounted?.getSnapshot?.() || null
@@ -170,6 +170,7 @@ export function apply(ctx: any): void {
           return null
         }
       }
+      if (!tabs || typeof tabs.register !== 'function') return
 
       const disposers: Array<() => void> = []
       disposers.push(

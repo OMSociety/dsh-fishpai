@@ -442,7 +442,8 @@ test('官方席位：注册 tab 类型与两个槽位，openRequest 到达时自
 test('0.1.7 形态的服务面（列表快照不带 current）：轮询从右侧栏挂载态拿当前会话', async () => {
   const harness = loadBundle({
     services: {
-      sessions: { list: { getSnapshot: () => ({ ids: ['s9'], byId: { s9: { id: 's9' } } }) } },
+      // ids 给两个会话：只有一个会话时"唯一会话兜底"也会答对 s9，分不出是不是挂载读法的功劳
+      sessions: { list: { getSnapshot: () => ({ ids: ['s9', 'sOther'], byId: { s9: { id: 's9' }, sOther: { id: 'sOther' } } }) } },
       sidebarRight: { mounted: { getSnapshot: () => 's9' }, openTab: () => {} },
     },
     fetchImpl: () => ({ ok: true }),
