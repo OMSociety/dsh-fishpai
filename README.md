@@ -13,9 +13,9 @@
   </p>
 </div>
 
-<a href="#-这是什么">这是什么</a> • <a href="#-核心特性">核心特性</a> • <a href="#-效果">效果</a> • <a href="#-快速开始">快速开始</a> • <a href="#-模型工具">模型工具</a> • <a href="#-面板快捷键">面板快捷键</a> • <a href="#-开发">开发</a> • <a href="#-许可证">许可证</a>
+<a href="#这是什么">这是什么</a> • <a href="#核心特性">核心特性</a> • <a href="#效果">效果</a> • <a href="#快速开始">快速开始</a> • <a href="#模型工具">模型工具</a> • <a href="#面板快捷键">面板快捷键</a> • <a href="#开发">开发</a> • <a href="#许可证">许可证</a>
 
-## 🐟 这是什么
+## 这是什么
 
 **鱼排**把 Markdown 排成**内联样式 HTML**：整段粘进微信公众号编辑器就得到成品排版。
 
@@ -24,21 +24,21 @@
 渲染内核与主题来自 [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT），
 本仓库把同一套管线重构为 DSH 插件。署名与许可链条见 [`NOTICE.md`](NOTICE.md)。
 
-## ✨ 核心特性
+## 核心特性
 
-| | 特性 | 说明 |
-|---|---|---|
-| ⌨ | **Markdown 快捷键** | 选中后 `Ctrl/⌘+B` 加粗、`+I` 斜体、`+K` 链接、`+Alt+1/2/3` 标题、`+Shift+8/7` 列表；列表里回车自动续写 |
-| 🖼 | **图片直接粘进来** | 截图 `Ctrl/⌘+V` 粘入（也可以拖进来）→ 存到文档同级的 `assets/`，正文自动插入引用，预览立刻可见 |
-| 👀 | **实时预览 + 手机宽度** | 打字 300ms 后预览跟着变；栏位够宽左右并排，窄了自动单栏；可切 375px 看公众号真实观感 |
-| 📝 | **批注与占位** | 光标所在段落加批注（模型下次 `fishpai_read` 就能看到）；正文里写 `<!-- 鱼排: 这里补个过渡 -->` 也一样；点批注「定位」直接选中它引用的那段 |
-| 🔀 | **块级 diff 与局部改稿** | 模型只改该改的块，你的其它改动原样保留；写入必须带 `base_revision`，不符**先拒**并回带"自你上次写入以来的改动" |
-| 🛡 | **冲突不丢字** | 模型与你同时改时给出「用我的覆盖 / 看 AI 的版本」，采用 AI 版会先把你的草稿存进历史 |
-| 🎨 | **主题与主题色** | 11 套主题，按"是否适合公众号"分组；主题色只对「默认公众号」生效（用不上的取色行会自动隐藏），有风险的主题直接提示原因；另有工作目录级的「自定义主题」（模型可在内置主题上只改几个槽位） |
-| 📦 | **复制与导出** | 复制为 `text/html` + `text/plain` 双格式；本地图片内嵌 base64，粘过去**不用手动重传**；也能导出成自包含 `.html` |
-| 🧩 | **五个模型工具** | `fishpai_open` / `read` / `write` / `render` / `theme`，配一份教模型怎么用的技能 |
+| 特性 | 说明 |
+|---|---|
+| **Markdown 快捷键** | 选中后 `Ctrl/⌘+B` 加粗、`+I` 斜体、`+K` 链接、`+Alt+1/2/3` 标题、`+Shift+8/7` 列表；列表里回车自动续写 |
+| **图片直接粘进来** | 截图 `Ctrl/⌘+V` 粘入（也可以拖进来）→ 存到文档同级的 `assets/`，正文自动插入引用，预览立刻可见 |
+| **实时预览 + 手机宽度** | 打字 300ms 后预览跟着变；栏位够宽左右并排，窄了自动单栏；可切 375px 看公众号真实观感 |
+| **批注与占位** | 光标所在段落加批注（模型下次 `fishpai_read` 就能看到）；正文里写 `<!-- 鱼排: 这里补个过渡 -->` 也一样；点批注「定位」直接选中它引用的那段 |
+| **块级 diff 与局部改稿** | 模型只改该改的块，你的其它改动原样保留；写入必须带 `base_revision`，不符**先拒**并回带"自你上次写入以来的改动" |
+| **冲突不丢字** | 模型与你同时改时给出「用我的覆盖 / 看 AI 的版本」，采用 AI 版会先把你的草稿存进历史 |
+| **主题与主题色** | 11 套主题，按"是否适合公众号"分组；主题色只对「默认公众号」生效（用不上的取色行会自动隐藏），有风险的主题直接提示原因；另有工作目录级的「自定义主题」（模型可在内置主题上只改几个槽位） |
+| **复制与导出** | 复制为 `text/html` + `text/plain` 双格式；本地图片内嵌 base64，粘过去**不用手动重传**；也能导出成自包含 `.html` |
+| **五个模型工具** | `fishpai_open` / `read` / `write` / `render` / `theme`，配一份教模型怎么用的技能 |
 
-## 📷 效果
+## 效果
 
 <table>
 <tr>
@@ -53,7 +53,7 @@
 
 同一份 HTML 用「导出 HTML」存成文件、在浏览器里打开，看到的就是面板右侧那个样子。
 
-## 🚀 快速开始
+## 快速开始
 
 **方式一：从 GitHub 装（推荐）**
 
@@ -85,7 +85,7 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 6. 让模型 `fishpai_write`（`mode: "patch"`）→ 只有那块变了，你其它改动原样保留
 7. 点「复制到公众号」→ 粘进公众号编辑器，版式正确（标题 / 列表 / 引用 / 表格 / 信息卡片）
 
-## 🧩 模型工具
+## 模型工具
 
 | 工具 | 作用 | 关键参数 |
 |---|---|---|
@@ -98,7 +98,7 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 模型的标准动作顺序是 **`open` → 等你改 → `read` → `write` → 你点复制**；技能 `fishpai`
 （随插件注册）里写明了这套纪律与排版口径，模型会在需要时自己读。
 
-## 📋 面板快捷键
+## 面板快捷键
 
 | 快捷键 | 作用 | 快捷键 | 作用 |
 |---|---|---|---|
@@ -112,7 +112,7 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 
 编辑器右上角的「快捷键」按钮里就是这份表（Mac 显示 `⌘`、Windows 显示 `Ctrl`）。
 
-## 📄 数据放在哪
+## 数据放在哪
 
 | 位置 | 内容 | 说明 |
 |---|---|---|
@@ -124,7 +124,7 @@ dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 | `.fishpai/theme.json` | 「自定义主题」（工作目录级，只有一套） | `fishpai_theme set` 写、`clear` 删；改坏了静默退回「默认公众号」 |
 | `.fishpai/.gitignore` | 忽略 `state/`、`history/`、`theme.json` | 插件自建，只追加缺失的行（你写的改动一字不动）；正文与图片是否入库由你自己决定，主题想跟仓库走就用 `git add -f` |
 
-## 🛠 开发
+## 开发
 
 ```powershell
 npm install        # 只有 devDependencies（esbuild / typescript / @types/react / @types/react-dom / @deepseek-ai/cordis）
@@ -157,17 +157,15 @@ $env:PUPPETEER_EXECUTABLE_PATH='C:\Program Files\Google\Chrome\Application\chrom
 npx tsx src/index.ts <导出的 article.html> --json    # isValid: true 即通过
 ```
 
-## ⭐ 支持
+## 支持与致谢
 
-- 如果这个插件对你有帮助，欢迎点亮 Star ⭐，有问题和建议请提交 [Issue](https://github.com/OMSociety/dsh-fishpai/issues) 或 [Pull Request](https://github.com/OMSociety/dsh-fishpai/pulls)。
+- 如果这个插件对你有帮助，欢迎点亮 Star，有问题和建议请提交 [Issue](https://github.com/OMSociety/dsh-fishpai/issues) 或 [Pull Request](https://github.com/OMSociety/dsh-fishpai/pulls)。
 - 想改主题或加一套自己的：主题定义集中在 `plugin/vendor/themes.js`，加完跑 `npm run test:golden:regen` 重生成 golden
-
-## 🙏 致谢
 
 - [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT）：渲染管线、主题、以及"复制到公众号"的整套行为都来自这里
 - [markdown-it](https://github.com/markdown-it/markdown-it)（MIT）与 [highlight.js](https://github.com/highlightjs/highlight.js)（BSD-3-Clause）：随包内嵌的 vendor 资产
 - [DeepSeek Harness](https://github.com/deepseek-ai/dsh)：插件、右侧栏与技能的宿主
 
-## 📜 许可证
+## 许可证
 
 [MIT](LICENSE)。上游 `mopai-markdown` © 2026 ye4wzp；本仓库新增部分 © 2026 OMSociety。
