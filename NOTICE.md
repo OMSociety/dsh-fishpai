@@ -8,7 +8,7 @@
 | 项 | 内容 |
 |---|---|
 | 上游仓库 | https://github.com/ye4wzp/mopai-markdown |
-| 上游作者 | ye4wzp |
+| 上游作者 | [@ye4wzp](https://github.com/ye4wzp) |
 | 许可 | MIT |
 | 本仓库 fork 自 | `main`（fork 时的上游 HEAD） |
 | 上游原样保留位置 | `legacy-site/`（去掉 `screenshots/`，其余原样：`index.html`、`css/`、`js/`、`docs/`、`DESIGN.md`、`README*.md`、`tests/` 等） |
@@ -28,7 +28,7 @@
 |---|---|---|---|
 | `plugin/vendor/markdown-it.min.js` | markdown-it 14.1.0 | MIT | © markdown-it contributors |
 | `plugin/vendor/highlight.min.js` | highlight.js 11.9.0 (git f47103d4f1) | BSD-3-Clause | © 2006-2023 highlight.js contributors |
-| `plugin/vendor/themes.js` | 上游同步（移除两套主题，见上） | MIT | © 2026 ye4wzp |
+| `plugin/vendor/themes.js` | 上游同步（移除两套主题，见上） | MIT | © 2026 [@ye4wzp](https://github.com/ye4wzp) |
 | `plugin/vendor/hljs-map.json` | — | MIT（本仓库整理） | 从真实浏览器导出的 highlight.js token 计算样式表 |
 
 `markdown-it` 与 `highlight.js` 的运行时代码随本插件一起分发，故在此保留其声明。
@@ -43,4 +43,4 @@ BSD-3-Clause 要求保留版权声明与免责声明；两处声明均完整保�
 
 ## 4. 本仓库新增部分的许可
 
-新增代码同样以 MIT 发布，版权归 OMSociety。完整条款见 `LICENSE`。
+新增代码同样以 MIT 发布，版权归 [@OMSociety](https://github.com/OMSociety)。完整条款见 `LICENSE`。

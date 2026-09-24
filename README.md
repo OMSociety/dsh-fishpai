@@ -168,4 +168,4 @@ npx tsx src/index.ts <导出的 article.html> --json    # isValid: true 即通�
 
 ## 许可证与作者
 
-[MIT](LICENSE)。上游 `mopai-markdown` © 2026 ye4wzp；本仓库新增部分 © 2026 OMSociety。
+[MIT](LICENSE)。上游 `mopai-markdown` © 2026 [@ye4wzp](https://github.com/ye4wzp)；本仓库新增部分 © 2026 [@OMSociety](https://github.com/OMSociety)。
