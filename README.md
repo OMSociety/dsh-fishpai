@@ -13,7 +13,7 @@
   </p>
 </div>
 
-<a href="#这是什么">这是什么</a> • <a href="#核心特性">核心特性</a> • <a href="#效果">效果</a> • <a href="#快速开始">快速开始</a> • <a href="#模型工具">模型工具</a> • <a href="#面板快捷键">面板快捷键</a> • <a href="#开发">开发</a> • <a href="#许可证">许可证</a>
+<a href="#这是什么">这是什么</a> • <a href="#核心特性">核心特性</a> • <a href="#效果">效果</a> • <a href="#快速开始">快速开始</a> • <a href="#模型工具">模型工具</a> • <a href="#面板快捷键">面板快捷键</a> • <a href="#开发">开发</a> • <a href="#许可证与作者">许可证与作者</a>
 
 ## 这是什么
 
@@ -166,6 +166,6 @@ npx tsx src/index.ts <导出的 article.html> --json    # isValid: true 即通�
 - [markdown-it](https://github.com/markdown-it/markdown-it)（MIT）与 [highlight.js](https://github.com/highlightjs/highlight.js)（BSD-3-Clause）：随包内嵌的 vendor 资产
 - [DeepSeek Harness](https://github.com/deepseek-ai/dsh)：插件、右侧栏与技能的宿主
 
-## 许可证
+## 许可证与作者
 
 [MIT](LICENSE)。上游 `mopai-markdown` © 2026 ye4wzp；本仓库新增部分 © 2026 OMSociety。
