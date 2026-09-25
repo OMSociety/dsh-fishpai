@@ -13,6 +13,8 @@
 import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+// 字号的形态规则只有一份，放在渲染层（它是那个字段的消费方，渲染层自己也必须兜底）
+import { isFontSize } from '../core/render.mjs'
 
 export const DOC_EXTS = ['.md', '.markdown', '.txt']
 export const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp']
@@ -495,9 +497,7 @@ export function saveDoc({ cwd, docPath, markdown, baseRevision, by = 'human', me
   state.revision += 1
   state.updatedAt = Date.now()
   state.updatedBy = by
-  for (const field of ['theme', 'color', 'font', 'fontSize', 'footnotes', 'macCodeBlock', 'mobile']) {
-    if (meta[field] !== undefined) state[field] = meta[field]
-  }
+  applyMeta(state, meta)
 
   if (by === 'ai') {
     // AI 写入即刷新 baseline：下一次 read 看到的就是"人在这之后改了什么"
@@ -522,15 +522,45 @@ export function rebase({ cwd, docPath, by = 'human' }) {
   return writeState(cwd, key, next)
 }
 
+/**
+ * 会被写进文档状态的设置项。
+ *
+ * 其中 `color` 与 `fontSize` 是**仅有的两个原样插值进 HTML** 的字段
+ * （`color` 替换主题里的 `{{PRIMARY}}` 占位符，`fontSize` 拼进 `font-size: …;`），
+ * 两者都在这里过一道形态校验；其余字段只当开关/枚举用，不参与拼串。
+ */
+const META_FIELDS = ['theme', 'color', 'font', 'fontSize', 'footnotes', 'macCodeBlock', 'mobile']
+
+/**
+ * 主题色只认 `#` + 3~8 位十六进制。
+ *
+ * 值里带一个引号就能闭合 `style="…"` 属性、把后面的字节变成任意属性（渲染层只对 wrapper
+ * 那一个槽位做了引号中和）。不合法的值按老规矩**静默忽略**：面板的色板本来只会给合法值，
+ * 走到这里说明请求是手写的，为它让整次「保存设置」失败得不偿失。
+ */
+export function isThemeColor(value) {
+  return typeof value === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(value)
+}
+
+/** 把 meta 里认识的字段写进状态对象（就地改），返回它。`saveDoc` 与 `updateMeta` 共用一份口径。 */
+function applyMeta(target, meta) {
+  for (const field of META_FIELDS) {
+    if (meta[field] === undefined) continue
+    // null 是"清掉主题色"的合法写法（面板上再点一次同一个色块就是清掉）
+    if (field === 'color' && meta[field] !== null && !isThemeColor(meta[field])) continue
+    // 字号与主题色同一条规矩：它是原样拼进 style 的第二个字段，形态不对就当没写
+    if (field === 'fontSize' && !isFontSize(meta[field])) continue
+    target[field] = meta[field]
+  }
+  return target
+}
+
 export function updateMeta({ cwd, docPath, meta }) {
   const abs = resolveInCwd(cwd, docPath)
   const key = docKey(abs)
   const state = readState(cwd, key)
   if (!state) return null
-  const next = { ...state }
-  for (const field of ['theme', 'color', 'font', 'fontSize', 'footnotes', 'macCodeBlock', 'mobile']) {
-    if (meta[field] !== undefined) next[field] = meta[field]
-  }
+  const next = applyMeta({ ...state }, meta)
   return writeState(cwd, key, next)
 }
 

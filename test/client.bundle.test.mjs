@@ -272,6 +272,35 @@ test('面板文案：改名与新增说明必须真的进产物（防"改了源�
   assert.ok(source.includes('没有外链') || source.includes('没有代码块'), '无效开关的说明文案')
 })
 
+test('复制回退路径必须走清洗（源码与产物各查一遍，防"改了源码没重建产物"）', () => {
+  // 回退分支把 HTML 插进挂主文档的容器：那里 `innerHTML = html` 会让正文里的
+  // `<img onerror>` / `<script>` 当场生效（同源，能调 /fishpai/api/*）。
+  // 源码与产物都要查：只查产物的话"源码回退但忘了 npm run build"会漏过去。
+  const panel = fs.readFileSync(path.join(ROOT, 'client', 'panel.tsx'), 'utf8')
+  const sanitizeSrc = fs.readFileSync(path.join(ROOT, 'client', 'sanitize.ts'), 'utf8')
+  const bundle = fs.readFileSync(BUNDLE, 'utf8')
+
+  for (const [where, text] of [
+    ['client/panel.tsx', panel],
+    ['lib/client.js', bundle],
+  ]) {
+    assert.ok(text.includes('replaceChildren(sanitizeHtmlFragment('), `${where}: 回退分支要走 sanitizeHtmlFragment`)
+    assert.ok(!text.includes('holder.innerHTML'), `${where}: 不许再把未清洗的 HTML 直接插进主文档`)
+  }
+
+  // 上面那两条只钉"接线"，钉不住清洗**实现**的漂移（清了哪些标签、放行哪种 data URI）。
+  // 所以把 sanitize.ts 的实现特征从源码里取出来，逐个到产物里核对。
+  const dropTags = [...(/const DROP_TAGS = new Set\(\[([\s\S]*?)\]\)/.exec(sanitizeSrc)?.[1] || '').matchAll(/'([A-Z]+)'/g)].map((m) => m[1])
+  assert.ok(dropTags.length >= 8, '测试自身写错了：没能从 sanitize.ts 里取到 DROP_TAGS 清单')
+  const missingTags = dropTags.filter((tag) => !bundle.includes(`"${tag}"`))
+  assert.deepEqual(missingTags, [], `lib/client.js 里缺 DROP_TAGS 的这些项：${missingTags.join(', ')}（产物是旧的，重新 npm run build）`)
+
+  const rasterRe = /const RASTER_DATA_URI_RE = (\/.+\/[a-z]*)/.exec(sanitizeSrc)?.[1]
+  assert.ok(rasterRe, '测试自身写错了：没能从 sanitize.ts 里取到栅格 data URI 那条正则')
+  assert.ok(bundle.includes(rasterRe), 'lib/client.js 里的栅格 data URI 分支与源码不一致（产物是旧的）')
+  assert.ok(bundle.includes('复制已中止'), '解析失败的那句提示要进产物')
+})
+
 test('面板必须有「字体」控件：主题自带的字体栈会被这个预设覆盖，少了它就换不成衬线', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   // 宿主一直在 /themes 里回 fonts，但面板曾经既没存也没用——

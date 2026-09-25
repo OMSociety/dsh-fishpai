@@ -119,11 +119,16 @@ export function createMd(styles, opts = {}) {
     // 于是真实 DOM 是 pre > code > div.mac-code-block > (header + pre > code)。
     // 外层 pre/code 随后被主题样式覆盖，内层 pre 被 publish-utils 压平。
     if (macCodeBlock) {
-      const langLabel = info || 'code'
+      // 围栏后的语言串是**用户可控文本**，而它被插进两个位置：`class="language-…"` 的属性值
+      // 与标题栏的文字。` ```js" style="…` 会凭空多出一个 style 属性（浏览器只取第一个，
+      // 于是注入的那条生效），所以这里与同文件的 image 规则同口径一律 escapeHtml；
+      // 查语言表仍用原始串（转义后的串进不了 hljs.getLanguage）。
+      const infoAttr = md.utils.escapeHtml(info)
+      const langLabel = md.utils.escapeHtml(info || 'code')
       const bg = (s.match(/background:\s*([^;]+)/) || [])[1] || '#282c34'
       const fg = (s.match(/(?:^|;\s*)color:\s*([^;]+)/) || [])[1] || '#abb2bf'
       return (
-        `<pre${s ? ` style="${s}"` : ''}><code${info ? ` class="language-${info}"` : ''} style="font-family: inherit; font-size: inherit; color: inherit; background: transparent;">` +
+        `<pre${s ? ` style="${s}"` : ''}><code${info ? ` class="language-${infoAttr}"` : ''} style="font-family: inherit; font-size: inherit; color: inherit; background: transparent;">` +
         `<div class="mac-code-block" style="border-radius: 10px; overflow: hidden; margin: 14px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">` +
         `<div class="mac-code-header" style="background: ${bg.trim()}; padding: 10px 16px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.05);">` +
         `<span class="mac-dot red" style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; display: inline-block;"></span>` +
@@ -191,12 +196,15 @@ export function createMd(styles, opts = {}) {
             const c = colorMap[m[1]] || colorMap.info
             const title = m[2].trim()
             const body = m[3].trim()
+            // 卡片标题是**用户可控文本**，落在元素**内容位**：`:::tip <b style="…">x</b>`
+            // 不转义就等于往正文里插任意元素。与同文件的 image 规则同口径 escapeHtml。
+            const titleText = md.utils.escapeHtml(title || c.icon + ' ' + m[1].toUpperCase())
             const tk = new state.Token('html_block', '', 0)
             // 仅供块切分使用的元数据：不改渲染输出，只让块模型认出"这是一个卡片"
             tk.map = tokens[i].map
             tk.meta = { fishpai: `card:${m[1]}` }
             tk.content = `<div style="border-left: 4px solid ${c.border}; background: ${c.bg}; padding: 14px 18px; margin: 14px 0; border-radius: 0 8px 8px 0;">
-  <div style="font-weight: 600; color: ${c.color}; margin-bottom: 6px; font-size: 15px;">${title || c.icon + ' ' + m[1].toUpperCase()}</div>
+  <div style="font-weight: 600; color: ${c.color}; margin-bottom: 6px; font-size: 15px;">${titleText}</div>
   <div style="color: ${c.color}; opacity: 0.85; font-size: 14px; line-height: 1.7;">${md.renderInline(body)}</div>
 </div>`
             tokens.splice(i, 3, tk)

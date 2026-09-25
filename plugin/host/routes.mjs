@@ -17,7 +17,7 @@
  *      正文仍只能由 `/doc` 改。
  */
 import fs from 'node:fs'
-import { render as renderCore, themeCatalog, hljsPreviewCss } from '../core/render.mjs'
+import { render as renderCore, themeCatalog, hljsPreviewCss, isFontSize } from '../core/render.mjs'
 import { clearCustomTheme, customCatalogEntry, themeFor, CUSTOM_THEME_KEY } from './custom-theme.mjs'
 import { colorPresets } from '../core/runtime.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
@@ -391,9 +391,13 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         const meta = { ...(state || {}), ...(body.meta || {}) }
         const common = {
           theme: themeFor({ cwd, name: meta.theme }).theme,
-          color: meta.color || undefined,
+          // 状态里存着的色也要再判一次：它是**原样拼进 style 属性**的那个字段，
+          // 而 `body.meta` 能盖过状态（下面的 spread）——写入侧校验收口在这里补第二道。
+          color: store.isThemeColor(meta.color) ? meta.color : undefined,
           font: meta.font,
-          fontSize: meta.fontSize,
+          // 字号是第二个原样插值进 style 的字段，同样能靠 `body.meta` 绕过写入侧：
+          // 不合法就不往下传，由渲染层回落 16px（渲染层自己也有一道，见 `isFontSize`）。
+          fontSize: isFontSize(meta.fontSize) ? meta.fontSize : undefined,
           footnotes: meta.footnotes !== false,
           macCodeBlock: meta.macCodeBlock !== false,
         }

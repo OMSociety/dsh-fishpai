@@ -59,11 +59,9 @@
 
 ```powershell
 # 1) 先停掉 dsh web（运行中的服务会锁住依赖，装完再起）
-dsh plugin --profile web add "github:OMSociety/dsh-fishpai#v1.0.1"
+dsh plugin --profile web add "github:OMSociety/dsh-fishpai#v1.0.2"
 # 2) 重新启动 dsh web
 ```
-
-> 上面的 `#v1.0.1` 钉在已发布的版本上；想跟进最新就把尾巴换成 `#main`（最新的排版规则与兼容层都在这里）。
 
 **方式二：clone 到本地再装**
 

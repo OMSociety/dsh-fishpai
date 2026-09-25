@@ -74,6 +74,8 @@ test('自定义主题：越权与写坏的规格一律拒绝，且文案说清�
     ['外链请求', { base: 'default', styles: { p: 'background: url(http://x/y.png);' } }, /不允许的内容/],
     ['注入面', { base: 'default', styles: { p: 'color: red; } body { color: blue;' } }, /不允许的内容/],
     ['尖括号', { base: 'default', styles: { p: 'color: <script>' } }, /不允许的内容/],
+    // 双引号能闭合 style="…"（各槽位与 wrapper 都是双引号包裹的属性）
+    ['双引号闭合 style 属性', { base: 'default', styles: { p: 'color: red" onmouseover="alert(1)' } }, /不允许的内容/],
     ['未知槽位', { base: 'default', styles: { pp: 'color: #000;' } }, /不认识的槽位/],
     ['槽位值不是字符串', { base: 'default', styles: { p: 42 } }, /必须是字符串/],
     ['空 styles', { base: 'default', styles: {} }, /一个槽位都没有/],
@@ -87,6 +89,14 @@ test('自定义主题：越权与写坏的规格一律拒绝，且文案说清�
   for (const [label, spec, re] of cases) {
     assert.throws(() => validateThemeSpec(spec, BASE), re, label)
   }
+})
+
+test("自定义主题：单引号字体栈是合法写法（属性由双引号包裹，单引号闭合不了任何东西）", () => {
+  const { theme } = buildCustomTheme({ base: 'default', styles: { p: "font-family: 'Georgia', serif;" } }, BASE)
+  assert.equal(theme.styles.p, "font-family: 'Georgia', serif;")
+  // 真的落进产物，且没有把 style 属性撑开（撑开的话会多出属性、正文跟着变）
+  const html = render('正文一段。\n', { theme }).html
+  assert.match(html, /<p style="font-family: 'Georgia', serif;">正文一段。<\/p>/)
 })
 
 test('自定义主题：!important 被去掉并留一条提示（微信不保留它）', () => {

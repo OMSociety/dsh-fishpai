@@ -91,12 +91,18 @@ const PLACEHOLDER_RE = /\{\{PRIMARY(?:_BG)?\}\}/
 const PLACEHOLDER_G = /\{\{PRIMARY(?:_BG)?\}\}/g
 
 /**
- * 明确不许出现的东西：注入面（`}`/`<`）、外链请求（`url(`）、脚本（`expression`/`javascript:`）、样式表指令。
+ * 明确不许出现的东西：注入面（`}` / `<` / **双引号**）、外链请求（`url(`）、脚本（`expression` / `javascript:`）、样式表指令。
+ *
+ * 双引号是必须禁的那一个：属性**一律由双引号包裹**（`markdown.mjs` 各槽位拼的就是 `style="…"`，
+ * `render.mjs` 的 wrapper 也是），值里出现 `"` 就闭合了属性、把后面的字节变成任意属性。
+ * 单引号放行：它在双引号包裹的属性里只是普通字符，闭合不了任何东西，而
+ * `font-family: 'Georgia', serif` 是合法且常见的写法，禁它只是白白挡住常见写法。
+ * （管线后段只有单向的 `"` → `'` 降级，没有反向把 `'` 变回 `"` 的路径，放行不会又被武装回来。）
  *
  * 判定前先把**合法占位符**摘掉：`{{PRIMARY}}` 自己就带花括号，不摘的话所有想用主题色的主题
  * 都会被自己的注入检查拦下（占位符是这套机制的一部分，不是注入面）。
  */
-const FORBIDDEN_RE = /[{}<>]|url\s*\(|expression\s*\(|@import|javascript:/i
+const FORBIDDEN_RE = /[{}<>"]|url\s*\(|expression\s*\(|@import|javascript:/i
 
 function stripPlaceholders(text) {
   return String(text).replace(PLACEHOLDER_G, 'P')
@@ -136,7 +142,7 @@ function parseDeclarations(slot, css, notes) {
   const text = String(css ?? '')
   if (/[\r\n]/.test(text)) fail(`槽位 ${slot} 的样式不能换行（写成一行，用 ; 分隔）`)
   if (FORBIDDEN_RE.test(stripPlaceholders(text))) {
-    fail(`槽位 ${slot} 里出现了不允许的内容（{}、<>、url()、expression、@import 都不能用；{{PRIMARY}} 这类占位符是允许的）`)
+    fail(`槽位 ${slot} 里出现了不允许的内容（{}、<>、双引号、url()、expression、@import 都不能用；单引号可以；{{PRIMARY}} 这类占位符是允许的）`)
   }
   const out = []
   for (const raw of text.split(';')) {

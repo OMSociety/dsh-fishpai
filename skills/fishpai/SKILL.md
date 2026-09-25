@@ -116,7 +116,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
   `box-shadow` `-webkit-background-clip` `-webkit-text-fill-color`
 - **`wrapper` 里必须同时有 `font-family` 与 `font-size`**，否则面板的「字体」「字号」调节失效（漏了会自动补上）
 - 想跟「主题色」联动就用 `{{PRIMARY}}` / `{{PRIMARY_BG}}` 占位符
-- 不许出现 `{}` `<` `>` `url(...)` `expression(...)` `@import` `javascript:`；`!important` 写了会被自动去掉（微信不保留它）。不要写图标或 emoji
+- 不许出现 `{}` `<` `>` `"`（双引号；单引号可以，`font-family: 'Georgia', serif` 这类字体栈没问题）`url(...)` `expression(...)` `@import` `javascript:`；`!important` 写了会被自动去掉（微信不保留它）。不要写图标或 emoji
   （图标由鱼排统一给）
 - 白色/深色底、渐变文字这类**微信会掉样式**的组合：`fishpai_render` 会照做，但你要当场提醒用户
   "这套更适合导出 HTML，发公众号可能变形"

@@ -7,6 +7,7 @@
 import * as React from 'react'
 import { useSyncExternalStore } from 'react'
 import { buildSrcdoc, type FishpaiStore } from './store'
+import { sanitizeHtmlFragment } from './sanitize'
 import { COPY_HINT, IS_MAC, MOD_KEY } from './keys'
 import {
   SHORTCUTS,
@@ -86,12 +87,14 @@ async function copyRich(html: string, plain: string): Promise<void> {
     ])
     return
   }
-  // 回退：把 HTML 塞进隐藏的可编辑容器，选中后走 execCommand
+  // 回退：把 HTML 塞进隐藏的可编辑容器，选中后走 execCommand。
+  // 这里**不能**用 `innerHTML = html` 直接插：容器挂在 WebUI 主文档上（同源、能调 /fishpai/api/*），
+  // 正文里的 `<img onerror>` / `<script>` 在那一刻就生效了。清洗见 `sanitize.ts`。
   const holder = document.createElement('div')
   holder.contentEditable = 'true'
   holder.style.position = 'fixed'
   holder.style.left = '-9999px'
-  holder.innerHTML = html
+  holder.replaceChildren(sanitizeHtmlFragment(html))
   document.body.appendChild(holder)
   try {
     const range = document.createRange()
