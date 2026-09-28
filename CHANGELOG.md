@@ -10,6 +10,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-09-28
+
+### 变更
+
+- 声明宿主依赖区间 `>=0.1.5-rc.2 <0.3.0-0`（`peerDependencies`，覆盖本插件注入与运行时依赖的七个 `@deepseek-ai/dsh-*` 包）。DSH 0.1.7-rc.1 起的兼容闸按该字段逐条判定插件能否在宿主上加载；本插件在 DSH 0.2.0-rc.1 上安装与加载正常。
+
+### Changed
+
+- Declared the host range `>=0.1.5-rc.2 <0.3.0-0` in `peerDependencies`, covering the seven `@deepseek-ai/dsh-*` packages this plugin injects or requires at runtime. The compatibility gate in dsh 0.1.7-rc.1 and later checks this field entry by entry to decide whether the plugin may load on the host; this plugin installs and loads normally on dsh 0.2.0-rc.1.
+
 ## [1.0.2] - 2026-09-25
 
 ### 安全
