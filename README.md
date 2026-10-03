@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/logo.png" alt="鱼排 FishPai" width="190">
+  <img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/logo.png" alt="鱼排 FishPai" width="190">
   <h1>鱼排 FishPai</h1>
   <p>公众号排版工作台，长在 DeepSeek Harness 的右侧栏里。</p>
   <p>人在侧栏改字、加批注与占位；模型用<strong>块级 diff</strong> 看懂你改了什么、想要什么；成品仍由你复制粘贴进公众号编辑器。</p>
