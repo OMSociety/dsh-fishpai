@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "鱼排编辑器",
+    "description": "在右侧栏把 Markdown 排成公众号成品：人改字加批注，模型读块级 diff。"
+  }
+}

@@ -46,8 +46,19 @@ function builtin(name: string, props: GlyphProps, fallbackSize: number): React.R
 /**
  * 鱼排的标：一条侧视的鱼——圆头、带缺口的尾鳍、一只眼睛。
  *
- * 16px 网格手绘，描边口径与 DSH 内置图标一致；颜色走 `currentColor`，
- * 所以白天/黑暗模式、禁用态、悬停态都自动跟着走。
+ * **同一支鱼有两处画法，这里是界面那一半**：
+ *   - 插件列表的磁贴图是**包根目录的 `icon.svg`**（36 画板、自带渐变、2.0 描边）——
+ *     宿主读成 data URI 塞进 `<img>`，所以那份**不能**走 `currentColor`；
+ *   - 这个组件是同一个轮廓在 **16 画板**上的缩小版，只给面板内部（空白页的品牌行）用，
+ *     颜色只走 `currentColor`（浅色/深色自动跟着走）；侧边栏那几处改用下面的 `FishMark`。
+ *
+ * 两份的数值得对得上：**36 ÷ 16 = 2.25**，所以这里的 0.89 描边 = `icon.svg` 的 2.0。
+ * 眼睛取 0.72 而不是严格折算的 0.58——小圆点在小尺寸下会掉色，14px（右侧栏标签页
+ * 实际用的尺寸）时那颗眼得有 0.72 才落得住一个像素。
+ * **改 `icon.svg` 的描边或眼睛就回来改这里**，别让两处漂开。
+ *
+ * 轮廓本身在两张画板上一模一样，差别只在取景：磁贴图四周留白（占画板 58%），
+ * 16px 这版把画板填满（84%）——小尺寸要的是辨识度，不是留白。
  */
 export function FishGlyph({ size = 16, className }: GlyphProps) {
   return (
@@ -55,11 +66,43 @@ export function FishGlyph({ size = 16, className }: GlyphProps) {
       <path
         d="M2.1 8C3.2 5.6 5.4 4.1 8.2 4.1C10.1 4.1 11.5 5 12.4 6.2L14.6 4.4L13.3 8L14.6 11.6L12.4 9.8C11.5 11 10.1 11.9 8.2 11.9C5.4 11.9 3.2 10.4 2.1 8Z"
         stroke="currentColor"
-        strokeWidth="1.05"
+        strokeWidth="0.89"
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      <circle cx="4.9" cy="7.2" r="0.75" fill="currentColor" />
+      <circle cx="4.9" cy="7.2" r="0.72" fill="currentColor" />
+    </svg>
+  )
+}
+
+/**
+ * 侧边栏那一份：与包根 `icon.svg` **逐字相同的路径与描边**，内联渲染。
+ *
+ * 标签页、引导列表、回退标签页都用它；插件列表的磁贴是同一个文件的 `<img>` 版本。
+ * 两处共用一张图，不再各画一套。
+ *
+ * 36 画板的图形只占 53%，直接缩到 16px 会比旁边的图标瘦一圈，所以放大 1.3 倍取景。
+ * **改 `icon.svg` 就回来改这里**（`FishGlyph` 那份 16 画板的折算见上面的注释）。
+ */
+export function FishMark({ size = 16, className }: GlyphProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" aria-hidden="true" className={className}>
+      <defs>
+        <linearGradient id="dsh-fishpai-mark" x1="7" y1="10" x2="29" y2="26" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#7FA0FF" />
+          <stop offset="1" stopColor="#3B54C9" />
+        </linearGradient>
+      </defs>
+      <g transform="translate(18 18) scale(1.3) translate(-18 -18)">
+        <path
+          d="M7.5 18C9.348 13.56 13.044 10.785 17.748 10.785C20.94 10.785 23.292 12.45 24.804 14.67L28.5 11.34L26.316 18L28.5 24.66L24.804 21.33C23.292 23.55 20.94 25.215 17.748 25.215C13.044 25.215 9.348 22.44 7.5 18Z"
+          stroke="url(#dsh-fishpai-mark)"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        <circle cx="12.2" cy="16.5" r="1.3" fill="url(#dsh-fishpai-mark)" />
+      </g>
     </svg>
   )
 }

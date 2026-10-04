@@ -10,6 +10,28 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-10-04
+
+### 新增
+
+- 插件有了自己的图标：包根 `icon.svg`（36×36，渐变描边的侧视鱼），由 `package.json` 顶层 `icon` 字段声明并列入 `files`。插件列表里不再显示 DSH 的默认图形。
+- 插件列表里的显示名与描述有了中英两份（`locale/en.json`、`locale/zh.json` 的 `meta.title` 与 `meta.description`），中文名定为「鱼排编辑器」；`package.json` 的 `exports` 与 `files` 相应放行 `locale/*.json`。此前该处回退成包名与英文 `description`，在中文界面里中英混排。
+
+### 变更
+
+- 右侧栏标签页、引导列表、回退标签页的那条鱼改用包根 `icon.svg` 的**同一份图**（36 画板内联渲染，放大 1.3 倍取景）。插件列表的磁贴与侧边栏不再各画一套。
+- 面板内部（空白页的品牌行）仍用 16 画板的 `FishGlyph`，颜色走 `currentColor`；它与 `icon.svg` 同轮廓，按 36 ÷ 16 = 2.25 折算（描边 0.89，眼睛 0.72）。
+
+### Added
+
+- The plugin now ships its own icon: `icon.svg` at the package root (36×36, a gradient-outlined side-view fish), declared through the top-level `icon` field in `package.json` and listed in `files`. The plugin list no longer falls back to the default DSH artwork.
+- The plugin's display name and description in the plugin list now ship in both languages (`meta.title` and `meta.description` in `locale/en.json` and `locale/zh.json`), with the Chinese name settled as 鱼排编辑器; `exports` and `files` in `package.json` admit `locale/*.json` accordingly. The list previously fell back to the package name and the English `description`, mixing languages inside a Chinese interface.
+
+### Changed
+
+- The fish in the sidebar tab, the guide list, and the fallback tab now renders the **same artwork** as the package-root `icon.svg` (inlined on the 36-canvas, scaled 1.3× to take up the frame). The plugin-list tile and the sidebar no longer carry two separate drawings.
+- Inside the panel (the blank page's brand row) the 16-canvas `FishGlyph` stays, coloured through `currentColor`; it shares its contour with `icon.svg`, derived by 36 ÷ 16 = 2.25 (stroke 0.89, eye radius 0.72).
+
 ## [1.0.3] - 2026-09-28
 
 ### 变更

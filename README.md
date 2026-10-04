@@ -59,7 +59,7 @@
 
 ```powershell
 # 1) 先停掉 dsh web（运行中的服务会锁住依赖，装完再起）
-dsh plugin --profile web add "github:OMSociety/dsh-fishpai#v1.0.2"
+dsh plugin --profile web add "github:OMSociety/dsh-fishpai#v1.0.4"
 # 2) 重新启动 dsh web
 ```
 

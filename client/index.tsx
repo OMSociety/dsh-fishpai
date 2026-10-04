@@ -14,7 +14,7 @@ import * as React from 'react'
 import { Panel } from './panel'
 import { createFishpaiStore, type FishpaiStore } from './store'
 import { ensureStyles } from './styles'
-import { FishGlyph } from './icons'
+import { FishMark } from './icons'
 import { api } from './api'
 
 export const name = 'dsh-fishpai'
@@ -120,7 +120,7 @@ export function apply(ctx: any): void {
     return React.createElement(
       'span',
       { className: 'fp-title-label' },
-      React.createElement(FishGlyph, { size: 14, className: 'fp-title-glyph' }),
+      React.createElement(FishMark, { size: 14, className: 'fp-title-glyph' }),
       '鱼排编辑器',
     )
   }
@@ -188,7 +188,7 @@ export function apply(ctx: any): void {
               title: () => '鱼排编辑器',
               description: () => '公众号排版：Markdown + 实时预览 + 与模型来回改稿',
               // 不给 icon 的话，新标签页的引导列表画一个默认的立方体占位（就是"看着像缺图标"的那个）
-              icon: FishGlyph,
+              icon: FishMark,
             },
           ],
         }),
@@ -255,7 +255,7 @@ export function apply(ctx: any): void {
         id: FALLBACK_TAB_ID,
         title: () => '鱼排编辑器',
         // better-sidebar 的 TabDescriptor 支持 icon（它把它转交给原生右侧栏的引导页）
-        icon: (size: number) => React.createElement(FishGlyph, { size: size || 16 }),
+        icon: (size: number) => React.createElement(FishMark, { size: size || 16 }),
         order: 40,
         single: true,
         component: (props: any) => React.createElement(PanelHost, props),
