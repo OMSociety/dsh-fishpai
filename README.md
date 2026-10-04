@@ -1,6 +1,6 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/logo.png" alt="鱼排 FishPai" width="190">
-  <h1>鱼排 FishPai</h1>
+  <h1>鱼排编辑器 FishPai</h1>
   <p>公众号排版工作台，长在 DeepSeek Harness 的右侧栏里。</p>
   <p>人在侧栏改字、加批注与占位；模型用<strong>块级 diff</strong> 看懂你改了什么、想要什么；成品仍由你复制粘贴进公众号编辑器。</p>
 
@@ -17,7 +17,7 @@
 
 ## 这是什么
 
-**鱼排**把 Markdown 排成**内联样式 HTML**：整段粘进微信公众号编辑器就得到成品排版。
+**鱼排编辑器**把 Markdown 排成**内联样式 HTML**：整段粘进微信公众号编辑器就得到成品排版。
 
 它同时是一个**人在回路里的改稿台**——面板与模型看的是同一篇文档，谁改了什么一目了然。
 
