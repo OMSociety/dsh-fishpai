@@ -248,8 +248,15 @@ test('图标：主题图标用 DSH 内建的图标集（基线模块），鱼形
     source.includes('require("@deepseek-ai/dsh-client-ui-primitives")'),
     '应当 require DSH 的图标模块（与自己手画一整套相比，这样才对得上内置图标的画法）',
   )
-  // 自绘的鱼形标：16px 网格、currentColor（深浅色共用一套，不做两套图）
-  assert.ok(source.includes('M2.1 8C3.2 5.6'), '鱼形标的路径要在产物里')
+  // 自绘的鱼形标：与包根 icon.svg **逐字相同的几何**——全仓库只有这一份画法，
+  // 插件列表的磁贴、侧边栏、面板里那几处都从它来（见 AGENTS.md 不变量 11）。
+  const iconSvg = fs.readFileSync(path.join(ROOT, 'icon.svg'), 'utf8')
+  const iconPath = /<path\s+d="(M[^"]+)"/.exec(iconSvg)?.[1]
+  assert.ok(iconPath, 'icon.svg 里应当有那条鱼的路径')
+  assert.ok(
+    source.includes(iconPath),
+    `产物里的鱼形标要与包根 icon.svg 同源，别另画一套（icon.svg 现在是 ${iconPath}）`,
+  )
   assert.ok(source.includes('currentColor'), '图标颜色走 currentColor')
   // 图标名两代拼写都要进产物：对照表同时收着 0.1.5 的尺寸后缀名与 0.1.7 的字重后缀名
   // （逐个名字在两代导出清单里的落点由 test/icons-compat.test.mjs 核对）

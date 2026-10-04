@@ -20,7 +20,7 @@ import {
   type EditAction,
   type EditResult,
 } from './mdedit'
-import { CaretGlyph, FishGlyph, ThemeGlyph, TickGlyph } from './icons'
+import { CaretGlyph, FishMark, ThemeGlyph, TickGlyph } from './icons'
 import type { Block, DocMeta, Note, Placeholder, ThemeInfo } from './api'
 
 type ViewMode = 'edit' | 'preview' | 'side'
@@ -176,7 +176,7 @@ function BlankMark() {
   return (
     <div className="fp-blank-mark">
       <span className="fp-blank-glyph">
-        <FishGlyph size={15} />
+        <FishMark size={15} />
       </span>
       <span>鱼排编辑器</span>
     </div>

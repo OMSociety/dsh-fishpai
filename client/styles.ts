@@ -192,7 +192,8 @@ export const CSS = `
   border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);
 }
 .fp-blank-mark{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dsw-alias-label-primary)}
-/* 品牌标：鱼形图标放在一块小方瓦里（图标本身用 currentColor，深浅色通吃） */
+/* 品牌标：鱼形图标放在一块小方瓦里。标自带渐变（与侧边栏、插件列表磁贴同一份图），
+   方瓦的底色与描边只用令牌，深浅色通吃 */
 .fp-blank-glyph{
   width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;
   background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);
