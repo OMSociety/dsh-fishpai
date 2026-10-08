@@ -6,7 +6,7 @@
  * 其中 `require` 由模块表提供（react / react-dom / @deepseek-ai/* 都是它给的），
  * 所以这些包一律 external，绝不能打进 bundle（打进去会出现两份 React）。
  *
- * 产物必须提交入库：`dsh plugin add github:` 只做安装，不跑构建。
+ * 产物必须提交入库：`dsh plugin add dsh-fishpai` 只做安装，不跑构建。
  */
 import { build } from 'esbuild'
 import fs from 'node:fs'
@@ -40,7 +40,7 @@ const indented = code
 
 const banner = `/**
  * 自动生成，请勿手改 —— 源码在 client/，用 \`npm run build\` 重新生成。
- * 改完记得把本文件一起提交：\`dsh plugin add github:\` 只安装、不构建。
+ * 改完记得把本文件一起提交：\`dsh plugin add dsh-fishpai\` 只安装、不构建。
  */
 window.__ModuleLoader__.load({
   id: ${JSON.stringify(PLUGIN_ID)},

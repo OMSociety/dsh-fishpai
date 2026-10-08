@@ -8,7 +8,3 @@ node_modules/
 .fishpai/history/
 .fishpai/docs/
 .fishpai/theme.json
-
-# Upstream's own ignore rules, kept for the reference site under legacy-site/
-article-assets/
-.DS_Store

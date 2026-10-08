@@ -10,15 +10,14 @@
 | 上游仓库 | https://github.com/ye4wzp/mopai-markdown |
 | 上游作者 | [@ye4wzp](https://github.com/ye4wzp) |
 | 许可 | MIT |
-| 本仓库 fork 自 | `main`（fork 时的上游 HEAD） |
-| 上游原样保留位置 | `legacy-site/`（去掉 `screenshots/`，其余原样：`index.html`、`css/`、`js/`、`docs/`、`DESIGN.md`、`README*.md`、`tests/` 等） |
+| 本仓库 fork 自 | `main` @ `c91487abfc5848f5b78e9fcec3b62d58033c61dc`（2026-08-19） |
 
 鱼排直接复用了上游两项核心资产，均为 MIT：
 
 1. **主题定义** —— 上游 `js/themes.js` 复制为本仓库 `plugin/vendor/themes.js`（换行符归一为 LF；
    另外**有意删除了两套主题**：「金融时报（ft）」与「Medium」——前者靠整页异色底立身、公众号文章不要
-   整页底色，后者与「纽约时报」只剩字号与字体栈的差别）。上游那 13 套的原版文件仍在 `legacy-site/js/`，
-   需要逐字节比对时看那边。
+   整页底色，后者与「纽约时报」只剩字号与字体栈的差别）。上游原版 `js/themes.js` 的 blob SHA 为
+   `dfa0ea47287fb16969aabe75163f9049c10c82e8`，需要逐字节比对时按此锚点取上游文件核对。
 2. **渲染管线设计** —— 「先渲染 HTML，再给每个标签内联主题样式」「复制到公众号时把代码块内
    span 的计算样式内联」「h4–h6 套 h3 样式」「外链转文末参考资料」等行为与验收标准。
 

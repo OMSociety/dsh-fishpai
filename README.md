@@ -5,14 +5,14 @@
   <p>人在侧栏改字、加批注与占位；模型用<strong>块级 diff</strong> 看懂你改了什么、想要什么；成品仍由你复制粘贴进公众号编辑器。</p>
 
   <p>
-    <a href="https://github.com/OMSociety/dsh-fishpai/releases"><img src="https://img.shields.io/github/v/tag/OMSociety/dsh-fishpai?color=4f6ef7&label=version" alt="Version"></a>
+    <a href="https://www.npmjs.com/package/dsh-fishpai"><img src="https://img.shields.io/npm/v/dsh-fishpai?color=4f6ef7&label=version" alt="Version"></a>
     <a href="https://github.com/deepseek-ai/dsh"><img src="https://img.shields.io/badge/DSH-%3E%3D0.2.0--rc.2_%3C0.3.0--0-4f6ef7" alt="DSH"></a>
     <a href="LICENSE"><img src="https://img.shields.io/github/license/OMSociety/dsh-fishpai?color=4f6ef7" alt="License"></a>
     <a href="https://github.com/OMSociety/dsh-fishpai/stargazers"><img src="https://img.shields.io/github/stars/OMSociety/dsh-fishpai?color=4f6ef7" alt="Stars"></a>
     <a href="https://github.com/OMSociety/dsh-fishpai/issues"><img src="https://img.shields.io/github/issues/OMSociety/dsh-fishpai?color=4f6ef7" alt="Issues"></a>
   </p>
 
-<a href="#这是什么">这是什么</a> • <a href="#核心特性">核心特性</a> • <a href="#效果">效果</a> • <a href="#快速开始">快速开始</a> • <a href="#模型工具">模型工具</a> • <a href="#面板快捷键">面板快捷键</a> • <a href="#开发">开发</a> • <a href="#许可证与作者">许可证与作者</a>
+<a href="#这是什么">这是什么</a> • <a href="#核心特性">核心特性</a> • <a href="#效果">效果</a> • <a href="#安装方式">安装方式</a> • <a href="#模型工具">模型工具</a> • <a href="#面板快捷键">面板快捷键</a> • <a href="#开发">开发</a> • <a href="#许可证与作者">许可证与作者</a>
 </div>
 
 ## 这是什么
@@ -53,25 +53,17 @@
 
 同一份 HTML 用「导出 HTML」存成文件、在浏览器里打开，看到的就是面板右侧那个样子。
 
-## 快速开始
+## 安装方式
 
-**方式一：从 GitHub 装（推荐）**
-
-```powershell
-# 1) 先停掉 dsh web（运行中的服务会锁住依赖，装完再起）
-dsh plugin --profile web add "github:OMSociety/dsh-fishpai#v1.1.0"
-# 2) 重新启动 dsh web
-```
-
-**方式二：clone 到本地再装**
+**从 npm 安装**
 
 ```powershell
-git clone https://github.com/OMSociety/dsh-fishpai D:\WorkSpace\dsh-fishpai
-dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
+# 先停掉正在运行的 DSH（运行中的服务会锁住依赖，装完再起）
+dsh plugin --profile <profile> add "dsh-fishpai"
 ```
 
 > 装好后**刷新一下浏览器页面**，「鱼排编辑器」从右侧栏的引导页打开——只重启宿主不够，客户端产物是页面加载时取的；入口与布局按会话记忆，新会话第一次要点一次（模型调 `fishpai_open` 时也会自动打开）。
-> 本插件零运行时依赖，不受 `minimumReleaseAge` 影响；客户端产物 `lib/client.js` 已入库，不需要本地构建。
+> 本插件零运行时依赖，不受 `minimumReleaseAge` 影响。
 
 **装完怎么用**
 
@@ -142,7 +134,6 @@ plugin/vendor/          上游 themes.js + markdown-it 14.1.0 + highlight.js 11.
 client/                 客户端源码（TSX → esbuild 打成 lib/client.js）
 lib/client.js           客户端 bundle（入库；dsh plugin add 不做构建）
 skills/fishpai/         鱼排技能：教模型怎么选主题、怎么按块改稿
-legacy-site/            上游 SPA 原样留存，便于复核渲染一致性
 test/                   golden、站点对照、块/diff/批注/补丁、宿主红线、微信兼容层、主题规格、图标双版本对照、bundle 形态、快捷键、真实 Cordis 挂载、客户端 store 时序
 ```
 

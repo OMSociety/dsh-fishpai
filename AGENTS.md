@@ -5,8 +5,8 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
 ## 这个仓库是什么
 
 - **DSH 插件**：宿主侧（Node）+ 客户端侧（浏览器）两半在同一个包里。
-- **上游 fork**：`ye4wzp/mopai-markdown`（MIT）。上游 SPA 原样放在 `legacy-site/`，不要改它，
-  它是渲染一致性的最后一道对照依据。署名/许可链条见 `NOTICE.md`。
+- **上游 fork**：`ye4wzp/mopai-markdown`（MIT），fork 自上游 `main` @ `c91487abfc5848f5b78e9fcec3b62d58033c61dc`。
+  `plugin/vendor/themes.js` 源自上游 `js/themes.js`；署名与逐字节比对锚点见 `NOTICE.md`。
 
 ## 不可违反的不变量
 
