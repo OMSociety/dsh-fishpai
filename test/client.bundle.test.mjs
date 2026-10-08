@@ -6,7 +6,7 @@
  *   2. factory 只允许 require 模块表提供的裸模块（react / react-dom / @deepseek-ai/*）——
  *      多一个没被 external 掉的依赖就会在运行时 MODULE_NOT_FOUND
  *   3. 必须导出 name / inject / apply（Cordis 靠这三个挂载插件）
- *   4. 在没有右侧栏 / better-sidebar 服务时 apply 也不能抛，并且注册的东西可收回
+ *   4. 在没有右侧栏服务时 apply 也不能抛，并且注册的东西可收回
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -37,8 +37,6 @@ function loadBundle(options = {}) {
   const registeredSlots = []
   const opened = []
   const fetchCalls = []
-  const closedTabs = []
-  const pendingInject = []
 
   const documentStub = {
     querySelector: () => null,
@@ -69,21 +67,12 @@ function loadBundle(options = {}) {
   const sidebarRight = {
     openTab: (kind) => opened.push(kind),
   }
-  const betterSidebar = {
-    registerTab: (descriptor) => {
-      tabsFallback.push(descriptor)
-      return () => closedTabs.push(descriptor.id)
-    },
-    openTab: (target) => opened.push(target && target.type),
-  }
-  const tabsFallback = []
   const sessions = { list: { getSnapshot: () => ({ current: 's1' }) } }
   const serviceTable = {
     slots,
     sessions,
     sidebarRightTabs,
     sidebarRight,
-    betterSidebar,
     ...(options.services || {}),
   }
 
@@ -134,18 +123,8 @@ function loadBundle(options = {}) {
   assert.ok(registration, 'bundle 必须通过 window.__ModuleLoader__.load 注册')
   const exports = registration.factory(stub)
 
-  /** 按真实时序（微任务）触发注入回调；`reverse` 用来验证"回退先到"也能被官方拆掉。 */
+  /** 按真实时序（微任务）触发注入回调：cordis 的 inject 回调不是同步跑的。 */
   const fireInject = (run) => {
-    if (options.fireOrder === 'reverse') {
-      pendingInject.push(run)
-      if (pendingInject.length === 1) {
-        setTimeout(() => {
-          for (const task of pendingInject.reverse()) task()
-          pendingInject.length = 0
-        }, 0)
-      }
-      return
-    }
     queueMicrotask(run)
   }
 
@@ -182,8 +161,6 @@ function loadBundle(options = {}) {
     registeredSlots,
     opened,
     fetchCalls,
-    fallbackTabs: tabsFallback,
-    closedTabs,
     apply: () => exports.apply(ctx),
   }
 }
@@ -258,11 +235,11 @@ test('图标：主题图标用 DSH 内建的图标集（基线模块），鱼形
     `产物里的鱼形标要与包根 icon.svg 同源，别另画一套（icon.svg 现在是 ${iconPath}）`,
   )
   assert.ok(source.includes('currentColor'), '图标颜色走 currentColor')
-  // 图标名两代拼写都要进产物：对照表同时收着 0.1.5 的尺寸后缀名与 0.1.7 的字重后缀名
-  // （逐个名字在两代导出清单里的落点由 test/icons-compat.test.mjs 核对）
+  // 图标名要进产物（逐个名字在宿主导出清单里的落点由 test/icons-compat.test.mjs 核对）
   const names = [...source.matchAll(/["'](Icon[A-Za-z0-9]+)["']/g)].map((m) => m[1])
-  assert.ok(names.length >= 28, `主题图标名与对照表没进产物？只找到 ${names.length} 个`)
-  assert.ok(names.includes('IconListPenOutline16') && names.includes('IconListPenOutlineRegular'), '对照表应同时收两代拼写')
+  assert.ok(names.length >= 14, `主题图标名没进产物？只找到 ${names.length} 个`)
+  assert.ok(names.includes('IconListPenOutlineRegular'), '主题图标名应进产物')
+  assert.ok(!names.includes('IconListPenOutline16'), '产物里不该再有旧尺寸后缀拼写')
   // 自绘 listbox：原生 <option> 里放不进 SVG，这是 emoji 换成图标的前提
   assert.ok(source.includes('fp-picker-btn') && source.includes('fp-menu-row'), '主题选择器与弹出列表')
   assert.ok(source.includes('"aria-selected"'), '主题列表要有 listbox/option 语义')
@@ -415,15 +392,14 @@ test('两个开关的可用性由宿主渲染结果决定，不在客户端猜�
   assert.ok(!source.includes('hasCodeBlocks'), '不再在面板里用正则猜代码块')
 })
 
-test('apply() 在右侧栏与 better-sidebar 都不存在时也安全，注册的东西可收回', async () => {
-  const harness = loadBundle({ services: { sidebarRightTabs: undefined, sidebarRight: undefined, betterSidebar: undefined } })
+test('apply() 在右侧栏服务不存在时也安全，注册的东西可收回', async () => {
+  const harness = loadBundle({ services: { sidebarRightTabs: undefined, sidebarRight: undefined } })
   harness.apply()
   await flush()
 
   assert.ok(harness.appended.length >= 1, '样式应被注入一次')
   assert.equal(harness.registeredTabs.length, 0, '没有官方席位就不该注册 tab 类型')
   assert.equal(harness.registeredSlots.length, 0)
-  assert.equal(harness.fallbackTabs.length, 0)
   assert.equal(harness.effects.length, 2, '样式 + 轮询两个 effect')
   assert.equal(harness.timers.length, 1, '应挂一个轮询')
   for (const dispose of harness.effects) if (typeof dispose === 'function') dispose()
@@ -524,48 +500,4 @@ test('0.1.7 形态 + 没有挂载座位：单会话退到唯一的那个，多�
     0,
     '猜错会话会把别的会话的打开请求算到当前头上：多会话时读不出当前会话就该空转',
   )
-})
-
-test('回退通道：只有 better-sidebar 时注册它的 tab', async () => {
-  const harness = loadBundle({ services: { sidebarRightTabs: undefined, sidebarRight: undefined } })
-  harness.apply()
-  await flush()
-
-  assert.equal(harness.fallbackTabs.length, 1)
-  assert.equal(harness.fallbackTabs[0].id, 'dsh-fishpai:editor')
-  assert.equal(harness.fallbackTabs[0].single, true)
-  assert.equal(typeof harness.fallbackTabs[0].component, 'function')
-})
-
-test('官方席位在场时不再注册 better-sidebar 的 tab（回调是异步的，不能靠"回头再看"判断）', async () => {
-  const harness = loadBundle()
-  harness.apply()
-  await flush()
-
-  assert.equal(harness.registeredTabs.length, 1, '官方席位应就位')
-  assert.equal(harness.fallbackTabs.length, 0, '不应重复注册 better-sidebar tab')
-})
-
-test('回退席位先到、官方后到：官方到位后必须把回退拆掉，最终只剩一个鱼排', async () => {
-  const harness = loadBundle({
-    fireOrder: 'reverse',
-    fetchImpl: (url) => {
-      if (String(url).startsWith('/fishpai/api/state')) {
-        return { ok: true, cwd: 'C:/ws', active: { key: 'k1', path: 'a.md', title: 't', revision: 1 }, openRequest: { key: 'k1', at: 1 }, docs: [] }
-      }
-      return { ok: true }
-    },
-  })
-  harness.apply()
-  await flush()
-
-  assert.equal(harness.fallbackTabs.length, 1, '回退席位应先在 better-sidebar 里注册过')
-  assert.equal(harness.registeredTabs.length, 1, '官方席位随后也应注册')
-  assert.deepEqual(harness.closedTabs, ['dsh-fishpai:editor'], '官方到位后必须撤销回退席位')
-
-  await flush()
-  harness.timers[0]()
-  await flush()
-  assert.ok(harness.opened.length >= 1, '轮询应能打开面板')
-  assert.ok(harness.opened.every((k) => k === 'fishpai'), `应走官方通道，实际：${JSON.stringify(harness.opened)}`)
 })

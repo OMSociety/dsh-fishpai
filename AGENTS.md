@@ -69,17 +69,17 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
     鱼排自己的标在 `client/icons.tsx` 里按同一口径自绘（16px 网格、圆角连接）。
     **同一支鱼只有一份几何**：插件列表的磁贴图是包根 `icon.svg`（36 画板、自带渐变、
     2.0 描边——宿主把它读成 data URI 塞进 `<img>`，所以那份走不了 `currentColor`），
-    界面里的四处落点（右侧栏的标签页、引导列表、回退标签页，以及面板内空白页卡片的品牌行）
+    界面里的三处落点（右侧栏的标签页、引导列表，以及面板内空白页卡片的品牌行）
     都由 `FishMark` 把同一份 36 画板几何内联渲染，外面套 `scale(1.3)` 取景以贴合侧边栏的
     视觉重量；宿主在那里读不到主题色，所以同样自带渐变。改 `icon.svg` 就回来改 `FishMark`，
     别处没有第二份要对齐。
     **除品牌标外，颜色只走 `currentColor` 与 `--dsw-alias-*` 令牌**，浅色/深色共用一套图。
     取不到那个基线模块时必须降级（退回纯文字）而不是让插件整块加载不了。
-    **导出名两个时代两套拼写**（0.1.7 起去尺寸后缀、改字重后缀，旧名在 0.1.7 导出表里消失）：
-    调用点只写**稳定名**，对照与解析集中在 `client/icon-names.ts`，两代拼写都收、运行时探测——
-    别在调用点直接写某一时代的拼写。加引用就补一行对照，
-    `test/icons-compat.test.mjs` 拿两代导出清单逐个核落点。
-    加了主题就往 `THEME_GLYPH` 补一行，`test/theme-info.test.mjs` 会检查不漏。
+    **图标名直接用宿主导出的拼写**：当前线是 `*Regular` / `*Medium` 字重后缀那套，没有尺寸后缀。
+    调用点（`client/icons.tsx`）写的名字就是宿主导出名，解析集中在 `client/icon-names.ts`，
+    取不到就降级成纯文字。加引用/换名字后，`test/icons-compat.test.mjs` 会拿**声明支持的
+    最低宿主版本**的导出清单核对落点，宿主升级改名会红。加了主题就往 `THEME_GLYPH` 补一行，
+    `test/theme-info.test.mjs` 会检查不漏。
 12. **编辑器的快捷键与格式化动作只有一份实现**（`client/mdedit.ts`，纯函数）：
     `SHORTCUTS` 一张表同时喂键盘匹配 `matchShortcut()`、界面上的速查表 `shortcutHint()` 与测试——
     别在别处再抄一份键位或文案。编辑动作必须走 `document.execCommand('insertText')`
@@ -102,7 +102,7 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
       由 `plugin/host/custom-theme.mjs` 的 `themeFor()` 解析——**没有主题库**，没有命名/列表管理，`set` 即覆盖；
       文件缺失或被改坏时**静默退回默认主题**（与 `safeThemeKey` 同口径），不留"选不中的状态"。
     - **图标不归模型**：合法图标名只在浏览器那半（`@deepseek-ai/dsh-client-ui-primitives` 的 `Icon*` 导出，
-      数量与拼写随 DSH 版本变，见 `client/icon-names.ts` 的对照表），让模型选就得在宿主再抄一份名单、迟早静默失配。
+      数量与拼写随 DSH 版本变，见 `client/icons.tsx`），让模型选就得在宿主再抄一份名单、迟早静默失配。
       `.json` 只对**宿主拼死**的这条路径放行，`.fishpai/state/*.json` 仍然不可达。
     - 最容易踩的一条：**换主题不动 `revision`**，所以面板靠 `/state` 的 `active.theme` 发现它，并且
       **只换 meta、不重载正文**——别让用户正在打的字被换掉。
@@ -130,13 +130,9 @@ npm run check:build  # 构建后确认 lib/ 无漂移（CI 用）
 
 ## 改客户端 UI 时
 
-先读本机同伴插件的真实写法（它们都跑在同一个 DSH 上）：
-
-- `%USERPROFILE%\.dsh\profiles\web\node_modules\dsh-github-workbench\lib\client.js`
-  —— 官方右侧栏 + `dsh-better-sidebar` **双通道注册与回退**的完整先例
-- `%USERPROFILE%\.dsh\profiles\web\node_modules\dsh-context\lib\client.js`
-  —— `sidebar.right.pane.tab` 席位注册、`--dsw-alias-*` 样式写法
-- `dsh-better-sidebar\src\client\service.ts` —— `TabDescriptor` 与 `registerTab` 的完整契约
+先读 `client/index.tsx`——官方右侧栏的**三段式登记**（类型 + 两个槽位 + `openTab`）在这里有现行实现；
+样式令牌（`--dsw-alias-*`）的用法见 `client/styles.ts`；机制细节以
+`@deepseek-ai/dsh-client-ui-sidebar-right` 的 README 为准。
 
 写样式时的一个坑：**`client/styles.ts` 的 CSS 装在模板字符串里**，注释里**别出现反引号字符**
 （想提变量名就直接写名字或用引号）——它会把字符串提前闭合，`tsc` 报 TS1005、构建直接失败（实测踩过一次）。

@@ -1,10 +1,5 @@
 /**
- * 客户端入口：把鱼排面板挂到 **官方右侧栏**（`sidebarRightTabs` + `sidebar.right.pane.tab`），
- * 并在只有 `dsh-better-sidebar` 的环境里回退成它的 tab。
- *
- * 为什么两条通道都要：官方右侧栏只在 DSH 0.1.5 线提供 `sidebarRightTabs`；
- * 老版本/被裁剪的构建上它就是不存在。双通道的写法照本机同样跑在 DSH 上的
- * `dsh-github-workbench`（官方席位 + better-sidebar 回退），那是已验证的先例。
+ * 客户端入口：把鱼排面板挂到 **官方右侧栏**（`sidebarRightTabs` + `sidebar.right.pane.tab`）。
  *
  * 轮询（3s）承担"宿主 → 浏览器"的唯一推送：
  *   - `openRequest` 出现 → 自动打开/展开面板（模型调用 fishpai_open 后用户立刻看到）
@@ -21,13 +16,12 @@ export const name = 'dsh-fishpai'
 
 /**
  * 客户端硬依赖：槽位系统（注册面板）与会话服务（拿当前会话）。
- * 两者都是核心提供的，永远在；右侧栏与 better-sidebar 仍走延迟注入——缺任一都不拖垮插件。
+ * 两者都是核心提供的，永远在；右侧栏本身走延迟注入——它缺席时不拖垮插件。
  */
 export const inject = ['slots', 'sessions']
 
 const TAB_ID = 'dsh-fishpai'
 const TAB_KIND = 'fishpai'
-const FALLBACK_TAB_ID = `${TAB_ID}:editor`
 const POLL_MS = 3000
 
 function pick(injected: any, key: string): any {
@@ -125,15 +119,12 @@ export function apply(ctx: any): void {
     )
   }
 
-  // ── 打开面板（两条通道共用）─────────────────────────────────
-  // 官方就位就用官方，否则用回退。两条通道都可能先到，所以这里只保存"各自的打开方式"，
-  // 由 openPanel() 现取——避免谁先注册谁说话。
+  // ── 打开面板（官方右侧栏）──────────────────────────────────
+  // 席位是异步到位的，所以这里只保存"官方打开方式"，由 openPanel() 现取。
   let openOfficial: (() => void) | null = null
-  let openFallback: (() => void) | null = null
   const openPanel = () => {
-    const open = openOfficial || openFallback
-    if (!open) throw new Error('右侧栏通道尚未就绪')
-    open()
+    if (!openOfficial) throw new Error('官方右侧栏尚未就绪')
+    openOfficial()
   }
 
   const openIfRequested = (sessionId: string, docKey: string) => {
@@ -148,12 +139,9 @@ export function apply(ctx: any): void {
     return true
   }
 
-  // ── 通道一：官方右侧栏 ──────────────────────────────────────
+  // ── 官方右侧栏席位 ─────────────────────────────────────────
   // 注意：`ctx.inject(deps, cb)` 的回调**不是同步执行**的（cordis 在 Fiber._reload 里先
-  // `await Promise.resolve()` 再跑 apply），所以任何"回头再看 nativeDisposer 是否为空"的
-  // 判断都必然落空。正确做法是两条通道都挂，官方一到就把回退席位拆掉。
-  let officialReady = false
-  let disposeFallbackTab: (() => void) | null = null
+  // `await Promise.resolve()` 再跑 apply），所以"注册完同步回头检查"这类判断必然落空。
   let seatHandle: any = null
   try {
     seatHandle = ctx.inject(['sidebarRightTabs', 'sidebarRight'], (injected: any) => {
@@ -212,27 +200,14 @@ export function apply(ctx: any): void {
         openOfficial = () => sidebarRight.openTab(TAB_KIND)
       }
 
-      officialReady = true
-      // 官方席位到位就把回退席位拆掉——否则用户会看到两个「鱼排」
-      if (disposeFallbackTab) {
-        try {
-          disposeFallbackTab()
-        } catch {
-          /* 拆不掉也不影响官方席位 */
-        }
-        disposeFallbackTab = null
-        openFallback = null
-      }
-
       const dispose = () => {
         for (const off of disposers.reverse()) {
           try {
             off()
           } catch {
-            /* 卸载失败不影响其它通道 */
+            /* 卸载失败不影响其它席位 */
           }
         }
-        officialReady = false
         openOfficial = null
         getMountedSession = null
       }
@@ -240,38 +215,6 @@ export function apply(ctx: any): void {
     })
   } catch (error) {
     console.warn('[dsh-fishpai] 官方右侧栏席位注入失败：', error)
-  }
-
-  // ── 通道二：better-sidebar 回退 ─────────────────────────────
-  // 无条件挂上：官方席位是异步到位的，无法在此之前判断它到底会不会来。
-  // 回退席位只服务"官方席位不存在"的环境；官方一到，上面的回调会把它拆掉。
-  let fallbackHandle: any = null
-  try {
-    fallbackHandle = ctx.inject(['betterSidebar'], (injected: any) => {
-      if (officialReady) return // 官方席位已就位，不重复注册
-      const bs = pick(injected, 'betterSidebar')
-      if (!bs || typeof bs.registerTab !== 'function') return
-      const off = bs.registerTab({
-        id: FALLBACK_TAB_ID,
-        title: () => '鱼排编辑器',
-        // better-sidebar 的 TabDescriptor 支持 icon（它把它转交给原生右侧栏的引导页）
-        icon: (size: number) => React.createElement(FishMark, { size: size || 16 }),
-        order: 40,
-        single: true,
-        component: (props: any) => React.createElement(PanelHost, props),
-      })
-      openFallback = () => bs.openTab({ type: FALLBACK_TAB_ID })
-      disposeFallbackTab = () => {
-        try {
-          off()
-        } catch {
-          /* 忽略 */
-        }
-      }
-      return off
-    })
-  } catch (error) {
-    console.warn('[dsh-fishpai] better-sidebar 回退注入失败：', error)
   }
 
   // ── 轮询：唯一的"宿主 → 页面"推送 ───────────────────────────
@@ -332,8 +275,6 @@ export function apply(ctx: any): void {
       stopped = true
       clearInterval(timer)
       seatHandle?.dispose?.()
-      fallbackHandle?.dispose?.()
-      disposeFallbackTab?.()
       for (const store of stores.values()) store.dispose()
       stores.clear()
     }

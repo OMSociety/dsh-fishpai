@@ -10,10 +10,6 @@
  *
  * 兜底：万一某个 DSH 版本没提供这个模块，插件不能因此整块加载不了 ——
  * 取不到就退回"自绘的鱼形标 + 纯文字"，主题列表少几个图标而已，功能不受影响。
- *
- * 另有一层版本兜底：0.1.7 起这套图标的导出名整体改了拼写（去尺寸后缀、改字重后缀），
- * 所以调用点写**稳定名**、运行时按对照表找两代拼写（见 `icon-names.ts`），
- * 一份 bundle 在两代宿主上都画得出图标。
  */
 import * as React from 'react'
 import { resolveIconExport } from './icon-names'
@@ -36,7 +32,7 @@ function loadPrimitives(): Record<string, any> {
 
 const PRIMITIVES = loadPrimitives()
 
-/** 按稳定名取一个内置图标（两代导出拼写都认，见 `icon-names.ts`）；没有就返回 null，由调用方降级成纯文字。 */
+/** 按导出名取一个内置图标；没有就返回 null，由调用方降级成纯文字。 */
 function builtin(name: string, props: GlyphProps, fallbackSize: number): React.ReactElement | null {
   const Icon = resolveIconExport(PRIMITIVES, name)
   if (!Icon) return null
@@ -81,29 +77,28 @@ export function FishMark({ size = 16, className }: GlyphProps) {
 }
 
 /**
- * 每套主题各自的图标，值是 `@deepseek-ai/dsh-client-ui-primitives` 的**稳定名**
- * （两代导出拼写的对照与解析见 `icon-names.ts`）。
+ * 每套主题各自的图标，值是 `@deepseek-ai/dsh-client-ui-primitives` 的导出名。
  *
- * 加主题时在这里补一行（新图标名还要去 `icon-names.ts` 补对照）；
- * `test/theme-info.test.mjs` 会检查"每套主题都有图标"，
+ * 加主题时在这里补一行；`test/theme-info.test.mjs` 会检查"每套主题都有图标"，
+ * `test/icons-compat.test.mjs` 会核对这些名字在宿主导出清单里有落点，
  * 漏了会红（主题列表退化成没有图标也能用，但不该悄悄漏）。
  */
 const THEME_GLYPH: Record<string, string> = {
-  default: 'IconListPenOutline16', // 排版：默认公众号就是给微信做的那套
-  elegant: 'IconSparkle16', // 优雅简约
-  deep_read: 'IconThinkOutline16', // 深度阅读
-  nyt: 'IconBrowseOutline16', // 纽约时报（版面）
-  apple: 'IconLightOutline16', // Apple 极简（明亮、留白）
-  claude: 'IconAgentPresetOutline16', // Claude（对话助手）
-  sspai: 'IconPersonalizationOutline16', // 少数派（个性）
-  bamboo: 'IconBranchOutline16', // 竹林（枝叶）
-  tech: 'IconCodeOutline16', // 技术风格（代码）
-  dark_night: 'IconDarkOutline16', // 暗夜模式
-  gradient: 'IconEnhanceOutline16', // 渐变彩虹（增色）
+  default: 'IconListPenOutlineRegular', // 排版：默认公众号就是给微信做的那套
+  elegant: 'IconSparkleRegular', // 优雅简约
+  deep_read: 'IconThinkOutlineRegular', // 深度阅读
+  nyt: 'IconBrowseOutlineRegular', // 纽约时报（版面）
+  apple: 'IconLightOutlineRegular', // Apple 极简（明亮、留白）
+  claude: 'IconAgentPresetOutlineRegular', // Claude（对话助手）
+  sspai: 'IconPersonalizationOutlineRegular', // 少数派（个性）
+  bamboo: 'IconBranchOutlineRegular', // 竹林（枝叶）
+  tech: 'IconCodeOutlineRegular', // 技术风格（代码）
+  dark_night: 'IconDarkOutlineRegular', // 暗夜模式
+  gradient: 'IconEnhanceOutlineRegular', // 渐变彩虹（增色）
   // 「自定义主题」：工作目录里那**一套**模型生成的主题，图标固定这一个。
-  // 为什么不让模型挑：合法图标名的名单只在浏览器这半（`icon-names.ts` 的对照表），而校验器在宿主那半——
+  // 为什么不让模型挑：图标名是客户端这半的事，宿主那半的校验器看不到候选名单——
   // 让模型选就得在宿主再抄一份、跟着 DSH 升级维护，抄漏一个的后果是"图标静默消失且不报错"。
-  custom: 'IconEditOutline16',
+  custom: 'IconEditOutlineRegular',
 }
 
 /** 某套主题的图标（取不到内置图标时为 null，调用方直接不画）。 */
@@ -111,12 +106,12 @@ export function ThemeGlyph({ themeKey, size = 16, className }: GlyphProps & { th
   return builtin(THEME_GLYPH[themeKey] || '', { size, className }, 16)
 }
 
-/** 下拉箭头：内置 `IconChevronDownOutline14`，没有就退回字符。 */
+/** 下拉箭头：内置 `IconChevronDownOutlineRegular`，没有就退回字符。 */
 export function CaretGlyph({ size = 14, className }: GlyphProps) {
-  return builtin('IconChevronDownOutline14', { size, className }, 14) ?? <span className={className}>▾</span>
+  return builtin('IconChevronDownOutlineRegular', { size, className }, 14) ?? <span className={className}>▾</span>
 }
 
-/** 选中勾：内置 `IconCheckOutline14`，没有就退回字符。 */
+/** 选中勾：内置 `IconCheckOutlineRegular`，没有就退回字符。 */
 export function TickGlyph({ size = 14, className }: GlyphProps) {
-  return builtin('IconCheckOutline14', { size, className }, 14) ?? <span className={className}>✓</span>
+  return builtin('IconCheckOutlineRegular', { size, className }, 14) ?? <span className={className}>✓</span>
 }

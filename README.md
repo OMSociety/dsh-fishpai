@@ -6,7 +6,7 @@
 
   <p>
     <a href="https://github.com/OMSociety/dsh-fishpai/releases"><img src="https://img.shields.io/github/v/tag/OMSociety/dsh-fishpai?color=4f6ef7&label=version" alt="Version"></a>
-    <a href="https://github.com/deepseek-ai/dsh"><img src="https://img.shields.io/badge/DSH-%3E%3D0.1.5--rc.2-4f6ef7" alt="DSH"></a>
+    <a href="https://github.com/deepseek-ai/dsh"><img src="https://img.shields.io/badge/DSH-%3E%3D0.2.0--rc.2_%3C0.3.0--0-4f6ef7" alt="DSH"></a>
     <a href="LICENSE"><img src="https://img.shields.io/github/license/OMSociety/dsh-fishpai?color=4f6ef7" alt="License"></a>
     <a href="https://github.com/OMSociety/dsh-fishpai/stargazers"><img src="https://img.shields.io/github/stars/OMSociety/dsh-fishpai?color=4f6ef7" alt="Stars"></a>
     <a href="https://github.com/OMSociety/dsh-fishpai/issues"><img src="https://img.shields.io/github/issues/OMSociety/dsh-fishpai?color=4f6ef7" alt="Issues"></a>
@@ -59,7 +59,7 @@
 
 ```powershell
 # 1) 先停掉 dsh web（运行中的服务会锁住依赖，装完再起）
-dsh plugin --profile web add "github:OMSociety/dsh-fishpai#v1.0.4"
+dsh plugin --profile web add "github:OMSociety/dsh-fishpai#v1.1.0"
 # 2) 重新启动 dsh web
 ```
 
@@ -70,7 +70,7 @@ git clone https://github.com/OMSociety/dsh-fishpai D:\WorkSpace\dsh-fishpai
 dsh plugin --profile web add "github:OMSociety/dsh-fishpai"
 ```
 
-> 装好后**刷新一下浏览器页面**，右侧栏就会多出「鱼排编辑器」入口（官方右侧栏的 `+` 菜单 / 引导页里也能找到）——只重启宿主不够，客户端产物是页面加载时取的。
+> 装好后**刷新一下浏览器页面**，「鱼排编辑器」从右侧栏的引导页打开——只重启宿主不够，客户端产物是页面加载时取的；入口与布局按会话记忆，新会话第一次要点一次（模型调 `fishpai_open` 时也会自动打开）。
 > 本插件零运行时依赖，不受 `minimumReleaseAge` 影响；客户端产物 `lib/client.js` 已入库，不需要本地构建。
 
 **装完怎么用**

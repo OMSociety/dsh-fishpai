@@ -10,6 +10,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-09
+
+### 变更
+
+- 客户端挂载改为只走 DSH **官方右侧栏**：标签页与引导列表经 `sidebarRightTabs.register` 加两个 `sidebar.right.pane.tab` 槽位注册，打开走 `sidebarRight.openTab`。此前与之并存的 `dsh-better-sidebar` 回退通道移除。
+- 宿主依赖下限抬到 `>=0.2.0-rc.2 <0.3.0-0`：`peerDependencies` 的七个 `@deepseek-ai/dsh-*` 包与新增的 `engines.dsh` 一条同口径。此前声明的下限是 0.1.5-rc.2。
+- 内置图标名改用宿主当前导出的拼写（`*Regular` 字重后缀），去掉两代拼写的对照表：下限抬高后只需服务一条线；某个名字取不到时仍降级成纯文字。
+
+### Changed
+
+- The client now mounts only through the DSH **official right sidebar**: the tab and the guide entry are registered via `sidebarRightTabs.register` plus the two `sidebar.right.pane.tab` slots, and opening goes through `sidebarRight.openTab`. The parallel `dsh-better-sidebar` fallback channel that previously accompanied it is removed.
+- Raised the host floor to `>=0.2.0-rc.2 <0.3.0-0`, applied uniformly to the seven `@deepseek-ai/dsh-*` packages in `peerDependencies` and to a new `engines.dsh` entry. The previous floor was 0.1.5-rc.2.
+- Built-in icon names now use the host's current export spelling (the `*Regular` weight suffix), dropping the two-generation alias table; with the floor raised there is only one line to serve. A name that cannot be resolved still degrades to plain text.
+
 ## [1.0.4] - 2026-10-04
 
 ### 新增
