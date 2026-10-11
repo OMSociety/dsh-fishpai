@@ -501,6 +501,48 @@ test('块级补丁：CRLF 文档不吞分隔行、不混排行尾', () => {
   assert.doesNotMatch(inserted.markdown, /[^\r]\n/, '插入后仍是纯 CRLF')
 })
 
+test('块级补丁：同一个块的多条补丁按块内游标连续算，变长替换不会把后一条插进结果中间', () => {
+  // 块的行范围只在那一次 splitBlocks 里成立。同块 `replace` 变长之后再 `insert_after`，
+  // 若后一条仍按老行号 splice，就会落进替换结果内部——而且 applied=2、errors=[]，
+  // 从返回值上完全看不出来（实测踩过：新段落被插进替换出来的段落中间）。
+  const doc = '## 小节\n\n这是第一段。\n\n这是第二段。\n'
+  const blocks = splitBlocks(doc)
+  const target = blocks.find((b) => b.text.includes('这是第一段'))
+  const out = applyPatches(doc, blocks, [
+    { block_id: target.id, op: 'replace', markdown: '换成了明显更长的一段：这是第一段，现在有三行。\n第二行。\n第三行。' },
+    { block_id: target.id, op: 'insert_after', markdown: '插在它后面。' },
+  ])
+  assert.deepEqual(out.errors, [])
+  assert.equal(out.applied.length, 2)
+  // 替换结果必须完整、且新段落在它**之后**（不是夹在中间）
+  assert.match(out.markdown, /第三行。\n\n插在它后面。/, '插入的内容要落在替换结果的末尾之后')
+  assert.equal(splitBlocks(out.markdown).length, 4, '小节 / 替换段 / 插入段 / 第二段 = 四块')
+  assert.match(out.markdown, /这是第二段。\n$/)
+
+  // 反过来（先 insert_after 再 replace）同样不能互相顶偏
+  const reverse = applyPatches(doc, blocks, [
+    { block_id: target.id, op: 'insert_after', markdown: '插在它后面。' },
+    { block_id: target.id, op: 'replace', markdown: '短。' },
+  ])
+  assert.deepEqual(reverse.errors, [])
+  assert.equal(reverse.applied.length, 2)
+  assert.match(reverse.markdown, /短。\n\n插在它后面。/, 'replace 不该把插进来的内容一起吃进自己的范围')
+  assert.match(reverse.markdown, /这是第二段。\n$/)
+})
+
+test('块级补丁：同块 replace 与 delete 组合后，拼接处仍恰好一个空行', () => {
+  const doc = '## 小节\n\n第一段。\n\n第二段。\n\n第三段。\n'
+  const blocks = splitBlocks(doc)
+  const second = blocks.find((b) => b.text.includes('第二段'))
+  const out = applyPatches(doc, blocks, [
+    { block_id: second.id, op: 'delete' },
+    { block_id: second.id, op: 'replace', markdown: '换成了新的一段。' },
+  ])
+  assert.deepEqual(out.errors, [])
+  assert.doesNotMatch(out.markdown, /\n\n\n/, '不许出现连续两个空行')
+  assert.match(out.markdown, /第一段。\n\n换成了新的一段。\n\n第三段。\n$/)
+})
+
 // ── HTTP 路由 ──────────────────────────────────────────────────
 
 test('同源守卫：跨站与伪造 Origin 一律拒绝', () => {

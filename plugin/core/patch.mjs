@@ -50,43 +50,74 @@ export function applyPatches(markdown, blocks, patches) {
     resolved.push({ op, block, text: patch.markdown === undefined ? null : String(patch.markdown) })
   }
 
-  // 同一个块被多次 patch：按原始顺序自下而上执行，后写的在下（同位置时后执行者更靠前）
-  resolved.sort((a, b) => (a.block.startLine === b.block.startLine ? b.block.endLine - a.block.endLine : b.block.startLine - a.block.startLine))
+  // 同一个块的补丁**必须在块内连续算**。
+  // 块的行范围只在那一次 `splitBlocks` 里成立：前一条补丁改了长度之后，后一条再按老行号
+  // `splice` 就会落进上一条的结果内部（实测：同块 `replace` 变长 + `insert_after`，新段落被
+  // 插进替换结果中间，却报 applied=2、errors=[]）。所以按块分组，块内维护两个游标：
+  //   head 块头（块内所有编辑都在它之后，所以它不动）
+  //   end  块自身的末尾（replace / delete 的作用范围，独占）
+  //   tail 下一条 insert_after 的落点（插进来的内容不属于块自身，replace 不该吃掉它）
+  // 块的先后仍是"自下而上"：先动下面的块，上面块的行号才不会被顶偏。
+  resolved.sort((a, b) => b.block.startLine - a.block.startLine)
+
+  const linesOf = (text) =>
+    text === null || text === '' ? [] : text.replace(/\r\n?/g, '\n').replace(/\n+$/, '').split('\n')
+
+  // 在 `at` 处放一段块级内容，并保证它与前后**恰好各隔一个空行**。
+  // 少了任一边，markdown 的"懒延续"会把新块并进相邻段——模型以为加了新段落，
+  // 实际只给已有段落加了一行。replace / insert_after 共用这一条，语义才一致。
+  const placeAt = (at, newLines) => {
+    const needHead = at > 0 && lines[at - 1] !== '' && newLines[0] !== ''
+    const needTail = lines[at] !== undefined && lines[at] !== '' && newLines[newLines.length - 1] !== ''
+    const inserted = [...(needHead ? [''] : []), ...newLines, ...(needTail ? [''] : [])]
+    lines.splice(at, 0, ...inserted)
+    return inserted.length
+  }
 
   const applied = []
-  for (const { op, block, text } of resolved) {
-    const from = block.startLine - 1
-    const to = block.endLine // 独占末端（1-based 闭区间 → 0-based 半开）
-    const newLines = text === null || text === '' ? [] : text.replace(/\r\n?/g, '\n').replace(/\n+$/, '').split('\n')
-    if (op === 'replace') {
-      if (!newLines.length) {
-        errors.push(`replace 需要 markdown：块 ${block.id}`)
-        continue
+  for (let i = 0; i < resolved.length; ) {
+    const { block } = resolved[i]
+    const head = block.startLine - 1
+    let end = block.endLine // 块自身的末尾（独占）：replace / delete 的作用范围
+    let tail = end // insert_after 的落点：初始等于块尾，随插进来的内容往后走
+    for (; i < resolved.length && resolved[i].block === block; i++) {
+      const { op, text } = resolved[i]
+      const newLines = linesOf(text)
+      if (op === 'replace') {
+        if (!newLines.length) {
+          errors.push(`replace 需要 markdown：块 ${block.id}`)
+          continue
+        }
+        // 先把块自己的行范围摘掉，再按 placeAt 的规矩放回去。
+        // 块的范围**可能含着末尾那个空行**（列表就是，段落不含），摘掉之后分隔行可能一起没了——
+        // placeAt 会按前后实况补回来，所以这里不用再单独判断"要不要保分隔行"。
+        // 踩过：改一次列表项，吃掉了文末的「项目地址」两行。
+        const removed = end - head
+        lines.splice(head, removed)
+        const inserted = placeAt(head, newLines)
+        end = head + inserted
+        tail += inserted - removed // 插进来的内容在块后面，跟着一起挪
+      } else if (op === 'delete') {
+        const removed = end - head
+        lines.splice(head, removed)
+        end = head
+        tail -= removed
+        // 删掉两块之间唯一的正文后，前后两个分隔空行会撞在一起（`\n\n\n`）。
+        // 块的范围不含分隔行，所以这里要自己收掉一个，让拼接处仍然**恰好一个**空行。
+        if (head > 0 && lines[head - 1] === '' && lines[head] === '') {
+          lines.splice(head, 1)
+          tail -= 1
+        }
+      } else {
+        if (!newLines.length) {
+          errors.push(`insert_after 需要 markdown：块 ${block.id}`)
+          continue
+        }
+        // 只动 tail、不动 end：插进来的内容不属于块自身，后面的 replace 不许把它吃进范围。
+        tail += placeAt(tail, newLines)
       }
-      // 块的行范围**包含末尾那个空行**（它就是块与块之间的分隔符）。替换时必须把分隔符补回去：
-      // 少了它，下一块会与这里的结尾粘在一起——markdown 的"懒延续"会把下一段并进列表/段落，
-      // 而下一轮再 replace 这个被并大了的块时，**被吞掉的块就被一起删掉了**。
-      // 踩过：改一次列表项，吃掉了文末的「项目地址」两行。
-      const keepsBlank = to > from && lines[to - 1] === ''
-      lines.splice(from, to - from, ...newLines, ...(keepsBlank ? [''] : []))
-    } else if (op === 'delete') {
-      lines.splice(from, to - from)
-    } else {
-      if (!newLines.length) {
-        errors.push(`insert_after 需要 markdown：块 ${block.id}`)
-        continue
-      }
-      const at = to
-      // 前后各保证**恰好一个**空行：上一行是内容、且插入文本自己没带前导空行，就补一个；
-      // 下一行是内容、且插入文本没带尾随空行，也补一个。分隔行（列表的 map 里就含着它；
-      // 段落的 map 不含、但紧跟在 at 后面）本来就在，不重复补。
-      // 少了任一边，markdown 的"懒延续"会把新块与相邻块并成同一段——
-      // 模型以为加了新段落，实际只给已有段落加了一行。
-      const needHead = at > 0 && lines[at - 1] !== '' && newLines[0] !== ''
-      const needTail = lines[at] !== undefined && lines[at] !== '' && newLines[newLines.length - 1] !== ''
-      lines.splice(at, 0, ...(needHead ? [''] : []), ...newLines, ...(needTail ? [''] : []))
+      applied.push({ blockId: block.id, op })
     }
-    applied.push({ blockId: block.id, op })
   }
 
   return { markdown: denorm(lines), applied, errors }
