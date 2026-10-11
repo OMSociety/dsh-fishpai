@@ -10,6 +10,17 @@ updates:
     groups:
       dev-tooling:
         patterns: ['*']
+    ignore:
+      # 类型与编译器的 major 必须人工评估，机器人不自动开 PR：
+      # 客户端 bundle 运行时 require 的是宿主 React 18 种子模块，而 @types/react 19
+      # 的类型假定 React 19 运行时——tsc 全绿也拦不住这层口径漂移（esbuild 不做类型
+      # 检查，测试只覆盖字符串级断言）。typescript 7.x 同理（原生预览，非稳定线）。
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/react-dom'
+        update-types: ['version-update:semver-major']
 
   # Actions 跟着上游走：checkout / setup-node 的 major 升级常常带 Node 版本要求变化。
   - package-ecosystem: github-actions
