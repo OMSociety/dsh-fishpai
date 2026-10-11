@@ -79,7 +79,7 @@ test('每套主题都配了图标（面板的主题列表靠它，不许悄悄�
   const source = fs.readFileSync(path.join(ROOT, 'client', 'icons.tsx'), 'utf8')
   const block = source.slice(source.indexOf('const THEME_GLYPH'), source.indexOf('/** 某套主题的图标'))
   const mapped = new Map(
-    [...block.matchAll(/^\s{2}([a-z_]+):\s*'([A-Za-z0-9]+)'/gm)].map((m) => [m[1], m[2]]),
+    [...block.matchAll(/^\s{2}([a-z_]+):\s*([A-Za-z0-9]+),/gm)].map((m) => [m[1], m[2]]),
   )
   const keys = themeCatalog().map((t) => t.key)
   // 方向一：内置主题一个都不许漏（这条是原本的意图）
@@ -89,7 +89,10 @@ test('每套主题都配了图标（面板的主题列表靠它，不许悄悄�
   // 不在 core 的 `themeCatalog()` 里，所以这里允许它是超集；除此之外多出来的键多半是拼错的 key。
   const extra = [...mapped.keys()].filter((k) => !keys.includes(k) && k !== 'custom')
   assert.deepEqual(extra, [], `THEME_GLYPH 里有不认识的键：${extra.join(', ')}`)
+  // 值是 `client/theme-icons.tsx` 导出的本地几何组件：必须真导出（拼错就是运行时白屏）
+  const glyphSrc = fs.readFileSync(path.join(ROOT, 'client', 'theme-icons.tsx'), 'utf8')
+  const exported = new Set([...glyphSrc.matchAll(/^export function ([A-Za-z0-9]+)/gm)].map((m) => m[1]))
   for (const [key, name] of mapped) {
-    assert.match(name, /^Icon[A-Za-z0-9]+$/, `${key} 的图标名不像 DSH 内置图标：${name}`)
+    assert.ok(exported.has(name), `${key} 的图标 ${name} 没有在 client/theme-icons.tsx 里导出`)
   }
 })

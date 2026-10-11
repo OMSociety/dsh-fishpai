@@ -51,28 +51,26 @@ function readSkillFrontmatter(source) {
   return out
 }
 
-function registerSkill(ctx, log) {
+function registerSkill(ctx) {
+  // 技能文件不在（例如被裁剪过的发行包）时静默跳过：这时降级是对的
   if (!existsSync(SKILL_FILE)) return () => {}
-  try {
-    const source = readFileSync(SKILL_FILE, 'utf8')
-    const frontmatter = readSkillFrontmatter(source)
-    const body = source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
-    const off = ctx.skills.register({
-      name: frontmatter.name || 'fishpai',
-      description: frontmatter.description || '公众号排版（鱼排）',
-      content: body.trim(),
-      // ⚠️ `source` **必须给**：runtime 技能的 register() 只校验 name/description，
-      // 但技能被 load 时会走 validateDefinition，那里要求 source / provider 都是字符串
-      // （provider 由注册器补默认值，source 不会）。漏了它，技能在目录里看得见、一加载就报
-      // "loaded skill ... source must be a string"。
-      source: 'bundled',
-      resourceBase: { kind: 'directory', path: SKILL_DIR },
-    })
-    return typeof off === 'function' ? off : () => {}
-  } catch (error) {
-    log(`[fishpai] 技能注册失败：${error.message}`)
-    return () => {}
-  }
+  const source = readFileSync(SKILL_FILE, 'utf8')
+  const frontmatter = readSkillFrontmatter(source)
+  const body = source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
+  // 读得到文件却注册不上，说明定义本身有问题（例如 source / content 形态不对）——
+  // 这时**不吞**：模型会以为能用 fishpai，却读不到改稿纪律，静默降级只会让行为诡异。
+  const off = ctx.skills.register({
+    name: frontmatter.name || 'fishpai',
+    description: frontmatter.description || '公众号排版（鱼排）',
+    content: body.trim(),
+    // ⚠️ `source` **必须给**：runtime 技能的 register() 只校验 name/description，
+    // 但技能被 load 时会走 validateDefinition，那里要求 source / provider 都是字符串
+    // （provider 由注册器补默认值，source 不会）。漏了它，技能在目录里看得见、一加载就报
+    // "loaded skill ... source must be a string"。
+    source: 'bundled',
+    resourceBase: { kind: 'directory', path: SKILL_DIR },
+  })
+  return typeof off === 'function' ? off : () => {}
 }
 
 export function apply(ctx) {
@@ -106,22 +104,19 @@ export function apply(ctx) {
   ctx.effect(() => {
     const webServer = ctx.webServer
     if (!webServer || typeof webServer.register !== 'function') {
+      // 服务缺失与"注册失败"是两回事：这里没有可注册的对象，降级不报错（工具侧仍可用）
       log('[fishpai] webServer 不可用，右侧栏面板将无法读写文档')
       return () => {}
     }
-    try {
-      const handler = createApiHandler({ resolveCwd, log })
-      return webServer.register({ kind: 'prefix', path: API_PREFIX, handler })
-    } catch (error) {
-      // 路由注册失败不应把整个插件拖垮：工具（模型侧）仍然可用
-      log(`[fishpai] 路由注册失败：${error.message}`)
-      return () => {}
-    }
+    // 注册失败**不再吞掉**：面板打不开却一切"正常"，是最难查的一类故障。
+    // 让异常冒到 cordis 的 effect 上，插件挂载当场失败——界面与日志都看得见。
+    const handler = createApiHandler({ resolveCwd, log })
+    return webServer.register({ kind: 'prefix', path: API_PREFIX, handler })
   }, 'fishpai: /fishpai/api 路由')
 
   // ── 3. 技能 ────────────────────────────────────────────────
   ctx.effect(() => {
-    const off = registerSkill(ctx, log)
+    const off = registerSkill(ctx)
     return () => off()
   }, 'fishpai: 注册技能')
 }

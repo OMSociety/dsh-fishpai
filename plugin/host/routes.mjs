@@ -2,9 +2,11 @@
  * `/fishpai/api/*` HTTP 路由：浏览器侧唯一的读写入口。
  *
  * 安全边界（这是浏览器与文件系统之间唯一的一道门）：
- *   1. **同源校验**：`sec-fetch-site: cross-site` 直接拒；`Origin` 缺失视为同源，
- *      但 `Origin: null`（沙箱 iframe / `data:` 文档）一律拒。写方法额外要求
- *      `content-type: application/json`——跨站的简单请求会在浏览器侧先被拦下。
+ *   1. **同源校验**：`sec-fetch-site: cross-site` 直接拒；`Host` 必须是环路字面量
+ *      （`127.0.0.1` / `localhost` / `::1`），这一条挡的是 DNS rebinding——光比
+ *      `Origin === Host` 挡不住"攻击者域名解析到 127.0.0.1"那种情形；
+ *      `Origin` 缺失视为同源，但 `Origin: null`（沙箱 iframe / `data:` 文档）一律拒。
+ *      写方法额外要求 `content-type: application/json`——跨站的简单请求会在浏览器侧先被拦下。
  *   2. **只认 docKey，不认路径**：客户端传索引里的键，宿主自己查出绝对路径，
  *      再用 `resolveInCwd` 复检（挡 `../`、挡符号链接逃逸、挡非白名单扩展名）。
  *      docKey 必须存在于**该 sessionId 工作目录**的索引里，所以跨会话读要先知道对方的
@@ -15,8 +17,11 @@
  *      `POST /doc`（文档，路径由宿主在 `.fishpai/docs/` 下生成）。两处的文件名都由宿主生成，
  *      客户端给的名字只当作一段可读词、不参与路径拼接；大小与格式在 `store.saveAsset` 里卡。
  *      正文仍只能由 `/doc` 改。
+ *
+ * 状态码口径：413 请求体超限 / 404 找不到（批注、图片、**以及正文文件读不出来**）/
+ * 409 revision 冲突 / 415 写方法没带 `application/json` / 403 跨站 / 400 其余参数与状态错误。
+ * 「正文文件不见了」必须是 404：回 200 + 空正文会让面板把"读不到"显示成"文档被清空"。
  */
-import fs from 'node:fs'
 import { render as renderCore, themeCatalog, hljsPreviewCss, isFontSize } from '../core/render.mjs'
 import { clearCustomTheme, customCatalogEntry, themeFor, CUSTOM_THEME_KEY } from './custom-theme.mjs'
 import { colorPresets } from '../core/runtime.mjs'
@@ -38,17 +43,58 @@ function fail(res, code, message) {
   json(res, code, { ok: false, error: message })
 }
 
+/**
+ * 只有 Host 头指向本机环路才放行。
+ *
+ * 为什么不能只比 `Origin` 与 `Host` 是否相等：那条规则挡不住 **DNS rebinding**——
+ * 攻击者把自己的域名解析到 127.0.0.1，浏览器发出的 `Host: evil.example:3080` 与
+ * `Origin: http://evil.example:3080` 天然相等，于是校验通过，页面就能读走工作目录里的文档。
+ * 环路字面量是攻不动的：`evil.example` 不可能等于 `127.0.0.1` / `localhost` / `::1`。
+ *
+ * 判据不用字符串切分，而是把 authority 交给 WHATWG URL 归一后再判——理由与平台自身的
+ * `/api` 信任闸门一致（见 dsh-client-connection 的 `parseAuthority` / `isLoopbackHostname`）：
+ * 手写切分会与 URL 归一产生分歧，凡归一化会改写而字符串不会的写法就会判错。
+ * 走归一之后：`LOCALHOST:3080`、`127.0.0.1.`（尾随点）、`2130706433`（十进制 IPv4）、
+ * `127.0.0.1:80`（默认端口被剥掉）都按真实含义识别为本机；而 `0.0.0.0`、IPv4 映射的
+ * `[::ffff:127.0.0.1]`、裸 IPv6（`::1` 不带方括号）、带前导空白的 authority 一律不是本机
+ * （注意：尾随空白在 WHATWG 归一里会被剥掉，`'127.0.0.1:3080 '` 反而放行——放行的仍是
+ * 本机字面量，与平台判据一致，不构成安全削弱）。
+ * IPv4 的识别是整段 127/8（`127.1`、`'0x7f000001'` 都算），与平台的 dsh-client-connection 同判据。
+ * 这条闸门只挡浏览器侧的混淆代理（Host 由浏览器设置），它不是认证层：非浏览器客户端
+ * 本来就能自己写 `Host`，所以"放宽到整段 127/8"不构成安全削弱——与平台判据保持一致即可。
+ */
+function parseAuthority(authority) {
+  try {
+    return new URL(`http://${authority}`)
+  } catch {
+    return undefined
+  }
+}
+
+/** WHATWG 归一后的 hostname 是否为本机环路（IPv6 字面量保留方括号）。 */
+function isLoopbackHostname(hostname) {
+  if (hostname === 'localhost' || hostname === '[::1]') return true
+  const parts = hostname.split('.')
+  return parts.length === 4 && parts[0] === '127' && parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)
+}
+
 export function sameOrigin(req) {
   const host = req.headers && req.headers.host
   if (!host) return false
   if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') return false
+  const hostUrl = parseAuthority(host)
+  if (hostUrl === undefined) return false
+  if (!isLoopbackHostname(hostUrl.hostname)) return false
   const origin = req.headers.origin
   // 没有 Origin 的是非浏览器客户端或同源 GET；`null` 只可能来自沙箱 iframe / data: 文档，
   // 属于不可信上下文，绝不能与"没有 Origin"混为一谈。
   if (origin === undefined) return true
   if (origin === 'null') return false
+  // 两端都过同一套归一：Origin 写 `http://evil.example` 时，即便 Host 被伪造成
+  // `127.0.0.1`（HTTP/1.1 允许 Host 与 Origin 不一致）也进不来；大小写、默认端口、
+  // 尾随点这类写法差异由归一吸收，不会误拒正常用法。
   try {
-    return new URL(origin).host === host
+    return new URL(origin).host === hostUrl.host
   } catch {
     return false
   }
@@ -89,12 +135,13 @@ export class OversizeError extends Error {
   }
 }
 
+/**
+ * 读正文。**读不出来就抛**（`store.readDocText`），不降级成空串——
+ * 空串在接口上表现为 `200 + markdown: ""`，面板会当成"这篇文档本来就是空的"，
+ * 用户看到的是正文被清空而不是"文件不在了"。路由层把 `DocMissingError` 映射成 404。
+ */
 function readText(abs) {
-  try {
-    return fs.readFileSync(abs, 'utf8')
-  } catch {
-    return ''
-  }
+  return store.readDocText(abs)
 }
 
 /** 从索引里按 docKey 查出文档绝对路径，并复检它仍在会话工作目录内。 */
@@ -488,6 +535,9 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
       const message = error && error.message ? error.message : String(error)
       log(`[fishpai] ${route} 失败: ${message}`)
       if (error instanceof OversizeError) return fail(res, 413, message)
+      // 正文文件不见了是「找不到」，不是「请求不合法」：回 404，面板据此显示失败态。
+      // 回 400 会让客户端把它当成普通参数错误；回 200 + 空正文则是"文档被清空"的假象。
+      if (error instanceof store.DocMissingError) return fail(res, 404, message)
       return fail(res, 400, message)
     }
   }

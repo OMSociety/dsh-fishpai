@@ -15,6 +15,8 @@
  * 这一层是纯函数：不碰文件系统、不去求值。
  */
 
+import { splitDeclarations } from './render.mjs'
+
 /**
  * 主题的样式槽位（与内置主题一一对应）。
  * 加槽位要同时改 `plugin/vendor/themes.js` 与 `markdown.mjs` 的渲染规则，不是这里的自由项。
@@ -115,10 +117,9 @@ const MAX_VALUE = 200
 /**
  * 规格只认这三个键。
  *
- * `emoji` / `icon` 之类**故意不收**：图标由鱼排统一提供。
- * 合法图标名的名单只存在于浏览器那半（`@deepseek-ai/dsh-client-ui-primitives` 的 `Icon*` 导出），
- * 而校验器在宿主这半——让模型选名字就得在宿主再抄一份名单并跟着 DSH 升级维护，
- * 抄漏一个的后果是**图标静默消失且不报错**。统一图标只需客户端一行降级逻辑。
+ * `emoji` / `icon` 之类**故意不收**：图标由鱼排统一提供（`client/icons.tsx` 里一张
+ * 主题 key → 内联几何的固定映射表），而校验器在宿主这半——让模型选名字就得在宿主
+ * 再抄一份名单并跟着客户端维护，抄漏一个的后果是**图标静默消失且不报错**。
  * 多写的键一律报错（而不是默默忽略）：写了没作用，比不让写更容易骗人。
  */
 const SPEC_KEYS = ['name', 'base', 'styles']
@@ -145,13 +146,18 @@ function parseDeclarations(slot, css, notes) {
     fail(`槽位 ${slot} 里出现了不允许的内容（{}、<>、双引号、url()、expression、@import 都不能用；单引号可以；{{PRIMARY}} 这类占位符是允许的）`)
   }
   const out = []
-  for (const raw of text.split(';')) {
-    const decl = raw.trim()
-    if (!decl) continue
-    const m = /^([-a-zA-Z]+)\s*:\s*(\S[\s\S]*)$/.exec(decl)
-    if (!m) fail(`槽位 ${slot} 里有看不懂的声明：「${decl}」（要写成 "属性: 值"）`)
-    const prop = m[1].toLowerCase()
-    let value = m[2].trim()
+  // 声明边界用 render 侧同一个引号/括号感知切分器：`font-family: 'a; font-size: 99px', serif`
+  // 里那个分号在引号内，不是边界。两侧各用一套口径会互相骗（详见 splitDeclarations 注释）。
+  const decls = splitDeclarations(text)
+  if (!decls.length) {
+    fail(`槽位 ${slot} 里有看不懂的声明：「${text}」（要写成 "属性: 值"，用 ; 分隔）`)
+  }
+  for (const { prop: rawProp, value: rawValue } of decls) {
+    if (!/^[a-zA-Z-]+$/.test(rawProp)) {
+      fail(`槽位 ${slot} 里有看不懂的声明：「${rawProp}: ${rawValue}」（要写成 "属性: 值"）`)
+    }
+    const prop = rawProp.toLowerCase()
+    let value = String(rawValue ?? '').trim()
     if (!SPEC_PROPS.has(prop)) {
       fail(`槽位 ${slot} 用了不支持的属性「${prop}」。允许的属性见技能 fishpai 的自定义主题一节（内置主题用过的那批）`)
     }
@@ -172,9 +178,9 @@ function parseDeclarations(slot, css, notes) {
 const WRAPPER_REQUIRED = ['font-family', 'font-size']
 
 function inheritDecl(baseWrapper, prop) {
-  const re = new RegExp(`(?:^|;)\\s*(${prop}\\s*:[^;]+)`, 'i')
-  const m = re.exec(String(baseWrapper || ''))
-  return m ? m[1].trim() : null
+  // 声明边界走同一个引号感知切分器：值里带分号（如 'a; font-size: 99px'）不许截出假声明。
+  const decl = splitDeclarations(String(baseWrapper || '')).find((d) => d.prop === prop.toLowerCase())
+  return decl ? `${decl.prop}: ${decl.value}` : null
 }
 
 /**
@@ -224,6 +230,10 @@ export function validateThemeSpec(spec, baseThemes) {
   // wrapper 是唯一的硬性缺口：模型很容易只写 line-height / color，漏掉字体字号，
   // 结果面板上「字体」「字号」两个控件点了没反应——那正是最不该出现的"死控件"。
   if (styles.wrapper) {
+    // 面板的「字号」是**替换** wrapper 上这一条来生效的（`render.mjs` 里
+    // `wrapperStyle.replace(/font-size: …/, …)`），所以模型自己写在 wrapper 上的字号值
+    // 一定会被用户选的（或默认的 16px）盖掉。先记下来，补全之前判一次。
+    const writtenSize = inheritDecl(styles.wrapper, 'font-size')
     const missing = WRAPPER_REQUIRED.filter((prop) => !inheritDecl(styles.wrapper, prop))
     if (missing.length) {
       const parts = []
@@ -235,6 +245,12 @@ export function validateThemeSpec(spec, baseThemes) {
       styles.wrapper = `${styles.wrapper} ${parts.join('; ')};`.replace(/\s+/g, ' ')
       notes.push(
         `wrapper 自动补上了 ${missing.join(' / ')}（从 base 继承）——漏了它们，面板的「字体」「字号」会变成点了没反应的死控件`,
+      )
+    }
+    // 说了不生效就要说清"那该怎么办"：固定正文字号得改具体槽位，写在 wrapper 上是白写。
+    if (writtenSize) {
+      notes.push(
+        `wrapper 的「${writtenSize}」不会生效：面板的「字号」会替换掉它（预览与「复制到公众号」都以用户选的字号为准）。要固定正文字号，请改具体槽位（p / li / blockquote 等）`,
       )
     }
   }

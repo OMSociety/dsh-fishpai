@@ -1,42 +1,36 @@
 /**
- * 图标：鱼排自己的鱼形标 + DSH 内置图标集。
+ * 图标：鱼排自己的鱼形标 + 主题/控件用的内联几何。
  *
- * 为什么主题图标用 DSH 自带的那一套（`@deepseek-ai/dsh-client-ui-primitives`）：
- *   - 它是 **shell 的基线模块**（与 `react` 同级：任何客户端 bundle 都能 require，不需要
- *     在 `dsh.client.inject` 里声明包依赖边）——右侧栏自己画图标用的就是它；
- *   - 于是鱼排的图标与内置面板天然同一套画法（16px 网格、约 1.1 描边、`currentColor`），
- *     **浅色/深色主题自动跟随，不需要准备两套图**；
- *   - 不必引入任何第三方图标依赖（Lucide / Tabler 那一类也用不上）。
+ * 主题图标**不再** require 宿主的 `@deepseek-ai/dsh-client-ui-primitives`：rc2 官方在
+ * `cordis-plugin-development/references/practices.md` 里明文禁止客户端 bundle 把 Harness
+ * Client 包当模块加载（"They change without notice, a plain-JS plugin has no type check,
+ * and a throwing component blanks your slot entry"），替代做法是把 primitive 的标记复制进插件。
+ * 几何就在 `theme-icons.tsx`，全部走 `currentColor`，浅色/深色主题自动跟随。
  *
- * 兜底：万一某个 DSH 版本没提供这个模块，插件不能因此整块加载不了 ——
- * 取不到就退回"自绘的鱼形标 + 纯文字"，主题列表少几个图标而已，功能不受影响。
+ * 于是 bundle 的 require 只剩 `react` / `react/jsx-runtime`（shell 的基线种子模块），
+ * 宿主升级改名影响不到这里；代价是几何要自己维护（见 `NOTICE.md` 的许可与来源记录）。
  */
 import * as React from 'react'
-import { resolveIconExport } from './icon-names'
-
-// 客户端 bundle 是 CJS 形态的 factory(require)，这里的 require 由模块表提供（见 scripts/build-client.mjs）。
-declare function require(id: string): any
+import {
+  AgentPresetGlyph,
+  BranchGlyph,
+  BrowseGlyph,
+  CheckGlyph,
+  ChevronDownGlyph,
+  CodeGlyph,
+  DarkGlyph,
+  EditGlyph,
+  EnhanceGlyph,
+  LightGlyph,
+  ListPenGlyph,
+  PersonalizationGlyph,
+  SparkleGlyph,
+  ThinkGlyph,
+} from './theme-icons'
 
 export interface GlyphProps {
   size?: number
   className?: string
-}
-
-function loadPrimitives(): Record<string, any> {
-  try {
-    return require('@deepseek-ai/dsh-client-ui-primitives') || {}
-  } catch {
-    return {}
-  }
-}
-
-const PRIMITIVES = loadPrimitives()
-
-/** 按导出名取一个内置图标；没有就返回 null，由调用方降级成纯文字。 */
-function builtin(name: string, props: GlyphProps, fallbackSize: number): React.ReactElement | null {
-  const Icon = resolveIconExport(PRIMITIVES, name)
-  if (!Icon) return null
-  return <Icon size={props.size ?? fallbackSize} className={props.className} />
 }
 
 /**
@@ -45,7 +39,7 @@ function builtin(name: string, props: GlyphProps, fallbackSize: number): React.R
  * **与包根目录的 `icon.svg` 逐字相同的路径与描边**，内联渲染。插件列表的磁贴是同一个
  * 文件的 `<img>` 版本（宿主读成 data URI、那份不能走 `currentColor`）。
  *
- * 全仓库**只有这一处几何**：右侧栏的标签页、引导列表、回退标签页，以及面板内空白页
+ * 全仓库**只有这一处几何**：右侧栏的标签页、引导列表，以及面板内空白页
  * 卡片的品牌行，都用它。**改 `icon.svg` 就回来改这里**，别处没有第二份要对齐。
  *
  * 两处差异只因为取景与取色：36 画板的图形只占 53%，直接缩到 16px 会比旁边的图标瘦
@@ -77,41 +71,40 @@ export function FishMark({ size = 16, className }: GlyphProps) {
 }
 
 /**
- * 每套主题各自的图标，值是 `@deepseek-ai/dsh-client-ui-primitives` 的导出名。
+ * 每套主题各自的图标，值是 `theme-icons.tsx` 里导出的内联几何组件。
  *
  * 加主题时在这里补一行；`test/theme-info.test.mjs` 会检查"每套主题都有图标"，
- * `test/icons-compat.test.mjs` 会核对这些名字在宿主导出清单里有落点，
- * 漏了会红（主题列表退化成没有图标也能用，但不该悄悄漏）。
+ * `test/theme-icons.test.mjs` 会核对这些组件真能渲染出 `<svg>`，漏了会红。
  */
-const THEME_GLYPH: Record<string, string> = {
-  default: 'IconListPenOutlineRegular', // 排版：默认公众号就是给微信做的那套
-  elegant: 'IconSparkleRegular', // 优雅简约
-  deep_read: 'IconThinkOutlineRegular', // 深度阅读
-  nyt: 'IconBrowseOutlineRegular', // 纽约时报（版面）
-  apple: 'IconLightOutlineRegular', // Apple 极简（明亮、留白）
-  claude: 'IconAgentPresetOutlineRegular', // Claude（对话助手）
-  sspai: 'IconPersonalizationOutlineRegular', // 少数派（个性）
-  bamboo: 'IconBranchOutlineRegular', // 竹林（枝叶）
-  tech: 'IconCodeOutlineRegular', // 技术风格（代码）
-  dark_night: 'IconDarkOutlineRegular', // 暗夜模式
-  gradient: 'IconEnhanceOutlineRegular', // 渐变彩虹（增色）
+const THEME_GLYPH: Record<string, React.ComponentType<GlyphProps>> = {
+  default: ListPenGlyph, // 排版：默认公众号就是给微信做的那套
+  elegant: SparkleGlyph, // 优雅简约
+  deep_read: ThinkGlyph, // 深度阅读
+  nyt: BrowseGlyph, // 纽约时报（版面）
+  apple: LightGlyph, // Apple 极简（明亮、留白）
+  claude: AgentPresetGlyph, // Claude（对话助手）
+  sspai: PersonalizationGlyph, // 少数派（个性）
+  bamboo: BranchGlyph, // 竹林（枝叶）
+  tech: CodeGlyph, // 技术风格（代码）
+  dark_night: DarkGlyph, // 暗夜模式
+  gradient: EnhanceGlyph, // 渐变彩虹（增色）
   // 「自定义主题」：工作目录里那**一套**模型生成的主题，图标固定这一个。
-  // 为什么不让模型挑：图标名是客户端这半的事，宿主那半的校验器看不到候选名单——
-  // 让模型选就得在宿主再抄一份、跟着 DSH 升级维护，抄漏一个的后果是"图标静默消失且不报错"。
-  custom: 'IconEditOutlineRegular',
+  custom: EditGlyph,
 }
 
-/** 某套主题的图标（取不到内置图标时为 null，调用方直接不画）。 */
+/** 某套主题的图标。 */
 export function ThemeGlyph({ themeKey, size = 16, className }: GlyphProps & { themeKey: string }) {
-  return builtin(THEME_GLYPH[themeKey] || '', { size, className }, 16)
+  const Icon = THEME_GLYPH[themeKey]
+  if (!Icon) return null
+  return <Icon size={size} className={className} />
 }
 
-/** 下拉箭头：内置 `IconChevronDownOutlineRegular`，没有就退回字符。 */
+/** 下拉箭头。 */
 export function CaretGlyph({ size = 14, className }: GlyphProps) {
-  return builtin('IconChevronDownOutlineRegular', { size, className }, 14) ?? <span className={className}>▾</span>
+  return <ChevronDownGlyph size={size} className={className} />
 }
 
-/** 选中勾：内置 `IconCheckOutlineRegular`，没有就退回字符。 */
+/** 选中勾。 */
 export function TickGlyph({ size = 14, className }: GlyphProps) {
-  return builtin('IconCheckOutlineRegular', { size, className }, 14) ?? <span className={className}>✓</span>
+  return <CheckGlyph size={size} className={className} />
 }

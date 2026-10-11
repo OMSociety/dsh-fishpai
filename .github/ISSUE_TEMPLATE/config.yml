@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞（请走私密渠道）
+    url: https://github.com/OMSociety/dsh-fishpai/security/advisories/new
+    about: 不要开公开 issue，详见 SECURITY.md
+  - name: 使用问题（不确定是不是 bug）
+    url: https://github.com/OMSociety/dsh-fishpai/issues
+    about: 先翻一下已有 issue；要新开请用上面的 Bug report 模板

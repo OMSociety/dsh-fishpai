@@ -271,10 +271,17 @@ export function apply(ctx: any): void {
     }
     const timer = setInterval(() => void tick(), POLL_MS)
     void tick()
-    return () => {
+    return async () => {
       stopped = true
       clearInterval(timer)
-      seatHandle?.dispose?.()
+      // 席位的 dispose 是异步的（cordis 的 `fiber.dispose(): Promise<void>`）：不 await 的话
+      // 面板的槽位注销可能还排在微任务里，紧接着的重新挂载就会撞上旧席位。
+      // effect 的清理链本身支持返回 Promise（cordis 会把每个 disposer 串进同一条 then 链）。
+      try {
+        await seatHandle?.dispose?.()
+      } catch {
+        /* 席位已随 fiber 销毁时不重复报错 */
+      }
       for (const store of stores.values()) store.dispose()
       stores.clear()
     }

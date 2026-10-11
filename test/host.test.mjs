@@ -329,6 +329,46 @@ test('批注增删改与打开请求', () => {
   assert.equal(store.pendingOpenRequest(store.readState(cwd, store.docKey(path.join(cwd, 'a.md'))), 's1'), null)
 })
 
+test('批注的身份字段由宿主钉死：调用方塞 id / author / resolved 一律覆盖不了', () => {
+  const cwd = tmpWorkspace()
+  store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  const forged = store.addNote({
+    cwd,
+    docPath: 'a.md',
+    note: { blockId: 'x', text: '假装是模型留的', id: 'dup', author: 'ai', at: 1, resolved: true },
+  })
+  assert.notEqual(forged.id, 'dup', '主键不能被请求体覆盖')
+  assert.equal(forged.author, 'human')
+  assert.equal(forged.resolved, false)
+  assert.notEqual(forged.at, 1)
+  // 业务字段照旧透传：钉死的是身份，不是内容
+  assert.equal(forged.text, '假装是模型留的')
+  assert.equal(forged.blockId, 'x')
+})
+
+test('批注更新也不能改身份字段：action=update 是另一个入口，不能绕开 addNote 的钉子', () => {
+  // 只钉 addNote 是不够的：`{action:'update', patch:{author:'ai', at:1}}` 是同一个数据面的
+  // 另一个入口，实测能把一条人写的批注改成"模型留的"。这里把两个入口一起钉住。
+  const cwd = tmpWorkspace()
+  store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  const note = store.addNote({ cwd, docPath: 'a.md', note: { blockId: 'x', text: '人写的批注' } })
+
+  const forged = store.updateNote({
+    cwd,
+    docPath: 'a.md',
+    id: note.id,
+    patch: { text: '被改过', author: 'ai', at: 1, id: 'other' },
+  })
+  assert.equal(forged.id, note.id, '主键不能被请求体覆盖')
+  assert.equal(forged.author, 'human', 'author 不能被请求体改成 ai')
+  assert.equal(forged.at, note.at, '时间戳不能被伪造')
+  // 业务字段与 resolved 必须仍可改（面板「标记已解决」靠它）
+  assert.equal(forged.text, '被改过')
+  assert.equal(forged.resolved, false)
+  const resolved = store.updateNote({ cwd, docPath: 'a.md', id: note.id, patch: { resolved: true } })
+  assert.equal(resolved.resolved, true, 'resolved 是 updateNote 的本职，必须允许改')
+})
+
 // ── 块级补丁 ───────────────────────────────────────────────────
 
 test('块级补丁：只改指定块，其余字节原样保留', () => {
@@ -461,6 +501,90 @@ test('块级补丁：CRLF 文档不吞分隔行、不混排行尾', () => {
   assert.doesNotMatch(inserted.markdown, /[^\r]\n/, '插入后仍是纯 CRLF')
 })
 
+test('块级补丁：同一个块的多条补丁按块内游标连续算，变长替换不会把后一条插进结果中间', () => {
+  // 块的行范围只在那一次 splitBlocks 里成立。同块 `replace` 变长之后再 `insert_after`，
+  // 若后一条仍按老行号 splice，就会落进替换结果内部——而且 applied=2、errors=[]，
+  // 从返回值上完全看不出来（实测踩过：新段落被插进替换出来的段落中间）。
+  const doc = '## 小节\n\n这是第一段。\n\n这是第二段。\n'
+  const blocks = splitBlocks(doc)
+  const target = blocks.find((b) => b.text.includes('这是第一段'))
+  const out = applyPatches(doc, blocks, [
+    { block_id: target.id, op: 'replace', markdown: '换成了明显更长的一段：这是第一段，现在有三行。\n第二行。\n第三行。' },
+    { block_id: target.id, op: 'insert_after', markdown: '插在它后面。' },
+  ])
+  assert.deepEqual(out.errors, [])
+  assert.equal(out.applied.length, 2)
+  // 替换结果必须完整、且新段落在它**之后**（不是夹在中间）
+  assert.match(out.markdown, /第三行。\n\n插在它后面。/, '插入的内容要落在替换结果的末尾之后')
+  assert.equal(splitBlocks(out.markdown).length, 4, '小节 / 替换段 / 插入段 / 第二段 = 四块')
+  assert.match(out.markdown, /这是第二段。\n$/)
+
+  // 反过来（先 insert_after 再 replace）同样不能互相顶偏
+  const reverse = applyPatches(doc, blocks, [
+    { block_id: target.id, op: 'insert_after', markdown: '插在它后面。' },
+    { block_id: target.id, op: 'replace', markdown: '短。' },
+  ])
+  assert.deepEqual(reverse.errors, [])
+  assert.equal(reverse.applied.length, 2)
+  assert.match(reverse.markdown, /短。\n\n插在它后面。/, 'replace 不该把插进来的内容一起吃进自己的范围')
+  assert.match(reverse.markdown, /这是第二段。\n$/)
+})
+
+test('块级补丁：同块 replace 与 delete 组合，保 replace、跳过 delete，与顺序无关', () => {
+  const doc = '## 小节\n\n第一段。\n\n第二段。\n\n第三段。\n'
+  const blocks = splitBlocks(doc)
+  const second = blocks.find((b) => b.text.includes('第二段'))
+
+  // 两种顺序必须得到同样的结果：replace 带内容、意图更明确；若"谁后到谁生效"，
+  // 同一个补丁列表换个顺序就会从「换掉这块」变「删掉这块」，调用方还看不出来。
+  const deleteFirst = applyPatches(doc, blocks, [
+    { block_id: second.id, op: 'delete' },
+    { block_id: second.id, op: 'replace', markdown: '换成了新的一段。' },
+  ])
+  const replaceFirst = applyPatches(doc, blocks, [
+    { block_id: second.id, op: 'replace', markdown: '换成了新的一段。' },
+    { block_id: second.id, op: 'delete' },
+  ])
+  for (const out of [deleteFirst, replaceFirst]) {
+    assert.deepEqual(out.applied, [{ blockId: second.id, op: 'replace' }], '只有 replace 算应用，delete 一律跳过')
+    assert.deepEqual(out.errors, [`块 ${second.id} 同时收到 replace 与 delete：保 replace，跳过 delete`], '冲突要写进 errors，不能静默')
+    assert.doesNotMatch(out.markdown, /\n\n\n/, '不许出现连续两个空行')
+    assert.match(out.markdown, /第一段。\n\n换成了新的一段。\n\n第三段。\n$/)
+  }
+})
+
+test('块级补丁：replace 的 markdown 自带首尾空行，不许叠出 \\n\\n\\n', () => {
+  const doc = '# 标题\n\n旧段。\n\n尾段。\n'
+  const blocks = splitBlocks(doc)
+
+  // replace 的 markdown 开头带个 `\n` 很常见；splitBlocks 的列表块范围含末尾分隔行，
+  // 摘块后现场已留好分隔空行——自带的空行要跟现场去重，而不是原样拼进去。
+  const lead = applyPatches(doc, blocks, [{ block_index: 1, op: 'replace', markdown: '\n新段。' }])
+  assert.deepEqual(lead.errors, [])
+  assert.equal(lead.markdown, '# 标题\n\n新段。\n\n尾段。\n')
+
+  const trail = applyPatches(doc, blocks, [{ block_index: 1, op: 'replace', markdown: '新段。\n' }])
+  assert.equal(trail.markdown, '# 标题\n\n新段。\n\n尾段。\n')
+
+  const both = applyPatches(doc, blocks, [{ block_index: 1, op: 'replace', markdown: '\n新段。\n\n' }])
+  assert.equal(both.markdown, '# 标题\n\n新段。\n\n尾段。\n')
+
+  // insert_after 自带空行同样只去重不叠加（这条输入在老实现里反而是干净的，别改坏）
+  const after = applyPatches(doc, blocks, [{ block_index: 1, op: 'insert_after', markdown: '\n插段。' }])
+  assert.equal(after.markdown, '# 标题\n\n旧段。\n\n插段。\n\n尾段。\n')
+})
+
+test('块级补丁：删掉首块后，文档开头不许留前导空行', () => {
+  const doc = '首。\n\n次。\n'
+  const out = applyPatches(doc, splitBlocks(doc), [{ block_index: 0, op: 'delete' }])
+  assert.deepEqual(out.errors, [])
+  assert.equal(out.markdown, '次。\n', '首块与次块之间的分隔行被顶到开头，就是前导空行，要收掉')
+
+  // 分隔行本身叠了多个空行的病态输入也要收干净
+  const stacked = applyPatches('首。\n\n\n次。\n', splitBlocks('首。\n\n\n次。\n'), [{ block_index: 0, op: 'delete' }])
+  assert.equal(stacked.markdown, '次。\n')
+})
+
 // ── HTTP 路由 ──────────────────────────────────────────────────
 
 test('同源守卫：跨站与伪造 Origin 一律拒绝', () => {
@@ -471,6 +595,26 @@ test('同源守卫：跨站与伪造 Origin 一律拒绝', () => {
   // `Origin: null` 只可能来自沙箱 iframe / data: 文档，是不可信上下文，不能当"没有 Origin"
   assert.equal(sameOrigin({ headers: { host: '127.0.0.1:3080', origin: 'null' } }), false)
   assert.equal(sameOrigin({ headers: {} }), false)
+})
+
+test('同源守卫：DNS rebinding 挡在 Host 一侧（Origin 与 Host 相等也不够）', () => {
+  // 攻击者把 evil.example 解析到 127.0.0.1，浏览器发来的 Host 与 Origin 天然一致——
+  // 只比"两者相等"会全数放行，所以 Host 本身必须是环路字面量。
+  assert.equal(sameOrigin({ headers: { host: 'evil.example:3080', origin: 'http://evil.example:3080' } }), false)
+  assert.equal(
+    sameOrigin({
+      headers: { host: 'evil.example:3080', origin: 'http://evil.example:3080', 'sec-fetch-site': 'same-origin' },
+    }),
+    false,
+  )
+  assert.equal(sameOrigin({ headers: { host: 'attacker.test:3080' } }), false)
+  // 只伪装 Host、Origin 仍是外域（HTTP/1.1 允许两者不一致）也要拒
+  assert.equal(sameOrigin({ headers: { host: '127.0.0.1:3080', origin: 'http://evil.example:3080' } }), false)
+  // 大小写与端口都要认，别把正常用法挡掉
+  assert.equal(sameOrigin({ headers: { host: 'LOCALHOST:3080', origin: 'http://localhost:3080' } }), true)
+  assert.equal(sameOrigin({ headers: { host: 'localhost' } }), true)
+  assert.equal(sameOrigin({ headers: { host: '[::1]:3080', origin: 'http://[::1]:3080' } }), true)
+  assert.equal(sameOrigin({ headers: { host: '127.0.0.1:3080', origin: 'http://127.0.0.1:9999' } }), false)
 })
 
 /** 最小 req/res 桩，够跑通路由分支。`chunks` 可以指定分块；`failAfter` 注入一次流错误。 */
@@ -546,6 +690,61 @@ test('路由：只认 docKey，路径穿越与未知 docKey 都被挡', async ()
 
   const crossSite = await callRoute(handler, { method: 'GET', url: '/fishpai/api/state?sessionId=s1', headers: { 'sec-fetch-site': 'cross-site' } })
   assert.equal(crossSite.status, 403)
+})
+
+test('路由：正文文件不见了回 404（不是 200 + 空正文），且不改盘上任何东西', async () => {
+  const cwd = tmpWorkspace()
+  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
+  store.setActive(cwd, 's1', opened.key)
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+
+  // 状态还在（索引里有这篇），正文文件被人在编辑器外删了/改名了
+  const stateBefore = store.readState(cwd, opened.key)
+  fs.rmSync(opened.path)
+
+  const doc = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=s1&docKey=${opened.key}` })
+  assert.equal(doc.status, 404, '读不到正文是「找不到」，不能回 200 + markdown:""')
+  assert.match(doc.json.error, /正文文件读不出来/)
+  assert.match(doc.json.error, /a\.md/, '报错要带路径，用户才知道是哪个文件')
+
+  // 渲染也要挡住：否则面板会拿着空正文渲出一篇空文档
+  const render = await callRoute(handler, {
+    method: 'POST',
+    url: '/fishpai/api/render',
+    body: { sessionId: 's1', docKey: opened.key, mode: 'preview' },
+  })
+  assert.equal(render.status, 404)
+
+  // 404 是"读不到"，不是"可以借机重建"：状态与索引一个字节都不许动
+  assert.deepEqual(store.readState(cwd, opened.key), stateBefore)
+  assert.equal(fs.existsSync(opened.path), false, '宿主不会顺手把文件建回来')
+
+  // rebase 同样要回 404：它内部读正文，不能让裸 ENOENT 落进兜底 400
+  const rebased = await callRoute(handler, { method: 'POST', url: '/fishpai/api/history', body: { sessionId: 's1', docKey: opened.key, action: 'rebase' } })
+  assert.equal(rebased.status, 404, 'rebase 读不到正文也是「找不到」，不能落进兜底 400')
+  assert.match(rebased.json.error, /正文文件读不出来/)
+})
+
+test('工具：基线快照丢了就明说，不把整篇谎报成"人重写了全文"', async () => {
+  const cwd = tmpWorkspace()
+  const { tools, exec } = fakeHost(cwd)
+  const byName = (n) => tools.find((t) => t.name === n)
+
+  const opened = await byName('fishpai_open').execute({ path: 'a.md', markdown: ARTICLE }, exec)
+  assert.equal(opened.isError, false, opened.text)
+  const key = opened.doc_key
+  await byName('fishpai_write').execute({ doc_key: key, base_revision: 1, mode: 'replace', markdown: `${ARTICLE}\nAI 的结尾。\n` }, exec)
+
+  // 状态里记着基线，快照文件却在盘上没了（人手工清了 .fishpai，或历史被外部删除）
+  const state = store.readState(cwd, key)
+  assert.ok(state.baseline)
+  fs.rmSync(path.join(cwd, state.baseline.file))
+
+  const read = await byName('fishpai_read').execute({ doc_key: key }, exec)
+  assert.equal(read.isError, false, '读不到基线不该让整个 read 失败——模型还要靠它拿正文来补救')
+  assert.match(read.text, /基线快照读不出来/, '必须明说基线丢了')
+  assert.doesNotMatch(read.text, /用户没有改动正文/, '绝不能谎报"没有改动"')
+  assert.ok(read.text.includes('AI 的结尾。'), '正文照常给出')
 })
 
 test('路由：doc 返回块/批注/占位；PUT 冲突返回 409 与最新文本', async () => {
@@ -991,6 +1190,33 @@ test('工具在没有会话工作目录时给出可读错误而不是抛异常',
   const result = await tools[0].execute({ markdown: 'x' }, { agent: { session: { id: 'nope' } } })
   assert.equal(result.isError, true)
   assert.match(result.text, /没有工作目录/)
+})
+
+test('工具注册失败要整体回滚并抛错，不能留一半工具还装作挂载成功', () => {
+  // 假绿是最难查的一类：少一个工具在界面上看不出来，模型只会一直找不到 fishpai_write，
+  // 用户只觉得"插件怪怪的"。所以这里钉死两条：
+  //   1) 有任何一条注册失败，已注册成功的必须全部 dispose 掉（不留半个状态）；
+  //   2) 必须抛错，让 cordis 把插件挂载标成失败（界面与日志都看得见）。
+  const registered = []
+  const disposed = []
+  const ctx = {
+    tools: {
+      register: (t) => {
+        // 第 3 个工具开始拒绝注册，模拟宿主拒绝（保留名冲突 / schema 不受支持等）
+        if (registered.length >= 2) throw new Error(`tool "${t.name}" 被宿主拒绝`)
+        registered.push(t.name)
+        return () => disposed.push(t.name)
+      },
+    },
+    sessions: { get: () => null },
+  }
+  assert.throws(
+    () => registerTools(ctx, { resolveCwd: () => null, log: () => {} }),
+    /\[fishpai\].*注册失败/,
+    '注册失败必须抛错，否则插件会以"少工具"的样子静默挂上',
+  )
+  assert.deepEqual(disposed.sort(), registered.slice().sort(), '抛错前必须把已注册的工具全部回滚')
+  assert.equal(registered.length, 2, '只应有前两条注册成功')
 })
 
 test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在（跨边界对账）', async () => {
