@@ -1,13 +1,12 @@
 name: Bug report
-description: 面板、渲染或模型工具出了不符合预期的行为
+description: 出现了不符合预期的行为
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
         先看一眼 [README](https://github.com/OMSociety/dsh-fishpai#readme) 与
-        [AGENTS.md](https://github.com/OMSociety/dsh-fishpai/blob/main/AGENTS.md) 里列的已知边界——
-        「公众号里字体变回黑体」「表格字号不跟着正文字号走」这类是平台行为，不是 bug。
+        [AGENTS.md](https://github.com/OMSociety/dsh-fishpai/blob/main/AGENTS.md) 里列的已知边界——列在其中的不算 bug。
         安全相关问题请**不要**在这里开 issue，走 [SECURITY.md](https://github.com/OMSociety/dsh-fishpai/blob/main/SECURITY.md)。
 
   - type: input

@@ -1,5 +1,5 @@
 name: Feature request
-description: 想要的新能力或改进
+description: 期望的新功能
 labels: [enhancement]
 body:
   - type: markdown
@@ -12,23 +12,22 @@ body:
   - type: textarea
     id: problem
     attributes:
-      label: 你想解决什么问题
-      description: 描述场景与痛点，不必先想实现方案。
+      label: 当前项目存在哪些问题
+      description: 描述使用场景与痛点
     validations:
       required: true
 
   - type: textarea
     id: idea
     attributes:
-      label: 你设想的做法
-      description: 可选。如果这属于渲染或主题，请说明它落在预览侧还是发布侧。
+      label: 你设想的新功能
+      description: 如果这属于渲染或主题，请说明它落在预览侧还是发布侧。
     validations:
       required: false
 
   - type: textarea
     id: alternatives
     attributes:
-      label: 你试过的替代办法
-      description: 可选。现在是怎么绕过去的。
+      label: 替代方案与其他需要说明的内容
     validations:
       required: false
