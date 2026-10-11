@@ -607,7 +607,7 @@ export function simplifyForPublish(html) {
  * 实测出来的边界：
  *   - 条目以**文字**开头（纯文字、普通 span 包着的文字、或前面先有一个 `&nbsp;`）→ 正常
  *   - 加粗出现在**中段** → 正常；**段落**里的加粗开头 → 正常
- *   - "把整条 li 包进一个 span" 试过（`37748d4`）→ **照样拆**，已撤（`32ac970`）
+ *   - "把整条 li 包进一个 span" 实测无效 → **照样拆**，已撤（那两次尝试的提交不在任何分支上）
  *
  * 所以只补一个 `&nbsp;` 就够了，两个好处：
  *   - 结构校验那边安全：它的判据是"直接文字子节点的 `textContent.trim()` 非空"，
@@ -732,6 +732,81 @@ function rewriteImages(html, resolver) {
 }
 
 /**
+ * 把一条 style 串按**声明**切开，尊重引号：引号里的 `;` 不是分隔符。
+ *
+ * 为什么不能用「属性名 + 非分号」这类正则直接替：`[^;]` 会停在第一个分号上，
+ * 而 `font-family: 'a; font-size: 99px', serif` 这种值里的分号在引号内、**不是**声明边界。
+ * 于是正则要么咬到引号内的诱饵、要么把声明切错，替完引号还不配平。
+ *
+ * 返回 `[{ start, end, prop, value }]`：`start`/`end` 是该声明在原文里的下标区间
+ * （含它后面的分号与空白），`prop` 已折小写。最后一个声明可以没有分号。
+ */
+function splitDeclarations(style) {
+  const text = String(style || '')
+  const out = []
+  let i = 0
+  const len = text.length
+  while (i < len) {
+    // 跳过分隔符与空白
+    while (i < len && (text[i] === ';' || /\s/.test(text[i]))) i++
+    if (i >= len) break
+    const start = i
+    let quote = null
+    let depth = 0
+    // 扫到"不在引号/括号里的分号"为止
+    while (i < len) {
+      const ch = text[i]
+      if (quote) {
+        if (ch === '\\') i++
+        else if (ch === quote) quote = null
+      } else if (ch === '"' || ch === "'") {
+        quote = ch
+      } else if (ch === '(') {
+        depth++
+      } else if (ch === ')') {
+        if (depth > 0) depth--
+      } else if (ch === ';' && depth === 0) {
+        break
+      }
+      i++
+    }
+    const body = text.slice(start, i)
+    if (i < len && text[i] === ';') i++
+    const colon = body.indexOf(':')
+    if (colon !== -1) {
+      out.push({ start, end: i, prop: body.slice(0, colon).trim().toLowerCase(), value: body.slice(colon + 1).trim() })
+    }
+  }
+  return out
+}
+
+/**
+ * 按声明边界替换 `prop` 的值（**同名声明全部替换**）。
+ *
+ * 与"正则直接替"的区别：只在**声明级**匹配属性名，绝不咬进别的属性的值里；
+ * `/g` 语义靠 `splitDeclarations` 天然满足（CSS 后写胜出，只替第一条会留下后面那条继续生效）。
+ * 缩进与空白照抄原文，替换结果对"值里没有分号的正常样式"逐字节等同旧写法。
+ */
+function replaceDecl(style, prop, next) {
+  const text = String(style || '')
+  const decls = splitDeclarations(text).filter((d) => d.prop === prop)
+  if (!decls.length) return text
+  let out = ''
+  let last = 0
+  for (const d of decls) {
+    out += text.slice(last, d.start)
+    // 保留原文里属性名与冒号周围的写法，只换值；声明后统一补一个分号
+    const raw = text.slice(d.start, d.end)
+    const colon = raw.indexOf(':')
+    out += `${raw.slice(0, colon)}: ${next};`
+    last = d.end
+  }
+  out += text.slice(last)
+  // 原来末尾没有分号、被我们补了一个的话，去掉多余的空格差异不必管（`;` 在 style 属性里合法）
+  return out
+}
+
+/**
  * 主渲染。
  *
  * @param {string} markdownText
@@ -793,11 +868,21 @@ export function render(markdownText, opts = {}) {
   // 所以必须过形态校验；`render()` 是公开导出（本仓 CLI 也在用），不能指望调用方先校验。
   const font = opts.font === null ? null : opts.font || 'sans'
   if (font && FONT_MAP[font]) {
-    wrapperStyle = wrapperStyle.replace(/font-family:[^;]+;/, `font-family: ${FONT_MAP[font]};`)
+    // 只在**声明级**替换（`replaceDecl`）：正则版 `/[^;]*/` 会咬进别的属性值里
+    // （`font-family: 'x: font-family: y'` 这种），而且同名声明只替第一条时后写那条继续胜出。
+    // 内置主题的 209 个槽位无重复声明、值里也无分号，替换结果逐字节不变（不变量 1）。
+    wrapperStyle = replaceDecl(wrapperStyle, 'font-family', FONT_MAP[font])
   }
   const requestedSize = isFontSize(opts.fontSize) ? opts.fontSize : null
   const size = requestedSize || '16px'
-  wrapperStyle = wrapperStyle.replace(/font-size:\s*\d+px;/, `font-size: ${size};`)
+  // 面板的「字号」控件就是靠**替换 wrapper 上这一条**生效的，所以必须真的替得到。
+  // 只认 `\d+px` 会漏掉 `16.5px` / `1rem` / `17PX` / `16` 这些同样合法的写法：
+  // 失配时 wrapper 留着主题自己的字号（预览里控件点了没反应），而发布路径又会把 `<p>`
+  // 撑成选定字号——"预览不动、粘进微信却变了"正是最难查的那种不一致。
+  // 两条不能省：① 声明边界（不咬进别的属性值里，见 `splitDeclarations`）；
+  // ② 同名声明全覆盖（CSS 后写胜出，只替第一条会留下后面那条继续生效）。
+  // 内置主题这一条全是整数 px、无重复声明，替换结果逐字节不变（不变量 1）。
+  wrapperStyle = replaceDecl(wrapperStyle, 'font-size', size)
   // 站点会先把双引号换成单引号，避免破坏 style 属性。
   // 只中和 wrapper 是**复刻站点行为**，前提是样式值的四条入口都收得住：
   //   1) `store.mjs` 的 `applyMeta`：`color` / `fontSize` 过形态校验（`saveDoc` 与 `updateMeta` 共用）；

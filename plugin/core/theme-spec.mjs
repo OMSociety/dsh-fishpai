@@ -115,10 +115,9 @@ const MAX_VALUE = 200
 /**
  * 规格只认这三个键。
  *
- * `emoji` / `icon` 之类**故意不收**：图标由鱼排统一提供。
- * 合法图标名的名单只存在于浏览器那半（`@deepseek-ai/dsh-client-ui-primitives` 的 `Icon*` 导出），
- * 而校验器在宿主这半——让模型选名字就得在宿主再抄一份名单并跟着 DSH 升级维护，
- * 抄漏一个的后果是**图标静默消失且不报错**。统一图标只需客户端一行降级逻辑。
+ * `emoji` / `icon` 之类**故意不收**：图标由鱼排统一提供（`client/icons.tsx` 里一张
+ * 主题 key → 内联几何的固定映射表），而校验器在宿主这半——让模型选名字就得在宿主
+ * 再抄一份名单并跟着客户端维护，抄漏一个的后果是**图标静默消失且不报错**。
  * 多写的键一律报错（而不是默默忽略）：写了没作用，比不让写更容易骗人。
  */
 const SPEC_KEYS = ['name', 'base', 'styles']
@@ -224,6 +223,10 @@ export function validateThemeSpec(spec, baseThemes) {
   // wrapper 是唯一的硬性缺口：模型很容易只写 line-height / color，漏掉字体字号，
   // 结果面板上「字体」「字号」两个控件点了没反应——那正是最不该出现的"死控件"。
   if (styles.wrapper) {
+    // 面板的「字号」是**替换** wrapper 上这一条来生效的（`render.mjs` 里
+    // `wrapperStyle.replace(/font-size: …/, …)`），所以模型自己写在 wrapper 上的字号值
+    // 一定会被用户选的（或默认的 16px）盖掉。先记下来，补全之前判一次。
+    const writtenSize = inheritDecl(styles.wrapper, 'font-size')
     const missing = WRAPPER_REQUIRED.filter((prop) => !inheritDecl(styles.wrapper, prop))
     if (missing.length) {
       const parts = []
@@ -235,6 +238,12 @@ export function validateThemeSpec(spec, baseThemes) {
       styles.wrapper = `${styles.wrapper} ${parts.join('; ')};`.replace(/\s+/g, ' ')
       notes.push(
         `wrapper 自动补上了 ${missing.join(' / ')}（从 base 继承）——漏了它们，面板的「字体」「字号」会变成点了没反应的死控件`,
+      )
+    }
+    // 说了不生效就要说清"那该怎么办"：固定正文字号得改具体槽位，写在 wrapper 上是白写。
+    if (writtenSize) {
+      notes.push(
+        `wrapper 的「${writtenSize}」不会生效：面板的「字号」会替换掉它（预览与「复制到公众号」都以用户选的字号为准）。要固定正文字号，请改具体槽位（p / li / blockquote 等）`,
       )
     }
   }
