@@ -530,17 +530,59 @@ test('块级补丁：同一个块的多条补丁按块内游标连续算，变�
   assert.match(reverse.markdown, /这是第二段。\n$/)
 })
 
-test('块级补丁：同块 replace 与 delete 组合后，拼接处仍恰好一个空行', () => {
+test('块级补丁：同块 replace 与 delete 组合，保 replace、跳过 delete，与顺序无关', () => {
   const doc = '## 小节\n\n第一段。\n\n第二段。\n\n第三段。\n'
   const blocks = splitBlocks(doc)
   const second = blocks.find((b) => b.text.includes('第二段'))
-  const out = applyPatches(doc, blocks, [
+
+  // 两种顺序必须得到同样的结果：replace 带内容、意图更明确；若"谁后到谁生效"，
+  // 同一个补丁列表换个顺序就会从「换掉这块」变「删掉这块」，调用方还看不出来。
+  const deleteFirst = applyPatches(doc, blocks, [
     { block_id: second.id, op: 'delete' },
     { block_id: second.id, op: 'replace', markdown: '换成了新的一段。' },
   ])
+  const replaceFirst = applyPatches(doc, blocks, [
+    { block_id: second.id, op: 'replace', markdown: '换成了新的一段。' },
+    { block_id: second.id, op: 'delete' },
+  ])
+  for (const out of [deleteFirst, replaceFirst]) {
+    assert.deepEqual(out.applied, [{ blockId: second.id, op: 'replace' }], '只有 replace 算应用，delete 一律跳过')
+    assert.deepEqual(out.errors, [`块 ${second.id} 同时收到 replace 与 delete：保 replace，跳过 delete`], '冲突要写进 errors，不能静默')
+    assert.doesNotMatch(out.markdown, /\n\n\n/, '不许出现连续两个空行')
+    assert.match(out.markdown, /第一段。\n\n换成了新的一段。\n\n第三段。\n$/)
+  }
+})
+
+test('块级补丁：replace 的 markdown 自带首尾空行，不许叠出 \\n\\n\\n', () => {
+  const doc = '# 标题\n\n旧段。\n\n尾段。\n'
+  const blocks = splitBlocks(doc)
+
+  // replace 的 markdown 开头带个 `\n` 很常见；splitBlocks 的列表块范围含末尾分隔行，
+  // 摘块后现场已留好分隔空行——自带的空行要跟现场去重，而不是原样拼进去。
+  const lead = applyPatches(doc, blocks, [{ block_index: 1, op: 'replace', markdown: '\n新段。' }])
+  assert.deepEqual(lead.errors, [])
+  assert.equal(lead.markdown, '# 标题\n\n新段。\n\n尾段。\n')
+
+  const trail = applyPatches(doc, blocks, [{ block_index: 1, op: 'replace', markdown: '新段。\n' }])
+  assert.equal(trail.markdown, '# 标题\n\n新段。\n\n尾段。\n')
+
+  const both = applyPatches(doc, blocks, [{ block_index: 1, op: 'replace', markdown: '\n新段。\n\n' }])
+  assert.equal(both.markdown, '# 标题\n\n新段。\n\n尾段。\n')
+
+  // insert_after 自带空行同样只去重不叠加（这条输入在老实现里反而是干净的，别改坏）
+  const after = applyPatches(doc, blocks, [{ block_index: 1, op: 'insert_after', markdown: '\n插段。' }])
+  assert.equal(after.markdown, '# 标题\n\n旧段。\n\n插段。\n\n尾段。\n')
+})
+
+test('块级补丁：删掉首块后，文档开头不许留前导空行', () => {
+  const doc = '首。\n\n次。\n'
+  const out = applyPatches(doc, splitBlocks(doc), [{ block_index: 0, op: 'delete' }])
   assert.deepEqual(out.errors, [])
-  assert.doesNotMatch(out.markdown, /\n\n\n/, '不许出现连续两个空行')
-  assert.match(out.markdown, /第一段。\n\n换成了新的一段。\n\n第三段。\n$/)
+  assert.equal(out.markdown, '次。\n', '首块与次块之间的分隔行被顶到开头，就是前导空行，要收掉')
+
+  // 分隔行本身叠了多个空行的病态输入也要收干净
+  const stacked = applyPatches('首。\n\n\n次。\n', splitBlocks('首。\n\n\n次。\n'), [{ block_index: 0, op: 'delete' }])
+  assert.equal(stacked.markdown, '次。\n')
 })
 
 // ── HTTP 路由 ──────────────────────────────────────────────────
@@ -676,6 +718,11 @@ test('路由：正文文件不见了回 404（不是 200 + 空正文），且不
   // 404 是"读不到"，不是"可以借机重建"：状态与索引一个字节都不许动
   assert.deepEqual(store.readState(cwd, opened.key), stateBefore)
   assert.equal(fs.existsSync(opened.path), false, '宿主不会顺手把文件建回来')
+
+  // rebase 同样要回 404：它内部读正文，不能让裸 ENOENT 落进兜底 400
+  const rebased = await callRoute(handler, { method: 'POST', url: '/fishpai/api/history', body: { sessionId: 's1', docKey: opened.key, action: 'rebase' } })
+  assert.equal(rebased.status, 404, 'rebase 读不到正文也是「找不到」，不能落进兜底 400')
+  assert.match(rebased.json.error, /正文文件读不出来/)
 })
 
 test('工具：基线快照丢了就明说，不把整篇谎报成"人重写了全文"', async () => {

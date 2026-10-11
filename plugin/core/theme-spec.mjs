@@ -15,6 +15,8 @@
  * 这一层是纯函数：不碰文件系统、不去求值。
  */
 
+import { splitDeclarations } from './render.mjs'
+
 /**
  * 主题的样式槽位（与内置主题一一对应）。
  * 加槽位要同时改 `plugin/vendor/themes.js` 与 `markdown.mjs` 的渲染规则，不是这里的自由项。
@@ -144,13 +146,18 @@ function parseDeclarations(slot, css, notes) {
     fail(`槽位 ${slot} 里出现了不允许的内容（{}、<>、双引号、url()、expression、@import 都不能用；单引号可以；{{PRIMARY}} 这类占位符是允许的）`)
   }
   const out = []
-  for (const raw of text.split(';')) {
-    const decl = raw.trim()
-    if (!decl) continue
-    const m = /^([-a-zA-Z]+)\s*:\s*(\S[\s\S]*)$/.exec(decl)
-    if (!m) fail(`槽位 ${slot} 里有看不懂的声明：「${decl}」（要写成 "属性: 值"）`)
-    const prop = m[1].toLowerCase()
-    let value = m[2].trim()
+  // 声明边界用 render 侧同一个引号/括号感知切分器：`font-family: 'a; font-size: 99px', serif`
+  // 里那个分号在引号内，不是边界。两侧各用一套口径会互相骗（详见 splitDeclarations 注释）。
+  const decls = splitDeclarations(text)
+  if (!decls.length) {
+    fail(`槽位 ${slot} 里有看不懂的声明：「${text}」（要写成 "属性: 值"，用 ; 分隔）`)
+  }
+  for (const { prop: rawProp, value: rawValue } of decls) {
+    if (!/^[a-zA-Z-]+$/.test(rawProp)) {
+      fail(`槽位 ${slot} 里有看不懂的声明：「${rawProp}: ${rawValue}」（要写成 "属性: 值"）`)
+    }
+    const prop = rawProp.toLowerCase()
+    let value = String(rawValue ?? '').trim()
     if (!SPEC_PROPS.has(prop)) {
       fail(`槽位 ${slot} 用了不支持的属性「${prop}」。允许的属性见技能 fishpai 的自定义主题一节（内置主题用过的那批）`)
     }
@@ -171,9 +178,9 @@ function parseDeclarations(slot, css, notes) {
 const WRAPPER_REQUIRED = ['font-family', 'font-size']
 
 function inheritDecl(baseWrapper, prop) {
-  const re = new RegExp(`(?:^|;)\\s*(${prop}\\s*:[^;]+)`, 'i')
-  const m = re.exec(String(baseWrapper || ''))
-  return m ? m[1].trim() : null
+  // 声明边界走同一个引号感知切分器：值里带分号（如 'a; font-size: 99px'）不许截出假声明。
+  const decl = splitDeclarations(String(baseWrapper || '')).find((d) => d.prop === prop.toLowerCase())
+  return decl ? `${decl.prop}: ${decl.value}` : null
 }
 
 /**

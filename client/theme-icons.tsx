@@ -7,7 +7,7 @@
  * plugin has no type check, and a throwing component blanks your slot entry"），并给出替代做法：
  * 把 primitive 的标记与行为复制进插件。这个文件就是那一步。
  *
- * 于是 bundle 的 require 只剩 `react` / `react/jsx-runtime`（shell 的基线种子模块），
+ * 于是 bundle 的 require 只剩 `react` / `react/jsx-runtime`（宿主本来就提供的种子模块），
  * 宿主升级改名也影响不到这里。代价是几何要自己维护：**改这些路径要回来改这里**。
  *
  * **自动守卫只守结构与接线**（`test/theme-icons.test.mjs`：14 支都导出、都是 16 画板、

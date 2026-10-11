@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 新增
 
-- 治理面补件：`CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、`CODEOWNERS`、Issue 与 PR 模板、`dependabot.yml`；CI 增加 `v*` tag 触发，核对 tag、`package.json` 与 CHANGELOG 三者一致（只核对，不发布）。
+- 治理面补件：`CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、`CODEOWNERS`、Issue 与 PR 模板、`dependabot.yml`；CI 增加 `v*` tag 触发，核对 tag、`package.json` 与 CHANGELOG 三者一致（只核对，不发布；CHANGELOG 核对锚定行首，正文里提到版本号不算数）。
 - 测试补强：接口层 `client/api.ts` 的 409 → 冲突映射与错误文案、主题图标内联核对、补丁游标与拼接空行、正文缺失回 404、DNS rebinding 守卫、工具注册失败回滚、主题字号的五种写法与引号陷阱。
 
 ### 变更
@@ -34,10 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **面板「字号」能替掉 wrapper 上各种合法写法**：替换规则原先只认整数 px，自定义主题写 `1rem` / `16.5px` / `17PX` / `16` 时预览不动，而发布路径的 `promoteFontSize` 又把 `<p>` 撑成选定字号——预览与粘进微信的结果不一致。现在按声明边界替换（引号里的分号不算边界，同名声明全部替换）。
 - **批注的身份字段由宿主钉死**：`id` / `author` / `at` 不再能被调用方覆盖（`resolved` 仍可改）。
 - **工具或路由注册失败不再只写一行日志**：失败会整体回滚并抛出，不留"一半工具还装作挂载成功"的状态。
+- **`rebase` 读不到正文也回 404**：此前 `rebase` 用裸 `readFileSync`，正文被删时抛原生 ENOENT 落进兜底 400「请求不合法」；现在走 `readDocText`，与 `/doc` 同口径回 404。
+- **同块 `replace` 与 `delete` 组合不再由顺序决定结果**：此前 `[replace, delete]` 会让 delete 静默吃掉刚替换进去的内容、`applied` 照报两条；现在统一保 replace、跳过 delete，并在 errors 里给出信号，与顺序无关。
+- **`replace` 的 markdown 自带首尾空行不再叠出 `\n\n\n`**：自带的空行与现场已留好的分隔空行只去重不叠加；删掉首块后文档开头的前导空行也一并收掉。
+- **自定义主题校验与渲染同用引号感知的声明切分**：`font-family: 'a; font-size: 99px', serif` 里引号内的分号不再是声明边界——此前校验侧的朴素 `split(';')` 会截出假声明，让"不生效"提示引用一句没写过的字号、或让真字号缺失时补全不触发（面板字号成死控件）。
 
 ### Added
 
-- Governance: `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CODEOWNERS`, issue and PR templates, `dependabot.yml`; CI now triggers on `v*` tags and checks that the tag, `package.json` and CHANGELOG agree (verification only, no publishing).
+- Governance: `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CODEOWNERS`, issue and PR templates, `dependabot.yml`; CI now triggers on `v*` tags and checks that the tag, `package.json` and CHANGELOG agree (verification only, no publishing; the CHANGELOG check anchors to the start of a line, so a version number mentioned mid-text does not count).
 - Test coverage: the API layer's 409 → conflict mapping and error text, inlined theme icons, patch cursors and seam blank lines, missing-body 404, the DNS rebinding guard, tool-registration rollback, and five legal spellings of the theme font size plus its quoting traps.
 
 ### Changed
@@ -57,6 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The font-size control now replaces every legal spelling in `wrapper`**: the substitution only recognised integer px, so a custom theme writing `1rem` / `16.5px` / `17PX` / `16` left the preview unchanged while the publish path's `promoteFontSize` pushed the chosen size onto `<p>` — preview and WeChat disagreed. Substitution now works on declaration boundaries (a semicolon inside quotes is not a boundary; same-named declarations are all replaced).
 - **Note identity fields are pinned by the host**: `id` / `author` / `at` can no longer be overridden by the caller (`resolved` stays editable).
 - **Tool or route registration failures no longer just log**: they roll back and throw instead of leaving half the tools mounted while claiming success.
+- **`rebase` returns 404 when the body is unreadable**: it used a bare `readFileSync`, so a deleted body threw a raw ENOENT into the catch-all 400 "invalid request"; it now goes through `readDocText`, matching `/doc`.
+- **A same-block `replace` + `delete` pair no longer resolves by ordering**: `[replace, delete]` used to let the delete silently swallow the freshly replaced content while `applied` still reported both. The replace is now kept, the delete skipped, and the conflict surfaces in `errors` — regardless of order.
+- **Leading/trailing blank lines in a `replace` payload no longer stack into `\n\n\n`**: a payload's own blank lines are deduplicated against the separator blank lines already in place; deleting the first block also strips the leading blank line it leaves behind.
+- **Theme-spec validation now shares the quote-aware declaration splitter with rendering**: a semicolon inside quotes (`font-family: 'a; font-size: 99px', serif`) is no longer a declaration boundary — the naive `split(';')` used to cut out a phantom declaration, making the "won't take effect" note quote a font size that was never written, or skipping the auto-completion when the real one was missing (a dead font-size control).
 
 ## [1.1.0] - 2026-10-09
 

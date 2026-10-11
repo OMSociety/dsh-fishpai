@@ -54,8 +54,9 @@ jobs:
       - name: CHANGELOG has a section for this version
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          grep -qF "## [$tag]" CHANGELOG.md || {
-            echo "CHANGELOG.md 里没有 [${tag}] 一节" >&2
+          # 锚定行首：正文里出现 "## [1.2.0]"（比如"回滚到 [1.2.0] 之前"）不该让核对通过。
+          grep -qE "^## \[${tag}\] " CHANGELOG.md || {
+            echo "CHANGELOG.md 里没有以行首开始的 [${tag}] 版本一节" >&2
             exit 1
           }
           echo "CHANGELOG.md 有 [$tag]"

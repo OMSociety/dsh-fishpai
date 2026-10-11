@@ -741,7 +741,7 @@ function rewriteImages(html, resolver) {
  * 返回 `[{ start, end, prop, value }]`：`start`/`end` 是该声明在原文里的下标区间
  * （含它后面的分号与空白），`prop` 已折小写。最后一个声明可以没有分号。
  */
-function splitDeclarations(style) {
+export function splitDeclarations(style) {
   const text = String(style || '')
   const out = []
   let i = 0

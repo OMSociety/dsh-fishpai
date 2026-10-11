@@ -544,7 +544,8 @@ export function rebase({ cwd, docPath, by = 'human' }) {
   const key = docKey(abs)
   const state = readState(cwd, key)
   if (!state) return null
-  const content = fs.readFileSync(abs, 'utf8')
+  // 走 readDocText：正文不在了要让路由层回 404，不能让裸 ENOENT 落进兜底 400。
+  const content = readDocText(abs)
   const entry = pushHistory(cwd, key, state, content, state.revision, by)
   const next = { ...state, baseline: { rev: state.revision, at: Date.now(), by, file: entry.file } }
   return writeState(cwd, key, next)

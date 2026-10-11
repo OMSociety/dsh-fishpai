@@ -101,6 +101,9 @@ function locate(deps, exec, args = {}) {
 /**
  * 基线丢失时用的空差异统计：块数与字数照实报，增减全为 0。
  * 不能让下游的 `diff.stats.blocksAfter` 之类变成 `undefined`（会渲染成 "共 undefined 块"）。
+ * 注意口径：这里的 `unchanged` 是"当前块数"（全部没得比），与 `diff.mjs` 里
+ * `diffBlocks` 的 `unchanged`（与基线逐块相同的那部分）**同名不同义**——本函数只在
+ * 基线读不出来、无从比对时用，消费方也只看 blocksAfter/charsAfter 这类总数。
  */
 function emptyDiffStats(markdown) {
   const text = markdown || ''

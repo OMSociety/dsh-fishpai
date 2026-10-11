@@ -101,9 +101,10 @@ test('导出的每一支几何都渲染出 16 画板的 svg、图形非空、颜
 test('几何路径真进了产物（改了 theme-icons 必须重新 npm run build）', () => {
   const glyphSrc = fs.readFileSync(GLYPH_SRC, 'utf8')
   const bundle = fs.readFileSync(BUNDLE, 'utf8')
-  // 源码里每一条 path 的 d 都要在产物里找到：漏一条就是"改了源码没重建"
+  // 源码里每一条 path 的 d 都要在产物里找到：漏一条就是"改了源码没重建"。
+  // 去重后统计（几支图标共用同一条短线是 rc2 就有的实况），门槛按唯一值算。
   const dAttrs = [...new Set([...glyphSrc.matchAll(/d="([^"]+)"/g)].map((m) => m[1]))]
-  assert.ok(dAttrs.length >= 40, `theme-icons.tsx 里应有 40 条以上几何路径，只找到 ${dAttrs.length}`)
+  assert.ok(dAttrs.length >= 40, `theme-icons.tsx 里应有 40 条以上唯一几何路径，只找到 ${dAttrs.length}`)
   const missing = dAttrs.filter((d) => !bundle.includes(d))
   assert.deepEqual(missing, [], `这些几何没进产物（改了 theme-icons 要重新 npm run build）：${missing.length} 条`)
 })

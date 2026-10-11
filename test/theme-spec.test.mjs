@@ -123,6 +123,61 @@ test('自定义主题：没写 wrapper font-size 时不出现"不生效"的噪�
   assert.ok(!spec.notes.some((n) => /不会生效/.test(n)))
 })
 
+test('自定义主题：单引号里的分号不是声明边界，不许截出假声明（与 render 同口径）', () => {
+  // `font-family: 'a; font-size: 99px', serif` 是合法写法：那个分号在引号里。
+  // 校验侧若用朴素 split(';')/正则切分，会把它拆成 `font-family: 'a` 与
+  // `font-size: 99px', serif`——前者触发"自动补全"，后者被"不生效"提示原样引用，
+  // 一句没写的字号被当成真声明报给模型。render 侧早就换成引号感知的
+  // splitDeclarations，校验侧必须同口径，两侧才能不互相骗。
+  const { spec } = buildCustomTheme(
+    { base: 'default', styles: { wrapper: "font-family: 'a; font-size: 99px', serif;" } },
+    BASE,
+  )
+  // 引号里的内容不是声明：提示里不许出现假字号
+  assert.ok(!spec.notes.some((n) => /99px/.test(n)), '引号里的分号截出的假声明不该被引用')
+  // wrapper 没写真 font-size：自动补全必须触发（不触发就是面板上的死控件）
+  assert.ok(spec.notes.some((n) => /自动补上了 font-size/.test(n)), '真字号缺失时要自动补全')
+  assert.match(spec.styles.wrapper, /font-size: 15px;/, '补全值来自 base 的 wrapper')
+  // 单引号字体栈原样保留，不许被拆坏（校验侧的规格产物；渲染侧另由跨声明边界测试守）
+  assert.match(spec.styles.wrapper, /font-family: 'a; font-size: 99px', serif;/)
+})
+
+test('自定义主题：真声明跟在单引号诱饵后面时，提示要引真声明', () => {
+  const { spec } = buildCustomTheme(
+    { base: 'default', styles: { wrapper: "font-family: 'a; font-size: 99px', serif; font-size: 17px;" } },
+    BASE,
+  )
+  const note = spec.notes.find((n) => /不会生效/.test(n))
+  assert.ok(note, '写了真 font-size 要有不生效提示')
+  assert.match(note, /17px/, '提示引真声明（17px），不引引号里的假字号')
+  assert.ok(!note.includes('99px'), '引号里的 99px 不是声明，不该出现在提示里')
+  // 真字号在：不该触发自动补全
+  assert.ok(!spec.notes.some((n) => /自动补上了 font-size/.test(n)))
+})
+
+test('自定义主题：面板「字号」能替掉单引号诱饵后面的真 font-size（跨声明边界）', () => {
+  // 校验侧换口径只是前半程：渲染时 replaceDecl 同样要从引号感知的边界切，
+  // 否则 `font-size: 17px` 淹在引号字体栈后面就替不掉，面板字号又成死控件。
+  // 注：`annotate: true` 的预览路径会先替 wrapper 的 font-family（FONT_MAP 表常量），
+  // 所以这里只断言 font-size 的替换，字体栈的去向由上一条测试守。
+  const { theme } = buildCustomTheme(
+    { base: 'default', styles: { wrapper: "font-family: 'a; font-size: 99px', serif; font-size: 17px;" } },
+    BASE,
+  )
+  const wrapper = /<div style="([^"]*)"/.exec(render('正文一段。\n', { theme, fontSize: '22px', annotate: true }).html)[1]
+  assert.match(wrapper, /font-size:\s*22px;/, '诱饵后面的真字号要被面板字号替掉')
+  assert.doesNotMatch(wrapper, /font-size:\s*17px/, '旧值 17px 要整条消失')
+  assert.doesNotMatch(wrapper, /99px/, '引号里的假字号不该被当成声明替换出什么')
+})
+
+test('自定义主题：病态输入的报错口径（切不出任何声明 / 属性名含非法字符）', () => {
+  // splitDeclarations 对 `!important` 这类切不出声明的输入回空数组——
+  // 校验侧要报"看不懂的声明"，不许静默当成空样式放行。
+  assert.throws(() => validateThemeSpec({ base: 'default', styles: { p: '!important' } }, BASE), /看不懂的声明/)
+  // `} body { color` 这种注入面在 FORBIDDEN_RE 就被挡住（`}` 与 `{` 都禁）
+  assert.throws(() => validateThemeSpec({ base: 'default', styles: { p: 'color: red; } body { color: blue;' } }, BASE), /不允许的内容/)
+})
+
 test('自定义主题：面板「字号」能替掉 wrapper 上各种合法写法的 font-size（预览与发布同口径）', () => {
   // 这一条守的是 render.mjs 里那句 `wrapperStyle = replaceDecl(wrapperStyle, 'font-size', size)`。
   // 以前是 `wrapperStyle.replace(/font-size:\s*\d+px;/, …)`，只认整数 px：

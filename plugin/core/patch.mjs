@@ -67,12 +67,26 @@ export function applyPatches(markdown, blocks, patches) {
   // 少了任一边，markdown 的"懒延续"会把新块并进相邻段——模型以为加了新段落，
   // 实际只给已有段落加了一行。replace / insert_after 共用这一条，语义才一致。
   const placeAt = (at, newLines) => {
-    const needHead = at > 0 && lines[at - 1] !== '' && newLines[0] !== ''
-    const needTail = lines[at] !== undefined && lines[at] !== '' && newLines[newLines.length - 1] !== ''
-    const inserted = [...(needHead ? [''] : []), ...newLines, ...(needTail ? [''] : [])]
+    // 新内容自带的首尾空行（replace 的 markdown 开头带个 `\n` 很常见）会跟
+    // 现场已经留好的分隔空行叠出 `\n\n\n`：只在对面真的已是空行时去掉自带的
+    // 那一个，内容本身一个字不动。
+    let start = 0
+    let stop = newLines.length
+    if (newLines[start] === '' && at > 0 && lines[at - 1] === '') start += 1
+    if (newLines[stop - 1] === '' && lines[at] !== undefined && lines[at] === '') stop -= 1
+    const body = newLines.slice(start, stop)
+    const needHead = at > 0 && lines[at - 1] !== '' && body[0] !== ''
+    const needTail = lines[at] !== undefined && lines[at] !== '' && body[body.length - 1] !== ''
+    const inserted = [...(needHead ? [''] : []), ...body, ...(needTail ? [''] : [])]
     lines.splice(at, 0, ...inserted)
     return inserted.length
   }
+
+  // 同一个块既收到 replace 又收到 delete：保 replace、跳过 delete——与顺序无关。
+  // replace 带内容、意图更明确；若按先后顺序"谁后到谁生效"，同一个补丁列表换个
+  // 顺序就会从「换掉这块」变「删掉这块」，调用方还看不出来。预扫描一次，两种
+  // 顺序得到同样的结果与同样的错误信号。
+  const blocksWithReplace = new Set(resolved.filter((r) => r.op === 'replace').map((r) => r.block))
 
   const applied = []
   for (let i = 0; i < resolved.length; ) {
@@ -98,6 +112,10 @@ export function applyPatches(markdown, blocks, patches) {
         end = head + inserted
         tail += inserted - removed // 插进来的内容在块后面，跟着一起挪
       } else if (op === 'delete') {
+        if (blocksWithReplace.has(block)) {
+          errors.push(`块 ${block.id} 同时收到 replace 与 delete：保 replace，跳过 delete`)
+          continue
+        }
         const removed = end - head
         lines.splice(head, removed)
         end = head
@@ -107,6 +125,10 @@ export function applyPatches(markdown, blocks, patches) {
         if (head > 0 && lines[head - 1] === '' && lines[head] === '') {
           lines.splice(head, 1)
           tail -= 1
+        } else if (head === 0) {
+          // 首块删掉后，原块与下一块之间的分隔行被顶到文档开头（`\n次。`）——
+          // 文档开头本没有"上一块"，这行分隔留着就是前导空行，收掉。
+          while (lines[0] === '' && lines.length > 1) lines.splice(0, 1)
         }
       } else {
         if (!newLines.length) {
