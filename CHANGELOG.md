@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 新增
 
-- 治理面补件：`CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、`CODEOWNERS`、Issue 与 PR 模板、`dependabot.yml`；CI 增加 `v*` tag 触发，核对 tag、`package.json` 与 CHANGELOG 三者一致（只核对，不发布；CHANGELOG 核对锚定行首，正文里提到版本号不算数）。
+- 治理面补件：`CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、`CODEOWNERS`、Issue 与 PR 模板、`dependabot.yml`。
 - 测试补强：接口层 `client/api.ts` 的 409 → 冲突映射与错误文案、主题图标内联核对、补丁游标与拼接空行、正文缺失回 404、DNS rebinding 守卫、工具注册失败回滚、主题字号的五种写法与引号陷阱。
 
 ### 变更
@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Governance: `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CODEOWNERS`, issue and PR templates, `dependabot.yml`; CI now triggers on `v*` tags and checks that the tag, `package.json` and CHANGELOG agree (verification only, no publishing; the CHANGELOG check anchors to the start of a line, so a version number mentioned mid-text does not count).
+- Governance: `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CODEOWNERS`, issue and PR templates, `dependabot.yml`.
 - Test coverage: the API layer's 409 → conflict mapping and error text, inlined theme icons, patch cursors and seam blank lines, missing-body 404, the DNS rebinding guard, tool-registration rollback, and five legal spellings of the theme font size plus its quoting traps.
 
 ### Changed

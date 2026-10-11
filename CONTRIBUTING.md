@@ -28,7 +28,7 @@ CI（`.github/workflows/ci.yml`）跑的是 `npm ci` 加三条核对：`npm test
 4. **新增依赖前先看许可**（不变量 3）：GPL、无证、MPL 一律不进。
 5. **宿主工具用 raw JSON-Schema 注册**，不要 `import { defineTool }`（不变量 4）。
 6. **版本号与 CHANGELOG 属于同一次发布**：PR 里不要顺手改 `package.json` 的 `version`，
-   发版单独走一次提交（打 `v*` tag 时 CI 会核对 tag 与 `package.json`、CHANGELOG 三者一致）。
+   发版单独走一次提交（本仓库不发 tag，发布前自查「version 与 CHANGELOG 一节对应」即可）。
 
 ## 改渲染内核时
 
