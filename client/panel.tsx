@@ -188,10 +188,10 @@ function BlankMark() {
 /**
  * 为什么不用原生 `<select>`：`<option>` 里只能放文字，放不进 SVG——而那一串 emoji
  * 既不好看，也和 DSH 自己的图标语言不搭。所以这里自己画一个 listbox：
- * 每套主题一个 16px 描边图标（取自 DSH 内置图标集，`currentColor` 跟着深浅色走），
- * 仍然保留键盘操作（↑↓ 移动 / Enter 选中 / Esc 关闭）与点击外部关闭。
+ * 每套主题一个 16px 描边图标（几何来自 `theme-icons.tsx` 的内联副本，`currentColor`
+ * 跟着深浅色走），仍然保留键盘操作（↑↓ 移动 / Enter 选中 / Esc 关闭）与点击外部关闭。
  *
- * 图标取不到时（极老/裁剪过的 DSH 没有那个基线模块）自动退化成纯文字列表，功能不受影响。
+ * 图标是随包发布的代码，不依赖宿主模块，所以任何版本的 DSH 里都画得出来。
  */
 function ThemePicker(props: {
   themes: ThemeInfo[]

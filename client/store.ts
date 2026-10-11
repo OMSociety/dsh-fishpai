@@ -377,13 +377,30 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
    * 都是"先落盘再重载"）；但调用方的 dirty 检查只在 await **之前**——
    * fetch 期间用户敲的那一笔，靠这里在 patch 前再核一次 dirty 兜住：正文保留用户的输入，
    * 别的视图信息照常更新，下一拍预览会跟上。
+   *
+   * 返回是否真的载入成功。**载入失败绝不清空正文**：
+   * - 失败的是**当前这篇**（刷新、轮询发现 AI 改过）：正文原样留在屏幕上，只挂错误横幅，返回 false；
+   * - 失败的是**要切过去的那篇**：把错误抛给调用方（它才知道该不该换文档、怎么提示）。
+   *
+   * 宿主以前把"正文文件读不出来"降级成 `200 + markdown: ""`，面板照单全收，
+   * 于是用户看到的是"文档被清空"而不是"文件不在了"——所以现在宿主回 404，这里也不吞。
    */
-  async function loadDoc(docKey: string) {
-    if (!docKey) return
+  async function loadDoc(docKey: string): Promise<boolean> {
+    if (!docKey) return false
     const token = ++loadToken
     const dirtyBefore = state.dirty
-    const res = await api.doc(state.sessionId, docKey)
-    if (token !== loadToken) return // 已经有更新的一次载入在路上，丢掉这次
+    let res: Awaited<ReturnType<typeof api.doc>>
+    try {
+      res = await api.doc(state.sessionId, docKey)
+    } catch (error) {
+      if (token !== loadToken) return false
+      if (docKey === state.docKey) {
+        patch({ error: `载入失败：${(error as Error).message}` })
+        return false
+      }
+      throw error
+    }
+    if (token !== loadToken) return false // 已经有更新的一次载入在路上，丢掉这次
     // fetch 期间用户又敲了字：不能拿服务端的版本整片盖掉（「绝不静默覆盖人的手改」的同一条纪律）
     const keepTyped = state.dirty && !dirtyBefore
     notesEpoch += 1
@@ -413,6 +430,23 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     void ensureImages(res.images, docKey)
     // keepTyped 时正文是用户刚敲的那一份，预览也要跟着它走
     void refreshPreview(state.markdown, res.meta)
+    return true
+  }
+
+  /**
+   * 切到另一篇文档。**目标载不出来就不切**：留在原来那篇（正文一个字没动），
+   * 只弹提示并留下 `state.error`——把失败目标半途写进状态，
+   * 等于让面板显示"另一篇是空的"，比不切更糟。
+   */
+  async function switchTo(key: string): Promise<boolean> {
+    try {
+      return await loadDoc(key)
+    } catch (error) {
+      const message = `打开失败：${(error as Error).message}`
+      patch({ error: message })
+      toast(message, 'error')
+      return false
+    }
   }
 
   /**
@@ -447,7 +481,13 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         patch({ status: 'empty' })
         return
       }
-      await loadDoc(st.active.key)
+      // 载入失败时 `loadDoc` **不抛**（当前这篇读不出来只挂错误横幅并返回 false），
+      // 所以这里必须判返回值：不然上面刚 patch 的 `status:'loading'` 就没人收尾，
+      // 面板停在「正在打开文档…」永远转圈——而 panel.tsx 的 loading 分支是早退的，
+      // 连下面那条错误横幅都渲染不到。`state.error` 有值才改状态：令牌过期（有更新的一次
+      // 载入在路上）也返回 false，那种情况不该报错。
+      const loaded = await loadDoc(st.active.key)
+      if (!loaded && state.error) patch({ status: 'error' })
     } catch (error) {
       patch({ status: 'error', error: (error as Error).message })
     }
@@ -468,8 +508,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
           return
         }
         const res = await api.createDoc(state.sessionId)
-        await loadDoc(res.docKey)
-        toast('新建了一篇空白文档，可以直接在编辑器里写')
+        if (await switchTo(res.docKey)) toast('新建了一篇空白文档，可以直接在编辑器里写')
       } catch (error) {
         toast(`新建文档失败：${(error as Error).message}`, 'error')
       }
@@ -484,7 +523,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
           return
         }
         await api.activate(state.sessionId, key)
-        await loadDoc(key)
+        await switchTo(key)
       } catch (error) {
         toast(`打开失败：${(error as Error).message}`, 'error')
       }
@@ -632,8 +671,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       }
       try {
         await api.history(state.sessionId, state.docKey, { action: 'restore', id })
-        await loadDoc(state.docKey)
-        toast(`已回滚到 ${label}`)
+        if (await loadDoc(state.docKey)) toast(`已回滚到 ${label}`)
       } catch (error) {
         if (error instanceof ConflictError) {
           patch({ conflict: { revision: error.revision, markdown: error.markdown } })
@@ -694,12 +732,11 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
           patch({ external: { revision, reason: 'switch', key } })
           return
         }
-        await loadDoc(key)
-        toast('模型打开了另一篇文档')
+        if (await switchTo(key)) toast('模型打开了另一篇文档')
         return
       }
       if (!state.docKey) {
-        await loadDoc(key)
+        await switchTo(key)
         return
       }
       if (revision <= state.revision) return
@@ -707,8 +744,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         patch({ external: { revision, reason: 'revision' } })
         return
       }
-      await loadDoc(key)
-      toast(`AI 更新了文档（rev ${revision}）`)
+      if (await loadDoc(key)) toast(`AI 更新了文档（rev ${revision}）`)
     },
 
     async reload() {
@@ -732,15 +768,16 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
           return
         }
       }
-      await loadDoc(state.docKey)
-      toast('已重新载入')
+      if (await loadDoc(state.docKey)) toast('已重新载入')
     },
 
     /** 采用外部版本（放弃自己的未保存改动）——换文档时切到新文档。 */
     async acceptExternal() {
       const target = state.external?.key || state.docKey
       if (!target) return
-      await loadDoc(target)
+      // 不在这里清 `external`：载入成功时 `loadDoc` 自己会清；载入失败就把横幅留着，
+      // 用户还能再点一次，而不是"横幅没了、文档也没切过去"。
+      await switchTo(target)
     },
 
     toast,

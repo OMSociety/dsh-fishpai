@@ -3,7 +3,8 @@
  *
  * 这几条一旦破掉，插件在浏览器里会**整块不加载**，而宿主侧测试全绿也发现不了：
  *   1. 产物必须是 `window.__ModuleLoader__.load({ id, factory })`（DSH 客户端模块系统的唯一形态）
- *   2. factory 只允许 require 模块表提供的裸模块（react / react-dom / @deepseek-ai/*）——
+ *   2. factory 只允许 require 平台种子表里的裸模块（react / react-dom / cordis / dsh-client-store /
+ *      dsh-client-ui-slots / dsh-client-ui-primitives / dsh-client-ui-dockkit）——
  *      多一个没被 external 掉的依赖就会在运行时 MODULE_NOT_FOUND
  *   3. 必须导出 name / inject / apply（Cordis 靠这三个挂载插件）
  *   4. 在没有右侧栏服务时 apply 也不能抛，并且注册的东西可收回
@@ -14,11 +15,34 @@ import fs from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
 import { fileURLToPath } from 'node:url'
+import { bundleClient } from '../scripts/build-client.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BUNDLE = path.join(ROOT, 'lib', 'client.js')
 
-const ALLOWED_EXTERNALS = [/^react$/, /^react\//, /^react-dom$/, /^react-dom\//, /^@deepseek-ai\//]
+/**
+ * factory 允许 require 的 specifier —— 逐字对齐 rc2 的**平台种子表**（`dsh-client-modules`
+ * 里 materialize 的那 9 项）。写成 `/^@deepseek-ai\//` 那样的通配等于没守：宿主有 280 多个包名，
+ * 放行全部之后，将来 import 一个没被 external 掉的包，测试照样绿、运行时才炸
+ * （`client-modules: require("…") missed the module table … a build-time externals drift`）。
+ */
+const PLATFORM_SEEDS = new Set([
+  'react',
+  'react/jsx-runtime',
+  'react-dom',
+  'react-dom/client',
+  '@deepseek-ai/cordis',
+  '@deepseek-ai/dsh-client-store',
+  '@deepseek-ai/dsh-client-ui-slots',
+  '@deepseek-ai/dsh-client-ui-primitives',
+  '@deepseek-ai/dsh-client-ui-dockkit',
+])
+
+/** 允许出现在产物里的 specifier：种子表，外加种子表内包的子路径。 */
+function allowedExternal(spec) {
+  if (PLATFORM_SEEDS.has(spec)) return true
+  return [...PLATFORM_SEEDS].some((seed) => spec.startsWith(`${seed}/`))
+}
 
 /**
  * 在独立的 vm realm 里加载 bundle —— 与浏览器一样，它是"另一份全局环境"。
@@ -33,6 +57,7 @@ function loadBundle(options = {}) {
   const appended = []
   const timers = []
   const effects = []
+  const seatHandles = []
   const registeredTabs = []
   const registeredSlots = []
   const opened = []
@@ -144,7 +169,18 @@ function loadBundle(options = {}) {
           if (typeof inner === 'function') effects.push(inner)
         })
       }
-      return { dispose() {} }
+      // cordis 的 `fiber.dispose()` 是异步的（`(): Promise<void>`）：这里也必须异步，
+      // 否则插件清理链里那句 `await seatHandle.dispose()` 在测试里等于没写——
+      // 同步 dispose 的 await 永远是空操作，谁都测不出漏 await。
+      const handle = {
+        disposed: false,
+        async dispose() {
+          await new Promise((resolve) => setTimeout(resolve, 0))
+          handle.disposed = true
+        },
+      }
+      seatHandles.push(handle)
+      return handle
     },
     get: (key) => serviceTable[key],
     sessions,
@@ -157,6 +193,7 @@ function loadBundle(options = {}) {
     appended,
     timers,
     effects,
+    seatHandles,
     registeredTabs,
     registeredSlots,
     opened,
@@ -176,11 +213,14 @@ test('客户端 bundle 只依赖模块表里有的裸模块', () => {
   const specifiers = new Set([...source.matchAll(/require\("([^"]+)"\)/g)].map((m) => m[1]))
   for (const spec of specifiers) {
     assert.ok(
-      ALLOWED_EXTERNALS.some((re) => re.test(spec)),
+      allowedExternal(spec),
       `bundle 里有未被 external 的依赖：${spec}（会打进产物或在运行时解析失败）`,
     )
   }
   assert.ok(specifiers.has('react'), '应当 require react，而不是把 React 打进来')
+  // rc2 官方禁止客户端 bundle 加载 Harness Client 包（practices.md:35）；图标几何已复制进本包
+  const hostPackages = [...specifiers].filter((s) => s.startsWith('@deepseek-ai/'))
+  assert.deepEqual(hostPackages, [], `不该再 require Harness Client 包：${hostPackages.join(', ')}`)
 })
 
 test('客户端 bundle 导出 name / inject / apply', () => {
@@ -217,13 +257,13 @@ test('dsh.client 声明只写包依赖边，不写服务名', () => {
   }
 })
 
-test('图标：主题图标用 DSH 内建的图标集（基线模块），鱼形标是自绘的，取不到也不影响加载', () => {
+test('图标：主题几何内联在本包里（不再 require 宿主图标集），鱼形标与 icon.svg 同源', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
-  // `@deepseek-ai/dsh-client-ui-primitives` 与 react 同级：是 shell 的基线模块
-  // （右侧栏自己画图标用的就是它），所以不需要在 dsh.client.inject 里声明包依赖边。
+  // 主题几何已复制进 `client/theme-icons.tsx`：bundle 里不该再有宿主图标包
+  // （rc2 `practices.md:35` 明文禁止；宿主改名会静默少图标，且无类型检查兜底）。
   assert.ok(
-    source.includes('require("@deepseek-ai/dsh-client-ui-primitives")'),
-    '应当 require DSH 的图标模块（与自己手画一整套相比，这样才对得上内置图标的画法）',
+    !source.includes('require("@deepseek-ai/dsh-client-ui-primitives")'),
+    '不该再 require 宿主图标集——几何已复制进 client/theme-icons.tsx',
   )
   // 自绘的鱼形标：与包根 icon.svg **逐字相同的几何**——全仓库只有这一份画法，
   // 插件列表的磁贴、侧边栏、面板里那几处都从它来（见 AGENTS.md 不变量 11）。
@@ -235,15 +275,36 @@ test('图标：主题图标用 DSH 内建的图标集（基线模块），鱼形
     `产物里的鱼形标要与包根 icon.svg 同源，别另画一套（icon.svg 现在是 ${iconPath}）`,
   )
   assert.ok(source.includes('currentColor'), '图标颜色走 currentColor')
-  // 图标名要进产物（逐个名字在宿主导出清单里的落点由 test/icons-compat.test.mjs 核对）
-  const names = [...source.matchAll(/["'](Icon[A-Za-z0-9]+)["']/g)].map((m) => m[1])
-  assert.ok(names.length >= 14, `主题图标名没进产物？只找到 ${names.length} 个`)
-  assert.ok(names.includes('IconListPenOutlineRegular'), '主题图标名应进产物')
-  assert.ok(!names.includes('IconListPenOutline16'), '产物里不该再有旧尺寸后缀拼写')
   // 自绘 listbox：原生 <option> 里放不进 SVG，这是 emoji 换成图标的前提
   assert.ok(source.includes('fp-picker-btn') && source.includes('fp-menu-row'), '主题选择器与弹出列表')
   assert.ok(source.includes('"aria-selected"'), '主题列表要有 listbox/option 语义')
   assert.ok(!source.includes('optgroup'), '不再用原生 optgroup（它放不进图标）')
+})
+
+/**
+ * 进 bundle 的**只有本仓库 `client/` 下的源码**——这条守的是 esbuild 的静默内联。
+ *
+ * `external` 只挡得住命中的包：一个不在 external 列表里的第三方包会被 esbuild 直接
+ * **内联**进产物，require 表一条不加、体积只多几百字节，上面所有守卫照样全绿
+ * （实测：造一个非 external 的假包 import 进 `icons.tsx`，构建成功、两个测试文件全绿）。
+ * 所以这里用 esbuild 自己的 metafile 核对输入清单：出现任何 `node_modules` 或仓库外路径
+ * 都当场变红，而不是等运行时报 MODULE_NOT_FOUND 或静默多出一份代码。
+ */
+test('产物只由本仓库 client/ 的源码打包而成（挡住 esbuild 的静默内联）', async () => {
+  const result = await bundleClient({ metafile: true })
+  const inputs = Object.keys(result.metafile.inputs)
+  assert.ok(inputs.length > 0, '测试自身写错了：metafile 里没有输入')
+  const outside = inputs.filter((input) => {
+    const normalized = input.replace(/\\/g, '/')
+    return !normalized.startsWith('client/') || normalized.includes('..')
+  })
+  assert.deepEqual(
+    outside,
+    [],
+    `这些输入不在本仓库 client/ 下——external 没拦住，代码被静默内联进产物了：${outside.join(', ')}`,
+  )
+  const foreign = inputs.filter((input) => input.replace(/\\/g, '/').includes('node_modules'))
+  assert.deepEqual(foreign, [], `产物里混进了 node_modules 的代码：${foreign.join(', ')}`)
 })
 
 test('面板文案：改名与新增说明必须真的进产物（防"改了源码没重新构建"）', () => {
@@ -402,7 +463,12 @@ test('apply() 在右侧栏服务不存在时也安全，注册的东西可收回
   assert.equal(harness.registeredSlots.length, 0)
   assert.equal(harness.effects.length, 2, '样式 + 轮询两个 effect')
   assert.equal(harness.timers.length, 1, '应挂一个轮询')
-  for (const dispose of harness.effects) if (typeof dispose === 'function') dispose()
+  // 清理链要 await 到底：cordis 的 `fiber.dispose()` 返回 Promise，
+  // 漏 await 的话面板槽位注销还排在微任务里，紧接着的重新挂载就会撞上旧席位。
+  // 这里必须**await**清理函数，否则测不出漏 await（同步返回的 Promise 永远"已完成"）。
+  for (const dispose of harness.effects) if (typeof dispose === 'function') await dispose()
+  assert.equal(harness.seatHandles.length, 1, '注入过一次席位')
+  assert.equal(harness.seatHandles[0].disposed, true, '清理时必须等席位 dispose 完成，不能只发起不等待')
 })
 
 /** 让 vm 里那些 `void tick()` 的异步链跑完（setInterval 回调返回 undefined，await 它没用）。 */

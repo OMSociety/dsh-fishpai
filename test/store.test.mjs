@@ -251,6 +251,97 @@ test('自动保存：外部横幅在场时跳过，不把提示换成语义重�
   store.dispose()
 })
 
+test('载入失败：当前这篇读不出来时保留屏幕上的正文，只挂错误（绝不显示成"文档被清空"）', async () => {
+  const store = await readyStore('s1', 'k1', '服务端的正文', 3)
+  store.actions.setMarkdown('我改过的字')
+
+  stub({
+    // 先把字存下去（这是 reloadSafely 的前置），再让载入失败：
+    // 宿主 404 —— 正文文件被人在编辑器外删了/改名了
+    save: async (sid, key, md, rev) => ({ ok: true, revision: rev + 1, updatedAt: 2 }),
+    doc: async () => {
+      throw new Error('正文文件读不出来（可能被删除或改名）：a.md')
+    },
+    renderPreview: async () => emptyPreview(),
+  })
+  await store.actions.reloadSafely()
+
+  const st = store.getSnapshot()
+  assert.equal(st.docKey, 'k1', '文档不该被切走')
+  assert.equal(st.markdown, '我改过的字', '屏幕上的字必须原样留着')
+  assert.equal(st.dirty, false, '已经落盘成功，脏标记该收掉')
+  assert.match(String(st.error), /正文文件读不出来/, '要让用户看见失败原因')
+  store.dispose()
+})
+
+test('载入失败：切不过去的那篇不会把当前文档变成空白，且错误要说清', async () => {
+  const store = await readyStore('s1', 'k1', '服务端的正文', 3)
+
+  let activated = false
+  stub({
+    activate: async () => {
+      activated = true
+      return { ok: true, docKey: 'k2' }
+    },
+    doc: async () => {
+      throw new Error('正文文件读不出来（可能被删除或改名）：k2.md')
+    },
+    renderPreview: async () => emptyPreview(),
+  })
+  await store.actions.openDocByKey('k2')
+
+  const st = store.getSnapshot()
+  assert.equal(activated, true, '前置条件：确实试着切了')
+  assert.equal(st.docKey, 'k1', '切不过去就留在原来那篇')
+  assert.equal(st.markdown, '服务端的正文', '不能显示成空文档')
+  assert.match(String(st.error), /打开失败/)
+  assert.match(String(st.error), /正文文件读不出来/)
+  store.dispose()
+})
+
+test('载入成功会把上一次的载入错误清掉（不然横幅永远挂着）', async () => {
+  const store = await readyStore('s1', 'k1', '服务端的正文', 3)
+
+  stub({
+    doc: async () => {
+      throw new Error('正文文件读不出来')
+    },
+    renderPreview: async () => emptyPreview(),
+  })
+  await store.actions.reload()
+  assert.ok(store.getSnapshot().error, '前置条件：先制造一次失败')
+
+  stub({ doc: async () => docPayload('k1', '服务端的正文', 3), renderPreview: async () => emptyPreview() })
+  await store.actions.reload()
+  assert.equal(store.getSnapshot().error, null, '成功了就该把错误收掉')
+  store.dispose()
+})
+
+test('重开面板时当前文档读不出来：状态要落到 error，不能停在 loading 转圈', async () => {
+  // 面板每次挂载都调 init()，而 init 先 patch({status:'loading'})。
+  // 载入失败时 loadDoc **不抛**（当前这篇读不出来只挂错误并返回 false），
+  // 所以 init 必须自己判返回值收尾；漏了的话 status 永远停在 loading，
+  // 而 panel.tsx 的 loading 分支是早退的——用户看到的是一直转圈，
+  // 既没有错误提示也没有重试按钮，比"文档被清空"更难查。
+  const store = await readyStore('s1', 'k1', '服务端的正文', 3)
+
+  stub({
+    themes: async () => ({ themes: [], presets: [], sizes: [], fonts: [] }),
+    state: async () => ({ docs: [{ key: 'k1', path: 'k1.md', title: '测试文档' }], active: { key: 'k1' } }),
+    doc: async () => {
+      throw new Error('正文文件读不出来（可能被删除或改名）：k1.md')
+    },
+    renderPreview: async () => emptyPreview(),
+  })
+  await store.actions.init()
+
+  const st = store.getSnapshot()
+  assert.equal(st.status, 'error', '失败必须落到 error 态，否则面板永远转圈')
+  assert.match(String(st.error), /正文文件读不出来/, '要让用户看见失败原因')
+  assert.equal(st.markdown, '服务端的正文', '屏幕上的正文不该被清空')
+  store.dispose()
+})
+
 test('buildSrcdoc：hljs 配色注入预览 iframe，不注入时代码块是黑的', () => {
   // 预览 iframe 是沙箱 srcdoc，里面没有 highlight.js 样式表：宿主把同一份色表生成 CSS
   // 随预览响应下发，这里要保证它真的落进 srcdoc，且只在给了的时候才出现
