@@ -93,11 +93,49 @@ function locate(deps, exec, args = {}) {
   return { sessionId, cwd, key, abs, state }
 }
 
+/**
+ * 读正文。**读不出来就抛**（`store.readDocText`），不降级成空串——
+ * 空串会让 fishpai_read 报「0 块、正文为空」、让 fishpai_write 把整篇算成"用户删光了"。
+ * 抛出的 `DocMissingError` 由各工具的 catch 转成 `fishpai_xxx 失败：正文文件读不出来…`。
+ */
+/**
+ * 基线丢失时用的空差异统计：块数与字数照实报，增减全为 0。
+ * 不能让下游的 `diff.stats.blocksAfter` 之类变成 `undefined`（会渲染成 "共 undefined 块"）。
+ */
+function emptyDiffStats(markdown) {
+  const text = markdown || ''
+  const blocks = splitBlocks(text).length
+  return {
+    blocksBefore: blocks,
+    blocksAfter: blocks,
+    unchanged: blocks,
+    added: 0,
+    removed: 0,
+    changed: 0,
+    charsBefore: text.length,
+    charsAfter: text.length,
+  }
+}
+
 function readText(abs) {
+  return store.readDocText(abs)
+}
+
+/**
+ * 读基线，但**不让基线丢失毁掉整次 read**。
+ *
+ * 正文还在、只是 `.fishpai` 里的基线快照被人清了：这时模型最需要的是"正文 + 明说基线没了"，
+ * 而不是一个什么都不给的错误——它拿到正文还能自己往下写。
+ * 但**绝不能**悄悄当"没有基线"处理：那样 `fishpai_read` 会报「用户没有改动正文」，
+ * 而真相是"改动算不出来"——假绿比报错更害人。
+ *
+ * @returns {{text: string, missing: string|null}} missing 是丢失原因，非空时调用方必须显式说明
+ */
+function readBaseline(cwd, state) {
   try {
-    return fs.readFileSync(abs, 'utf8')
-  } catch {
-    return ''
+    return { text: store.baselineContent(cwd, state), missing: null }
+  } catch (error) {
+    return { text: '', missing: error && error.message ? error.message : String(error) }
   }
 }
 
@@ -109,12 +147,16 @@ function readText(abs) {
  */
 export function registerTools(ctx, deps) {
   const disposers = []
+  const failures = []
   const register = (tool) => {
     try {
       const dispose = ctx.tools.register(tool)
       disposers.push(typeof dispose === 'function' ? dispose : () => {})
     } catch (error) {
-      deps.log?.(`[fishpai] 工具 ${tool.name} 注册失败: ${error.message}`)
+      // 不吞：注册失败意味着模型侧少一个工具，而"少了工具"在界面上看不出来——
+      // 模型只会一直找不到 fishpai_write，用户也只会觉得"插件怪怪的"。
+      // 记下来，注册完后连同已注册的一起回滚再抛，让挂载当场失败（假绿比报错难查得多）。
+      failures.push(`工具 ${tool.name} 注册失败：${error && error.message ? error.message : error}`)
     }
   }
 
@@ -191,8 +233,9 @@ export function registerTools(ctx, deps) {
         const { cwd, key, abs, state } = locate(deps, exec, args)
         const markdown = readText(abs)
         const blocks = splitBlocks(markdown)
-        const baseline = store.baselineContent(cwd, state)
-        const diff = diffBlocks(baseline, markdown)
+        const baseline = readBaseline(cwd, state)
+        // 基线丢了就别算差异：拿空串去比会把整篇算成"人重写了全文"，比不算更误导
+        const diff = baseline.missing ? { entries: [], stats: emptyDiffStats(markdown), truncated: false } : diffBlocks(baseline.text, markdown)
         const notes = reanchorNotes(state.notes, blocks)
         const placeholders = attachPlaceholdersToBlocks(extractPlaceholders(markdown), blocks)
         const images = listLocalImages({ markdown, cwd, docPath: abs })
@@ -201,15 +244,20 @@ export function registerTools(ctx, deps) {
         const out = []
         out.push(`文档：${store.docTitle(markdown, abs)}`)
         out.push(`路径：${path.relative(cwd, abs).replace(/\\/g, '/')}　revision = ${state.revision}　共 ${blocks.length} 块`)
-        const hasBaseline = !!state.baseline
-        if (hasBaseline) {
+        const hasBaseline = !!state.baseline && !baseline.missing
+        if (baseline.missing) {
+          out.push(`⚠ ${baseline.missing}`)
+          out.push('基线快照不见了，"人改了什么"算不出来——下面的正文与批注仍然可用，但**不要**据此认定用户没改过。')
+        } else if (hasBaseline) {
           out.push(`你上次写入：rev ${state.baseline.rev} @ ${fmtTime(state.baseline.at)}（by ${state.baseline.by}）`)
         } else {
           out.push('⚠ 这篇文档还没有基线（你还没写入过，或 .fishpai 状态被清理过）——"人改了什么"无法计算，请按下面的全文与批注处理。')
         }
 
         const changed = diff.entries
-        if (!changed.length) {
+        if (baseline.missing) {
+          out.push('（基线丢失，因此不显示正文差异；人留下的批注与行内占位见下。）')
+        } else if (!changed.length) {
           out.push(
             hasBaseline
               ? '自你上次写入以来，用户没有改动正文。'
@@ -322,11 +370,13 @@ export function registerTools(ctx, deps) {
         // 先卡版本再看内容：版本不对时，块 id 也可能已经失效（人改了正文），
         // 那种情况下报"找不到块"会误导模型，报"版本不匹配，请重新 read"才准确。
         if (Number(args.base_revision) !== state.revision) {
-          const diff = diffBlocks(store.baselineContent(cwd, state), current)
+          const baseline = readBaseline(cwd, state)
+          const diff = baseline.missing ? { entries: [] } : diffBlocks(baseline.text, current)
           const lines = [
             `写入被拒绝：base_revision=${args.base_revision} 但当前是 ${state.revision}——文档在你 read 之后被改过。`,
             '请重新 fishpai_read 拿到最新内容与块 id，再用新的 base_revision 提交，不要凭旧内容覆盖。',
           ]
+          if (baseline.missing) lines.push(`（${baseline.missing}，因此这次给不出改动明细。）`)
           if (diff.entries.length) {
             lines.push('自你上次写入以来，文档里发生的改动：')
             for (const e of diff.entries.slice(0, 10)) {
@@ -558,6 +608,20 @@ export function registerTools(ctx, deps) {
       }
     },
   })
+
+  // 有任何一个工具没注册上，就整体回滚并抛错：留一半工具比一个都不留更难查
+  // （模型会拿到 fishpai_read 却永远找不到 fishpai_write）。抛出的错由 cordis 的
+  // effect 记录成插件挂载失败，界面与日志都能看见，不会静默少工具。
+  if (failures.length) {
+    for (const dispose of disposers.reverse()) {
+      try {
+        dispose()
+      } catch {
+        /* 回滚失败不掩盖原始错误 */
+      }
+    }
+    throw new Error(`[fishpai] ${failures.join('；')}`)
+  }
 
   return () => {
     for (const dispose of disposers.reverse()) {

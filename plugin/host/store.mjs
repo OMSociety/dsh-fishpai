@@ -353,14 +353,42 @@ export function stash({ cwd, docPath, markdown, by = 'human', label }) {
   return { entry, revision: state.revision }
 }
 
+/**
+ * 文件读不出来（被删、被改名、权限变了）：单独一个类型，路由层据此回 404 而不是 400。
+ *
+ * 以前这里回的是空串，于是 `/doc` 高高兴兴地回 200 + `markdown: ""`，面板把它当成
+ * "这篇文档就是空的"——用户看到的是正文被清空，而不是"文件不在了"。
+ */
+export class DocMissingError extends Error {
+  constructor(abs, cause, what = '正文文件') {
+    super(`${what}读不出来（可能被删除或改名）：${abs}`)
+    this.name = 'DocMissingError'
+    this.docPath = abs
+    this.what = what
+    this.cause = cause
+  }
+}
+
+/** 读正文。读不出来**抛错**，绝不降级成空串（空串在面板上等于"文档被清空"）。 */
+export function readDocText(abs, what) {
+  try {
+    return fs.readFileSync(abs, 'utf8')
+  } catch (cause) {
+    throw new DocMissingError(abs, cause, what)
+  }
+}
+
+/**
+ * 读 baseline（AI 上次写入的版本）。
+ *
+ * `state.baseline` 为空是**正常情况**（还没写入过），回空串；
+ * 但 baseline 记在状态里、文件却读不出来，那是状态坏了，**抛错**——
+ * 回空串会让 `diffBlocks` 把整篇算成"新增"，看起来像"人把全文重写了"。
+ */
 export function baselineContent(cwd, state) {
   if (!state || !state.baseline) return ''
   const abs = path.join(cwd, state.baseline.file)
-  try {
-    return fs.readFileSync(abs, 'utf8')
-  } catch {
-    return ''
-  }
+  return readDocText(abs, '基线快照')
 }
 
 // ── 文档读写 ───────────────────────────────────────────────────
@@ -652,7 +680,16 @@ export function addNote({ cwd, docPath, note }) {
   const key = docKey(abs)
   const state = readState(cwd, key)
   if (!state) return null
-  const entry = { id: randomUUID().slice(0, 8), author: 'human', at: Date.now(), resolved: false, ...note }
+  // 身份字段**钉死在最外层**：`...note` 来自请求体，调用方能塞 `{id:'dup'}` 覆盖掉
+  // 生成的主键、或把自己标成 `author:'ai'` / 直接 `resolved:true`。`updateNote` 早就是这么
+  // 钉的（`id: n.id`），`addNote` 以前没对齐——同一份数据两个入口两种信任度，是漏洞不是风格。
+  const entry = {
+    ...note,
+    id: randomUUID().slice(0, 8),
+    author: 'human',
+    at: Date.now(),
+    resolved: false,
+  }
   const next = { ...state, notes: [...state.notes, entry] }
   writeState(cwd, key, next)
   return entry
@@ -666,7 +703,12 @@ export function updateNote({ cwd, docPath, id, patch }) {
   let found = null
   const notes = state.notes.map((n) => {
     if (n.id !== id) return n
-    found = { ...n, ...patch, id: n.id }
+    // 身份字段**与 addNote 同一套信任度**：`patch` 来自请求体，调用方能借 `action=update`
+    // 把一条人写的批注改成 `author:'ai'` / `at:1`——addNote 钉了、这里没钉，就等于换个入口
+    // 绕过去（实测可达：`{action:'update', patch:{author:'ai', at:1}}` 回 200 且落盘）。
+    // `resolved` 必须允许改，那是 updateNote 的本职（面板「标记已解决」就靠它）；
+    // 正文类字段（text / quote / blockId / blockIndex）也照旧放行。
+    found = { ...n, ...patch, id: n.id, author: n.author, at: n.at }
     return found
   })
   if (!found) return null
