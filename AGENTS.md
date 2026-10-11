@@ -5,7 +5,8 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
 ## 这个仓库是什么
 
 - **DSH 插件**：宿主侧（Node）+ 客户端侧（浏览器）两半在同一个包里。
-- **上游 fork**：`ye4wzp/mopai-markdown`（MIT），fork 自上游 `main` @ `c91487abfc5848f5b78e9fcec3b62d58033c61dc`。
+- **上游 fork**：`ye4wzp/mopai-markdown`（MIT），fork 自上游 `main` 的 `c91487abfc5848f5b78e9fcec3b62d58033c61dc`（2026-08-19）；
+  两者的共同祖先是 `a33b33d606032091f48e62386592daefc3f8f472`（2026-06-08），此后本仓库独立演进。
   `plugin/vendor/themes.js` 源自上游 `js/themes.js`；署名与逐字节比对锚点见 `NOTICE.md`。
 
 ## 不可违反的不变量
@@ -20,7 +21,7 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
      必须是**纯叠加**的（`test/wechat-structure.test.mjs` 守着），默认路径一个字节都不许动。
      它有两半：① 文字包 span（防行高误报）；② 给"以**行内元素**开头"的 `<li>` 前面补一个 U+00A0——
      微信会把**条目开头**的行内片段单独起一行（`1. **标签**：说明` 会被拆成两行）。补一个文字节点即可，
-     "整条 li 包一个 span"试过无效（`37748d4` 加、`32ac970` 撤）；补的必须是真 U+00A0 字符，
+     "整条 li 包一个 span"实测无效（那两次尝试的提交已不在任何分支上，别去历史里找）。补的必须是真 U+00A0 字符，
      不能写 `&nbsp;` 实体（源码级扫描会把它当普通文字）。
      块级元素（`<p>`/`<ul>`/`<blockquote>`…）开头的条目**不许**补：松散列表（条目间有空行）第一条
      就是 `<p>`，补进去的文字节点会落在 `<p>` 外面、变成 `<li>` 的直接文字子节点（结构上多余）。
@@ -46,40 +47,57 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
    **不要** `import { defineTool } from '@deepseek-ai/dsh-tools'` —— 树外解析不可靠。
 5. **客户端 bundle 必须是** `window.__ModuleLoader__.load({ id, factory: (require) => exports })`。
    改完客户端源码必须 `npm run build` 并把 `lib/client.js` 一起提交（`dsh plugin add` 不构建）。
-6. **样式只用 `--dsw-alias-*` 主题变量**；旧名（`--dsw-text-secondary` 一类）在新版 DSH 里一个都不存在。
+6. **样式只用 `--dsw-alias-*` 主题变量**（阴影例外：`--dsw-shadow-lv1` / `lv2` / `lv3`，rc2 里
+   没有 `--dsw-alias-shadow*` 这个族，官方 `HoverCard.module.css` / `Toast.module.css` 用的就是它）；
+   旧名（`--dsw-text-secondary` 一类）在新版 DSH 里一个都不存在。
 7. **文件只能落在会话工作目录内**（`header.cwd`），并过扩展名白名单；不做任意路径读写。
 8. **绝不静默覆盖人的手改**：任何写入都要带 `base_revision`，不匹配就拒绝并回带最新 diff。
    **`applyPatches` 必须在拼接处自己保证恰好一个空行**：块的行范围（`collectBlocks` 取的 `map[1]`）
    **列表含末尾那个分隔空行、段落不含**，不能指望它天然对齐；漏补会让下一块被 markdown 的"懒延续"
    并进列表/段落，下一轮再改那个被并大的块就**会把它整段删掉**（实测踩过：改列表项吃掉了文末两行）。
    `test/host.test.mjs` 有回归守卫。
-9. **`package.json` 的 `dsh.client.inject` 是「包依赖边」，不是服务依赖**。它声明的是
-   "这一行的 factory 到位前必须先到位的**包**"（DSH `dsh-client-modules` 的 `WebBootEntry`：
-   "names package rows whose factories must arrive before this row materializes"），
-   名字对不上任何包行时被**静默忽略**。本包客户端只 require **shell 的基线模块**
-   （`react` / `react/jsx-runtime` / `@deepseek-ai/dsh-client-ui-primitives`）——基线模块与
-   `react` 同级、任何 bundle 都能直接 require，**不是图里的行**，所以这个字段留空；
-   **服务依赖由 bundle 导出的 `inject` 决定**，把 `slots` / `sessions` 这类服务名写进去是无效声明。
-   `test/client.bundle.test.mjs` 有守卫。
+9. **`package.json` 的 `dsh.client` 是「包依赖边 + 激活提示」，不是服务依赖**。三个可选字段
+   （rc2 `dsh-client-modules/lib/index.js:61-74` 的 `parseDshClient` 逐字校验：
+   `platform` 必填字符串、`inject` / `external` 字符串数组、`immediately` 布尔）：
+   - `inject`：**先于本行 materialize 的包行名**。rc2 的落地是
+     `lib/client.js:656-659`——`for (const packageName of row.inject) { const dependency =
+     this.graphRows.get(packageName); if (dependency !== void 0) await this.arriveDependency(...) }`，
+     **认不到任何包行时直接跳过、不报错**（"静默忽略"）。
+   - `external`：本行 bundle 会 `require` 的**动态包行**名（`lib/client.js:650-655`，同一套
+     `graphRows` 解析，同样认不到就跳过）。指向基座静态表里的名字时不产生图边。
+   - `immediately: true`：shell 启动时预取该 bundle（rc2 全前端只有
+     `prefetchImmediateTier()` 用它，是**性能提示**，不改变激活顺序）。
+   本包客户端只 require **shell 的基线种子模块**（rc2 平台种子表 9 项：`react` /
+   `react/jsx-runtime` / `react-dom` / `react-dom/client` / `@deepseek-ai/cordis` /
+   `@deepseek-ai/dsh-client-store` / `@deepseek-ai/dsh-client-ui-slots` /
+   `@deepseek-ai/dsh-client-ui-primitives` / `@deepseek-ai/dsh-client-ui-dockkit`），
+   它们**不是图里的行**（`lib/client.js:700` 先查 `this.seed`），所以三个字段全留空。
+   **服务依赖由 bundle 导出的 `inject` 决定**，把 `slots` / `sessions` 这类服务名写进
+   `dsh.client.inject` 是无效声明（对不上任何包行）。
+   `test/client.bundle.test.mjs` 有守卫（种子表逐字对照，不用通配）。
 10. **块 id 一律来自 `splitBlocks`**（`plugin/host/routes.mjs` 的 `liveSurface`）：批注锚点与
     `fishpai_write` 的 `block_id` 用的就是它。渲染器自己的 blocks 只服务于 HTML 里的
     `<fp-block data-b>` 锚点，随 `macCodeBlock` 等渲染选项变化，**不能**当成面板的块清单。
-11. **图标用 DSH 内建的那一套，不引第三方图标包**：主题图标取
-    `@deepseek-ai/dsh-client-ui-primitives` 的 `Icon*` 导出（右侧栏画图标用的同一套，画法一致），
-    鱼排自己的标在 `client/icons.tsx` 里按同一口径自绘（16px 网格、圆角连接）。
-    **同一支鱼只有一份几何**：插件列表的磁贴图是包根 `icon.svg`（36 画板、自带渐变、
-    2.0 描边——宿主把它读成 data URI 塞进 `<img>`，所以那份走不了 `currentColor`），
-    界面里的三处落点（右侧栏的标签页、引导列表，以及面板内空白页卡片的品牌行）
-    都由 `FishMark` 把同一份 36 画板几何内联渲染，外面套 `scale(1.3)` 取景以贴合侧边栏的
-    视觉重量；宿主在那里读不到主题色，所以同样自带渐变。改 `icon.svg` 就回来改 `FishMark`，
-    别处没有第二份要对齐。
-    **除品牌标外，颜色只走 `currentColor` 与 `--dsw-alias-*` 令牌**，浅色/深色共用一套图。
-    取不到那个基线模块时必须降级（退回纯文字）而不是让插件整块加载不了。
-    **图标名直接用宿主导出的拼写**：当前线是 `*Regular` / `*Medium` 字重后缀那套，没有尺寸后缀。
-    调用点（`client/icons.tsx`）写的名字就是宿主导出名，解析集中在 `client/icon-names.ts`，
-    取不到就降级成纯文字。加引用/换名字后，`test/icons-compat.test.mjs` 会拿**声明支持的
-    最低宿主版本**的导出清单核对落点，宿主升级改名会红。加了主题就往 `THEME_GLYPH` 补一行，
-    `test/theme-info.test.mjs` 会检查不漏。
+11. **图标全部内联在本包里，不引第三方图标包、也不 require 宿主包**。主题与控件图标（14 支）
+   的几何在 `client/theme-icons.tsx`，**复制**自 DSH 内建图标集
+   （`@deepseek-ai/dsh-client-ui-primitives` 0.2.0-rc.2，MIT，© 2026 DeepSeek，见 `NOTICE.md`）。
+   为什么复制而不是 require：rc2 官方在 `dsh-agent-preset/skills/cordis-plugin-development/
+   references/practices.md:35` 明文禁止客户端 bundle 把 Harness Client 包当模块加载
+   （"They change without notice, a plain-JS plugin has no type check, and a throwing component
+   blanks your slot entry"），替代做法就是复制标记。宿主升级改名（rc2 权限图标由 `IconFullAccess*`
+   改成 `PermissionIconFullAccess*` 即实例）影响不到本包。
+   **代价是几何要自己维护**：改 `client/theme-icons.tsx` 后必须 `npm run build` 并提交产物；
+   `test/theme-icons.test.mjs` 会核对**导出的 14 支几何**都渲染出 16 画板的 `<svg>`、图形非空、
+   颜色走 `currentColor`、路径真进了产物，并核对产物里没有 `@deepseek-ai/*` 的 require。
+   这些只守**结构与接线**，守不住"某条路径的数字被改错"——改几何必须回到 rc2 逐字比对。
+   **同一支鱼只有一份几何**：插件列表的磁贴图是包根 `icon.svg`（36 画板、自带渐变、
+   2.0 描边——宿主把它读成 data URI 塞进 `<img>`，所以那份走不了 `currentColor`），
+   界面里的三处落点（右侧栏的标签页、引导列表，以及面板内空白页卡片的品牌行）
+   都由 `FishMark` 把同一份 36 画板几何内联渲染，外面套 `scale(1.3)` 取景以贴合侧边栏的
+   视觉重量；宿主在那里读不到主题色，所以同样自带渐变。改 `icon.svg` 就回来改 `FishMark`，
+   别处没有第二份要对齐（`test/theme-icons.test.mjs` 比对鱼身路径）。
+   **除品牌标外，颜色只走 `currentColor` 与 `--dsw-alias-*` 令牌**，浅色/深色共用一套图。
+   加了主题就往 `icons.tsx` 的 `THEME_GLYPH` 补一行，`test/theme-info.test.mjs` 会检查不漏。
 12. **编辑器的快捷键与格式化动作只有一份实现**（`client/mdedit.ts`，纯函数）：
     `SHORTCUTS` 一张表同时喂键盘匹配 `matchShortcut()`、界面上的速查表 `shortcutHint()` 与测试——
     别在别处再抄一份键位或文案。编辑动作必须走 `document.execCommand('insertText')`
@@ -101,8 +119,9 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
     - 存下来的那套是**工作目录级、只有一套**：`<cwd>/.fishpai/theme.json`，面板里是**一个**「自定义主题」占位，
       由 `plugin/host/custom-theme.mjs` 的 `themeFor()` 解析——**没有主题库**，没有命名/列表管理，`set` 即覆盖；
       文件缺失或被改坏时**静默退回默认主题**（与 `safeThemeKey` 同口径），不留"选不中的状态"。
-    - **图标不归模型**：合法图标名只在浏览器那半（`@deepseek-ai/dsh-client-ui-primitives` 的 `Icon*` 导出，
-      数量与拼写随 DSH 版本变，见 `client/icons.tsx`），让模型选就得在宿主再抄一份名单、迟早静默失配。
+    - **图标不归模型**：图标是**本包自己的代码**（`client/theme-icons.tsx` 的内联几何，
+      见不变量 11），让模型选图标就得在宿主再抄一份名单、迟早静默失配。
+      所以 `.fishpai/theme.json` 只认 `name` / `base` / `styles`，没有图标字段。
       `.json` 只对**宿主拼死**的这条路径放行，`.fishpai/state/*.json` 仍然不可达。
     - 最容易踩的一条：**换主题不动 `revision`**，所以面板靠 `/state` 的 `active.theme` 发现它，并且
       **只换 meta、不重载正文**——别让用户正在打的字被换掉。
@@ -120,7 +139,7 @@ Instructions for coding agents working on this repository (`OMSociety/dsh-fishpa
 
 ```powershell
 npm install          # 只有 devDependencies（esbuild / typescript / @types/react / @types/react-dom / @deepseek-ai/cordis）
-npm test             # node --test：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + 主题规格 + bundle + 快捷键 + 挂载 + 客户端 store 时序
+npm test             # node --test：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + 主题规格 + 主题图标内联核对 + bundle + 快捷键 + 挂载 + 客户端 store 时序 + 接口层（api）
 npm run typecheck    # 客户端 TSX 类型检查
 npm run build        # esbuild → lib/client.js（__ModuleLoader__ 形态）
 npm run check:build  # 构建后确认 lib/ 无漂移（CI 用）

@@ -1,0 +1,67 @@
+name: Bug report
+description: 面板、渲染或模型工具出了不符合预期的行为
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先看一眼 [README](https://github.com/OMSociety/dsh-fishpai#readme) 与
+        [AGENTS.md](https://github.com/OMSociety/dsh-fishpai/blob/main/AGENTS.md) 里列的已知边界——
+        「公众号里字体变回黑体」「表格字号不跟着正文字号走」这类是平台行为，不是 bug。
+        安全相关问题请**不要**在这里开 issue，走 [SECURITY.md](https://github.com/OMSociety/dsh-fishpai/blob/main/SECURITY.md)。
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: 插件版本
+      description: 插件管理页显示的版本号，或 `npm view dsh-fishpai version`
+      placeholder: 1.2.0
+    validations:
+      required: true
+
+  - type: input
+    id: dsh-version
+    attributes:
+      label: DSH 版本
+      description: 在终端里跑 `dsh --version`；本插件只支持 `>=0.2.0-rc.2 <0.3.0-0`
+      placeholder: 0.2.0-rc.2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 出问题的部分
+      options:
+        - 面板界面（编辑器 / 预览 / 主题与字号控件）
+        - 复制到公众号的结果
+        - 模型工具（fishpai_open / read / write / render / theme）
+        - 安装或加载插件
+        - 其它
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 实际看到的结果。有报错就把原文贴全（面板的错误横幅、DSH 的日志都行）。
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 你期望的结果
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      description: |
+        越具体越好：从什么状态开始、点了哪里、粘了什么 Markdown。
+        能附上最小可复现的 Markdown 片段最好。
+    validations:
+      required: true

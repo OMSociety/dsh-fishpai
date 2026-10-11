@@ -10,6 +10,54 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-10-11
+
+### 新增
+
+- 治理面补件：`CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、`CODEOWNERS`、Issue 与 PR 模板、`dependabot.yml`；CI 增加 `v*` tag 触发，核对 tag、`package.json` 与 CHANGELOG 三者一致（只核对，不发布）。
+- 测试补强：接口层 `client/api.ts` 的 409 → 冲突映射与错误文案、主题图标内联核对、补丁游标与拼接空行、正文缺失回 404、DNS rebinding 守卫、工具注册失败回滚、主题字号的五种写法与引号陷阱。
+
+### 变更
+
+- `peerDependencies` 去掉已不再 require 的 `@deepseek-ai/dsh-client-ui-primitives`，由七个降到六个——rc2 的安装闸门逐条判定 peer 区间，声明一个用不到的包会误拒合法宿主。宿主下限仍是 `>=0.2.0-rc.2 <0.3.0-0`。
+- `devDependencies` 的 `@deepseek-ai/cordis` 由 `^4.0.2` 收到 `~4.0.4`，与宿主包 peer 声明的 `~4.0.4` 对齐。
+- **同源守卫按平台判据重写**：`Host` 必须是环路字面量（`localhost` / 整段 `127/8` / `[::1]`）——这一条挡的是 DNS rebinding，光比 `Origin === Host` 挡不住"攻击者域名解析到 127.0.0.1"。判据与平台 `dsh-client-connection` 的 `parseAuthority` / `isLoopbackHostname` 一致。
+- 自定义主题写在 `wrapper` 上的 `font-size` 会得到一条提示：它不生效，要固定正文字号请改具体槽位（`p` / `li` / `blockquote`）。规格照常通过，声明一字不丢。
+
+### 修复
+
+- **图标不再向宿主包要**：主题与控件图标（14 支）的几何改为内联在本包里（`client/theme-icons.tsx`，复制自 DSH 内建图标集，MIT，见 `NOTICE.md`）。此前走 `require('@deepseek-ai/dsh-client-ui-primitives')`，而 rc2 官方明确不赞成客户端 bundle 把 Harness Client 包当模块加载——宿主改名或取不到导出时整块界面会白掉，不是"降级成纯文字"那么轻。图标名随宿主版本变的耦合就此解除。
+- **图标清单的守卫原本是空的**：旧 fixture 自称"就是 npm 发布包的运行时导出表"，实际混进了 6 个宿主不存在的名字（`IconFullAccess*` / `IconReadOnly*` / `IconWorkspaceWrite*`，rc2 里叫 `PermissionIcon*`），又漏收了实有的 6 支；两处差错恰好抵消，`assert.equal(size, 194)` 一直是绿的。新守卫直接核对**本包内联的 14 支几何**，不再依赖外部清单。
+- **正文读不出来不再静默降级成空正文**：文档被删除或改名时，`/doc` 回 404 并给出可读原因，面板进错误态、保留屏幕上已有的正文。此前读失败被当成空串，面板显示"文档被清空"，`fishpai_read` 的差异也会把整篇算成"新增"。
+- **基线快照丢了就明说**：`.fishpai` 状态被清理过时，`fishpai_read` 不再把整篇谎报成"人重写了全文"，而是给出提示并照实给出空差异统计。
+- **同一个块的多条补丁不再错位**：`applyPatches` 此前对同块的多条补丁沿用同一个行号，前一条改了块的长度后，后一条会插进结果中间（`replace` 变长时实测）。现在按块内游标连续计算，拼接处的空行由补丁器自己保证。
+- **面板「字号」能替掉 wrapper 上各种合法写法**：替换规则原先只认整数 px，自定义主题写 `1rem` / `16.5px` / `17PX` / `16` 时预览不动，而发布路径的 `promoteFontSize` 又把 `<p>` 撑成选定字号——预览与粘进微信的结果不一致。现在按声明边界替换（引号里的分号不算边界，同名声明全部替换）。
+- **批注的身份字段由宿主钉死**：`id` / `author` / `at` 不再能被调用方覆盖（`resolved` 仍可改）。
+- **工具或路由注册失败不再只写一行日志**：失败会整体回滚并抛出，不留"一半工具还装作挂载成功"的状态。
+
+### Added
+
+- Governance: `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CODEOWNERS`, issue and PR templates, `dependabot.yml`; CI now triggers on `v*` tags and checks that the tag, `package.json` and CHANGELOG agree (verification only, no publishing).
+- Test coverage: the API layer's 409 → conflict mapping and error text, inlined theme icons, patch cursors and seam blank lines, missing-body 404, the DNS rebinding guard, tool-registration rollback, and five legal spellings of the theme font size plus its quoting traps.
+
+### Changed
+
+- Dropped `@deepseek-ai/dsh-client-ui-primitives` from `peerDependencies` (seven down to six) since nothing requires it any more — the rc2 install gate checks every peer range, so declaring an unused package rejects legitimate hosts. The host floor stays `>=0.2.0-rc.2 <0.3.0-0`.
+- `@deepseek-ai/cordis` in `devDependencies` tightened from `^4.0.2` to `~4.0.4`, matching the host packages' own peer range.
+- **The same-origin guard was rewritten to the platform's criteria**: `Host` must be a loopback literal (`localhost` / any `127/8` / `[::1]`), which is what stops DNS rebinding — comparing `Origin === Host` alone does not. Criteria now match `dsh-client-connection`'s `parseAuthority` / `isLoopbackHostname`.
+- A `font-size` written on a custom theme's `wrapper` now produces a note: it has no effect, and a fixed body size belongs on the concrete slots (`p` / `li` / `blockquote`). The spec still validates and keeps every declaration.
+
+### Fixed
+
+- **Icons no longer come from a host package**: the geometry of the 14 theme and control icons is now inlined in this package (`client/theme-icons.tsx`, copied from the DSH built-in icon set, MIT, see `NOTICE.md`). It previously went through `require('@deepseek-ai/dsh-client-ui-primitives')`, which rc2 official guidance discourages for a client bundle — a rename or a missing export blanks the whole surface rather than degrading to plain text.
+- **The icon-list guard was hollow**: the old fixture claimed to be "the npm package's runtime export table" while carrying six names the host does not have (`IconFullAccess*` / `IconReadOnly*` / `IconWorkspaceWrite*`; rc2 calls them `PermissionIcon*`) and missing six that it does. The two errors cancelled out, so `assert.equal(size, 194)` stayed green. The new guard checks the 14 inlined geometries directly.
+- **An unreadable document body no longer degrades to an empty body**: when the file is deleted or renamed, `/doc` returns 404 with a readable reason, and the panel keeps the text already on screen. Previously the read failure became an empty string — the panel showed "the document was cleared" and `fishpai_read` reported the whole file as newly added.
+- **A missing baseline says so**: with `.fishpai` state cleaned out, `fishpai_read` no longer reports the whole document as rewritten by the user; it warns and returns honest empty diff statistics.
+- **Multiple patches to one block no longer drift**: `applyPatches` used one fixed line range for every patch on the same block, so a length-changing `replace` made the next patch land in the middle of the result. Patches now advance an in-block cursor, and the blank line at the seam is guaranteed by the patcher.
+- **The font-size control now replaces every legal spelling in `wrapper`**: the substitution only recognised integer px, so a custom theme writing `1rem` / `16.5px` / `17PX` / `16` left the preview unchanged while the publish path's `promoteFontSize` pushed the chosen size onto `<p>` — preview and WeChat disagreed. Substitution now works on declaration boundaries (a semicolon inside quotes is not a boundary; same-named declarations are all replaced).
+- **Note identity fields are pinned by the host**: `id` / `author` / `at` can no longer be overridden by the caller (`resolved` stays editable).
+- **Tool or route registration failures no longer just log**: they roll back and throw instead of leaving half the tools mounted while claiming success.
+
 ## [1.1.0] - 2026-10-09
 
 ### 变更
@@ -17,12 +65,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 客户端挂载改为只走 DSH **官方右侧栏**：标签页与引导列表经 `sidebarRightTabs.register` 加两个 `sidebar.right.pane.tab` 槽位注册，打开走 `sidebarRight.openTab`。此前与之并存的 `dsh-better-sidebar` 回退通道移除。
 - 宿主依赖下限抬到 `>=0.2.0-rc.2 <0.3.0-0`：`peerDependencies` 的七个 `@deepseek-ai/dsh-*` 包与新增的 `engines.dsh` 一条同口径。此前声明的下限是 0.1.5-rc.2。
 - 内置图标名改用宿主当前导出的拼写（`*Regular` 字重后缀），去掉两代拼写的对照表：下限抬高后只需服务一条线；某个名字取不到时仍降级成纯文字。
+- 面板空白页的品牌标改用 `FishMark`——与包根 `icon.svg` 同一份 36 画板几何内联渲染，删掉此前的 16 画板 `FishGlyph`。同一支鱼在全仓库只剩一份几何，改 `icon.svg` 只需回来改一处。
+- 移除仓库内的上游静态站点副本 `legacy-site/`（27 个文件），安装说明收口到 npm 包：本仓库此后只保留插件本体，`dsh plugin add dsh-fishpai` 是唯一安装入口。
 
 ### Changed
 
 - The client now mounts only through the DSH **official right sidebar**: the tab and the guide entry are registered via `sidebarRightTabs.register` plus the two `sidebar.right.pane.tab` slots, and opening goes through `sidebarRight.openTab`. The parallel `dsh-better-sidebar` fallback channel that previously accompanied it is removed.
 - Raised the host floor to `>=0.2.0-rc.2 <0.3.0-0`, applied uniformly to the seven `@deepseek-ai/dsh-*` packages in `peerDependencies` and to a new `engines.dsh` entry. The previous floor was 0.1.5-rc.2.
 - Built-in icon names now use the host's current export spelling (the `*Regular` weight suffix), dropping the two-generation alias table; with the floor raised there is only one line to serve. A name that cannot be resolved still degrades to plain text.
+- The panel blank page's brand mark now uses `FishMark` — the same 36-canvas geometry as the package-root `icon.svg`, inlined — and the earlier 16-canvas `FishGlyph` is gone. One fish, one drawing in the whole repository: changing `icon.svg` means coming back to a single place.
+- Removed the in-repo copy of the upstream static site (`legacy-site/`, 27 files) and settled the install instructions on the npm package: this repository now carries the plugin only, with `dsh plugin add dsh-fishpai` as the single entry point.
 
 ## [1.0.4] - 2026-10-04
 

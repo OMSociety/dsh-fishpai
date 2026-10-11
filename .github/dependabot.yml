@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # 只盯开发工具链：运行时依赖为零（渲染内核是纯 ESM，客户端只 require 宿主基线种子模块），
+  # 所以没有生产依赖需要更。
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      dev-tooling:
+        patterns: ['*']
+
+  # Actions 跟着上游走：checkout / setup-node 的 major 升级常常带 Node 版本要求变化。
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3

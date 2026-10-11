@@ -1,0 +1,34 @@
+name: Feature request
+description: 想要的新能力或改进
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提之前请先确认它不是 [AGENTS.md](https://github.com/OMSociety/dsh-fishpai/blob/main/AGENTS.md)
+        里明确不做的事——那 15 条不变量写清了哪些是**有意的**取舍（上游 8 个坑不许"修好"、
+        自定义主题只能是数据不能是代码、预览与发布是两条渲染路径等）。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题
+      description: 描述场景与痛点，不必先想实现方案。
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你设想的做法
+      description: 可选。如果这属于渲染或主题，请说明它落在预览侧还是发布侧。
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 你试过的替代办法
+      description: 可选。现在是怎么绕过去的。
+    validations:
+      required: false
