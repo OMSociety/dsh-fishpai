@@ -1,7 +1,6 @@
 # AGENTS.md — 鱼排 FishPai Agent 宪法
 
 适用范围：本仓库全部目录（`OMSociety/dsh-fishpai`）。
-最后更新：2026-10-16
 
 ## 项目概览
 
@@ -90,7 +89,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 5. **样式只用 `--dsw-alias-*` 主题变量**（阴影例外：`--dsw-shadow-lv1` / `lv2` / `lv3`）；旧名（`--dsw-text-secondary` 一类）在当前 DSH 里不存在，写了就是深色主题下的白块。
 6. **文件只能落在会话工作目录内**（`header.cwd`），并过 `store.mjs` 的扩展名白名单（`resolveInCwd`）。新建文件一共两处：`POST /upload`（图片，落文档同级 `assets/`）与 `POST /doc`（文档）；文件名都由宿主生成，客户端给的名字只当可读词、不参与路径拼接；图片上限 `MAX_ASSET_BYTES` 与内嵌上限共用一处定义。
 7. **绝不静默覆盖人的手改**：任何写入带 `base_revision`，不匹配就拒绝并回带最新 diff（409 是界面上的冲突态，不是重试信号）。`applyPatches` 必须在拼接处自己保证恰好一个空行：块的行范围**列表含末尾分隔空行、段落不含**，漏补会让下一块被 markdown 的懒延续并进来，之后改那个被并大的块会把它整段删掉（实测事故，`test/host.test.mjs` 有守卫）。
-8. **`package.json` 的 `dsh.client` 是「包依赖边 + 激活提示」，不是服务依赖**。本包客户端只 require shell 基线种子模块（不是依赖图里的行），所以 `inject` / `external` / `immediately` 三个字段全留空；把 `slots` / `sessions` 这类服务名写进 `dsh.client.inject` 是无效声明（服务依赖由 bundle 导出的 `inject` 决定）。`test/client.bundle.test.mjs` 有种子表守卫。
+8. **`package.json` 的 `dsh.client` 是「包依赖边 + 激活提示」，不是服务依赖**。本包客户端只 require shell 基线种子模块（不是依赖图里的行），所以不靠 `inject` 拿服务；`inject` 只写**槽位属主包**——`client/index.tsx` 注册的 `sidebar.right.pane.tab` / `.title` 由 `@deepseek-ai/dsh-client-ui-sidebar-right` 声明，属主的 bundle 必须先到位，所以它列在这里；`external` / `immediately` 留空。把 `slots` / `sessions` 这类服务名写进 `dsh.client.inject` 是无效声明（服务依赖由 bundle 导出的 `inject` 决定）。`test/client.bundle.test.mjs` 守着种子表与这条属主边。
 9. **面板块 id 一律来自 `splitBlocks`**（`plugin/host/routes.mjs` 的 `liveSurface`）：批注锚点与 `fishpai_write` 的 `block_id` 用的就是它。渲染器 HTML 里的 `<fp-block data-b>` 锚点随 `macCodeBlock` 等渲染选项变化，**不能**当成面板的块清单。
 10. **图标全部内联在本包里**：14 支主题/控件图标几何在 `client/theme-icons.tsx`（复制自宿主 rc2 图标包，MIT，见 NOTICE.md）；品牌鱼只有一份几何——`icon.svg`（36 画板、自带渐变）与 `FishMark` 必须同步。除品牌标外颜色只走 `currentColor` 与 `--dsw-alias-*`。
 11. **编辑器的快捷键与格式化动作只有一份实现**（`client/mdedit.ts`，纯函数）：`SHORTCUTS` 一张表同时喂键盘匹配、界面速查表与测试。编辑动作必须走 `document.execCommand('insertText')`——直接改 `value` 会让 `Ctrl+Z` 的原生撤销栈作废。
