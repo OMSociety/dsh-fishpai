@@ -235,6 +235,10 @@ test('客户端 bundle 导出 name / inject / apply', () => {
  * factory 到位"（DSH 的 `WebBootEntry` 原话：names package rows whose factories must arrive
  * before this row materializes）。**服务依赖由 bundle 导出的 `inject` 决定**。
  *
+ * 它**不要求**本包 require 那几行：槽位属主只是"先到"的包，本包通过 `ctx.slots` 注册、
+ * 不 import 它（rc2 本来就禁止客户端 bundle 加载 Harness Client 包）。所以这里核的是
+ * 「是本包声明的依赖包」，不是「bundle 里 require 过」。
+ *
  * 写 `slots` / `sessions` 这类服务名是无效声明——运行时对不上任何包行，会被静默忽略。
  * 这条守卫让"看起来对齐了源码、其实写错了字段"的改动当场变红。
  */
@@ -243,15 +247,28 @@ test('dsh.client 声明只写包依赖边，不写服务名', () => {
   const decl = (pkg.dsh && pkg.dsh.client) || {}
   assert.equal(decl.platform, 'web')
 
-  const source = fs.readFileSync(BUNDLE, 'utf8')
-  const required = new Set([...source.matchAll(/require\("([^"]+)"\)/g)].map((m) => m[1]))
+  const peers = new Set(Object.keys(pkg.peerDependencies || {}))
   for (const dep of decl.inject || []) {
-    const bare = dep.endsWith('/client') ? dep.slice(0, -7) : dep
     assert.ok(
-      required.has(dep) || required.has(bare),
-      `dsh.client.inject 里的 "${dep}" 不是 bundle 依赖的包——要声明服务依赖请写进 client/index.tsx 的 inject`,
+      peers.has(dep),
+      `dsh.client.inject 里的 "${dep}" 不是本包声明的依赖包——写服务名（slots / sessions）或写错包名都会被静默忽略`,
     )
   }
+
+  // 注册进哪个 slot，就 inject 那个 slot 的属主包：属主的 bundle 没到位时 `slots.inject`
+  // 会白等，丢的是包到包的到达顺序边（属主包名用 `check-mounts.mjs --explain <key>` 查）。
+  const entry = fs.readFileSync(path.join(ROOT, 'client', 'index.tsx'), 'utf8')
+  const owners = { 'sidebar.right.pane.tab': '@deepseek-ai/dsh-client-ui-sidebar-right' }
+  for (const [slot, owner] of Object.entries(owners)) {
+    if (!entry.includes(`'${slot}'`)) continue
+    assert.ok(
+      (decl.inject || []).includes(owner),
+      `注册了 "${slot}" 却没把属主包 "${owner}" 写进 dsh.client.inject`,
+    )
+  }
+
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  const required = new Set([...source.matchAll(/require\("([^"]+)"\)/g)].map((m) => m[1]))
   for (const dep of decl.external || []) {
     assert.ok(required.has(dep), `dsh.client.external 里的 "${dep}" 没被 bundle require`)
   }
