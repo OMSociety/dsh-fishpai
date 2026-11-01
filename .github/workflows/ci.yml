@@ -5,9 +5,16 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
 
@@ -26,3 +33,6 @@ jobs:
 
       - name: Client bundle is in sync with its sources
         run: npm run check:build
+
+      - name: 发布物清单
+        run: npm run check:pack
