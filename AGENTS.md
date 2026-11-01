@@ -5,7 +5,7 @@
 ## 项目概览
 
 - 一句话定位：DSH 插件——把 Markdown 排成可直接粘进微信公众号编辑器的内联样式 HTML；宿主侧（Node ESM）与客户端侧（浏览器 TSX）在同一个包里，面板长在 DSH 右侧栏，人与模型协同改稿。
-- 技术栈：Node ≥20（CI 用 22）/ React 18 + TSX（esbuild 打包）/ npm（零运行时依赖，只有 devDependencies）/ 宿主区间 `>=0.2.0-rc.2 <0.3.0-0`。
+- 技术栈：Node ≥20（CI 用 22）/ React 18 + TSX（esbuild 打包）/ npm（零运行时依赖，只有 devDependencies）/ 宿主区间 `>=0.2.0-rc.2 <0.2.1-0 || >=0.2.1-rc.1 <0.3.0-0`。
 - 上游：fork 自 `ye4wzp/mopai-markdown`（MIT），fork 点 `c91487a`（2026-08-19），此后独立演进；`plugin/vendor/themes.js` 源自上游 `js/themes.js`，署名与比对锚点见 [NOTICE.md](./NOTICE.md)。
 - 文档索引：
   - 功能与安装：[README.md](./README.md)

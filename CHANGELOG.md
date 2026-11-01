@@ -10,6 +10,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 修复
+
+- **右侧栏页签没声明槽位属主包。** `client/index.tsx` 注册 `sidebar.right.pane.tab` 与 `.title`，但 `package.json` 的 `dsh.client` 段没有 `inject`，属主包 `@deepseek-ai/dsh-client-ui-sidebar-right` 的装载顺序不受约束——缺的是包到包的到达顺序边。现补声明。
+
+### Fixed
+
+- **The sidebar tab did not declare its slot owner.** `client/index.tsx` registers `sidebar.right.pane.tab` and `.title`, but the `dsh.client` block in `package.json` declared no `inject`, leaving the load order of the owning package `@deepseek-ai/dsh-client-ui-sidebar-right` unconstrained. Now declared.
+
 ## [1.2.0] - 2026-10-11
 
 ### 新增
