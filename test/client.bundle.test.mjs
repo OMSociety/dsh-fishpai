@@ -231,27 +231,26 @@ test('客户端 bundle 导出 name / inject / apply', () => {
 })
 
 /**
- * `dsh.client.inject` 是「包依赖边」：声明"这一行的 factory 到位前，先等着这些**包**的
- * factory 到位"（DSH 的 `WebBootEntry` 原话：names package rows whose factories must arrive
- * before this row materializes）。**服务依赖由 bundle 导出的 `inject` 决定**。
+ * `dsh.client.inject` 写的是**包名**：DSH 把它当作客户端模块的加载/预取元数据
+ * （`client-modules` 里 `optionalStringArray(pkgName, 'dsh.client.inject', …)`）。
+ * **服务依赖由 bundle 导出的 `inject` 决定**，两套名字不能互换。
  *
  * 它**不要求**本包 require 那几行：槽位属主只是"先到"的包，本包通过 `ctx.slots` 注册、
- * 不 import 它（rc2 本来就禁止客户端 bundle 加载 Harness Client 包）。所以这里核的是
- * 「是本包声明的依赖包」，不是「bundle 里 require 过」。
+ * 不 import 它（rc2 本来就禁止客户端 bundle 加载 Harness Client 包）。
  *
- * 写 `slots` / `sessions` 这类服务名是无效声明——运行时对不上任何包行，会被静默忽略。
+ * 写 `slots` / `sessions` 这类服务名是无效声明——对不上任何包行，宿主静默忽略。
  * 这条守卫让"看起来对齐了源码、其实写错了字段"的改动当场变红。
  */
-test('dsh.client 声明只写包依赖边，不写服务名', () => {
+test('dsh.client 声明写包名，不写服务名', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
   const decl = (pkg.dsh && pkg.dsh.client) || {}
   assert.equal(decl.platform, 'web')
 
-  const peers = new Set(Object.keys(pkg.peerDependencies || {}))
   for (const dep of decl.inject || []) {
-    assert.ok(
-      peers.has(dep),
-      `dsh.client.inject 里的 "${dep}" 不是本包声明的依赖包——写服务名（slots / sessions）或写错包名都会被静默忽略`,
+    assert.match(
+      dep,
+      /^@[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/,
+      `dsh.client.inject 里的 "${dep}" 不是包名——写服务名（slots / sessions）或写错包名都会被静默忽略`,
     )
   }
 

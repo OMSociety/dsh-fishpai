@@ -22,7 +22,7 @@ body:
     id: dsh-version
     attributes:
       label: DSH 版本
-      description: 在终端里跑 `dsh --version`；本插件只支持 `>=0.2.0-rc.2 <0.3.0-0`
+      description: 在终端里跑 `dsh --version`
       placeholder: 0.2.0-rc.2
     validations:
       required: true
