@@ -1,64 +1,39 @@
 /**
- * 重新生成 `test/golden/**`（渲染回归的字节级标准答案）。
+ * 用当前渲染核心生成或核对 test/golden/** 自产 snapshot。
  *
- * 默认用 **冻结的迁移前 oracle**（`test/oracle/render.cjs`）——那是鱼排 ESM 化之前、
- * 且已与墨排线上站点逐条对照过的实现。只有当"上游/站点行为确实变了"时才改用
- * `--from-core`（用 `plugin/core/render.mjs` 自己给自己出题，等于放弃对照，必须能说清理由）。
- *
- * 用法：
- *   node scripts/regen-golden.mjs              # oracle → golden
- *   node scripts/regen-golden.mjs --from-core  # core   → golden
- *   node scripts/regen-golden.mjs --check      # 只报告差异，不写文件（退出码 1 表示有差异）
+ *   node scripts/regen-golden.mjs          # 重建
+ *   node scripts/regen-golden.mjs --check  # 只报告漂移，不写文件
  */
-import { createRequire } from 'node:module'
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { render } from '../plugin/core/render.mjs'
+import { themes as themeTable } from '../plugin/core/runtime.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const FIXTURES = path.join(ROOT, 'test', 'fixtures')
 const GOLDEN = path.join(ROOT, 'test', 'golden')
 const MANIFEST = path.join(GOLDEN, 'manifest.json')
+const checkOnly = process.argv.slice(2).includes('--check')
+const unknown = process.argv.slice(2).filter((arg) => arg !== '--check')
+if (unknown.length) throw new Error(`未知参数：${unknown.join(' ')}`)
 
-const require = createRequire(import.meta.url)
-const oracle = require('../test/oracle/render.cjs')
-const core = await import('../plugin/core/render.mjs')
-
-const fromCore = process.argv.includes('--from-core')
-const checkOnly = process.argv.includes('--check')
-const render = fromCore ? core.render : oracle.render
-
-/** 预览形态只对每个 fixture 出一份（主题 default），发布形态覆盖全部主题。 */
 const PREVIEW_THEMES = ['default']
-
-/** 与渲染器保持一致的发布参数（站点「复制到公众号」那条路径）。 */
-const PUBLISH_OPTS = {
-  publish: true,
-  footnotes: true,
-  macCodeBlock: true,
-  fontSize: '16px',
-}
+const PUBLISH_OPTS = { publish: true, footnotes: true, macCodeBlock: true, fontSize: '16px' }
 
 function fixtureNames() {
-  return readdirSync(FIXTURES)
-    .filter((f) => f.endsWith('.md'))
-    .sort()
+  return readdirSync(FIXTURES).filter((name) => name.endsWith('.md')).sort()
 }
-
 function themeKeys() {
-  return Object.keys(oracle.THEMES)
+  return Object.keys(themeTable())
 }
-
-/** 读 fixture 并归一换行：磁盘上可能是 CRLF，渲染结果必须与 LF 时完全相同。 */
 function readFixture(name) {
   return readFileSync(path.join(FIXTURES, name), 'utf8').replace(/\r\n/g, '\n')
 }
-
 function entries() {
-  const themes = themeKeys()
   const out = []
   for (const fixture of fixtureNames()) {
-    for (const theme of themes) {
+    for (const theme of themeKeys()) {
       out.push({ file: `${fixture}.${theme}.publish.html`, fixture, theme, mode: 'publish', opts: PUBLISH_OPTS })
     }
     for (const theme of PREVIEW_THEMES) {
@@ -69,38 +44,37 @@ function entries() {
 }
 
 const manifest = {
-  $comment:
-    '渲染回归标准答案。由 scripts/regen-golden.mjs 生成；source 记录生成时用的是冻结 oracle 还是 core。',
-  source: fromCore ? 'plugin/core/render.mjs' : 'test/oracle/render.cjs',
+  $comment: '渲染核心自产 snapshot。由 scripts/regen-golden.mjs 生成；source 固定为当前核心入口。',
+  source: 'plugin/core/render.mjs',
   themes: themeKeys(),
   fixtures: fixtureNames(),
   publishOpts: PUBLISH_OPTS,
-  entries: entries().map(({ file, fixture, theme, mode, opts }) => ({ file, fixture, theme, mode, opts })),
+  entries: entries(),
 }
 
 mkdirSync(GOLDEN, { recursive: true })
-
 let changed = 0
 for (const entry of manifest.entries) {
-  const markdown = readFixture(entry.fixture)
-  const { html } = render(markdown, { theme: entry.theme, ...entry.opts })
+  const { html } = render(readFixture(entry.fixture), { theme: entry.theme, ...entry.opts })
   const target = path.join(GOLDEN, entry.file)
   const existing = existsSync(target) ? readFileSync(target, 'utf8') : null
   if (existing === html) continue
-  changed++
+  changed += 1
   if (checkOnly) {
     console.error(`  ✗ ${entry.file}${existing === null ? '（缺失）' : ''}`)
-    continue
+  } else {
+    writeFileSync(target, html, 'utf8')
   }
-  writeFileSync(target, html, 'utf8')
 }
+const manifestText = `${JSON.stringify(manifest, null, 2)}\n`
+const manifestChanged = !existsSync(MANIFEST) || readFileSync(MANIFEST, 'utf8') !== manifestText
 
 if (!checkOnly) {
-  writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2) + '\n', 'utf8')
-  console.log(`golden: ${manifest.entries.length} 份，更新 ${changed} 份（source=${manifest.source}）`)
-} else if (changed) {
-  console.error(`golden 与 ${manifest.source} 有 ${changed} 处差异`)
+  writeFileSync(MANIFEST, manifestText, 'utf8')
+  console.log(`snapshot: ${manifest.entries.length} 份，更新 ${changed} 份（source=${manifest.source}）`)
+} else if (changed || manifestChanged) {
+  console.error(`snapshot 有 ${changed} 处渲染差异${manifestChanged ? '，manifest 也需更新' : ''}`)
   process.exit(1)
 } else {
-  console.log('golden 与 oracle 完全一致')
+  console.log('snapshot 与当前核心一致')
 }

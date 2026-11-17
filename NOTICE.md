@@ -125,13 +125,24 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-## 3. 刻意**未**引入的东西
+## 3. 设计参考与致谢
+
+鱼排 2.0 的部分能力参考了下列开源项目的设计思路。均为「消化设计、自行实现」，未逐字搬运其代码；
+按其许可与出处在此致谢。
+
+| 项目 | 许可 | 参考的内容 |
+|---|---|---|
+| [gzh-content-skill](https://github.com/songlitong521-oss/gzh-content-skill) | MIT | 公众号内容工作流的整体划分：写作风格九字段描述、风格暂存与确认入库流程、秀米与微信后台自动化链路（选择器与登录标记实测）、页头页尾片段的两阶段确认。 |
+| [wechat-article-skills](https://github.com/aiworkskills/wechat-article-skills) | Apache-2.0 | 「骨架 × 配色」两层主题模型、组件三层覆写链与 `when_to_use`/`anti_pattern` 说明、单主色派生全色板的对比度门禁思路、AI 味指纹库的类目。 |
+| [wechat-skill](https://github.com/843645440/wechat-skill) | AGPL-3.0 | 仅借鉴设计原则（全内联约束、确定性校验兜底、文本节点包裹、WCAG 对比度门禁、五维质量自评的权重划分），未复制其代码、色值、HTML 结构或文案。 |
+
+## 4. 刻意**未**引入的东西
 
 | 项目 | 原因 |
 |---|---|
 | `wechatsync/Wechatsync` 及其派生的 `article-syncjs` | 上游为 GPL-3.0，派生物**没有**许可证文件（默认保留全部权利）。鱼排不做多平台分发。 |
 | `DOMPurify` | 许可为 `(MPL-2.0 OR Apache-2.0)`，MPL 是文件级 copyleft。鱼排的渲染在宿主侧完成，预览走沙箱 iframe，不需要它。 |
 
-## 4. 本仓库新增部分的许可
+## 5. 本仓库新增部分的许可
 
 新增代码同样以 MIT 发布，版权归 [@OMSociety](https://github.com/OMSociety)。完整条款见 `LICENSE`。

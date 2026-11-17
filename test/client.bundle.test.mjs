@@ -333,6 +333,29 @@ test('面板文案：改名与新增说明必须真的进产物（防"改了源�
   assert.ok(source.includes('没有外链') || source.includes('没有代码块'), '无效开关的说明文案')
 })
 
+test('专业默认与组件抽屉：渲染目标贯通，八种容器模板都进产物', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  for (const copy of ['专业', '快速', '⊕ 组件', '组件是专业（秀米）管线专属，已为你切到专业模式']) {
+    assert.ok(source.includes(copy), `模式切换或组件提示文案缺失：${copy}`)
+  }
+  for (const name of ['expand', 'swap', 'swiper', 'spotlight', 'danmaku', 'progress', 'timeline', 'compare']) {
+    assert.ok(source.includes(`:::${name}`), `组件模板缺失：${name}`)
+  }
+  assert.ok(source.includes('target: "xiumi"'), '默认渲染目标应为专业（秀米）')
+  assert.ok(source.includes('target: state.meta.target'), '发布渲染要读文档的渲染目标')
+  assert.ok(source.includes('state.meta.target,'), '预览 renderPreview 要显式收到渲染目标')
+})
+
+test('发布登录态：按当前平台查询与清除，且只宣称后端能确认的两种状态', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  for (const copy of ['正在检查登录态', '已登录', '未登录', '保存于', '清除登录态', '清除后重新发布']) {
+    assert.ok(source.includes(copy), `登录态管理文案缺失：${copy}`)
+  }
+  assert.ok(source.includes('authStatus') && source.includes('clearAuth'), 'store 要接查询与清除两个 API')
+  assert.ok(source.includes('/auth'), '登录态请求要走 /auth')
+  assert.ok(!source.includes('已过期'), '后端不探测 Cookie 有效期，面板不能凭空宣称已过期')
+})
+
 test('复制回退路径必须走清洗（源码与产物各查一遍，防"改了源码没重建产物"）', () => {
   // 回退分支把 HTML 插进挂主文档的容器：那里 `innerHTML = html` 会让正文里的
   // `<img onerror>` / `<script>` 当场生效（同源，能调 /fishpai/api/*）。

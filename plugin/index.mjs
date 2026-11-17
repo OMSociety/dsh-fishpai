@@ -2,7 +2,7 @@
  * 鱼排 FishPai —— 宿主入口。
  *
  * 三件事，都挂在 ctx.effect 上（HMR / 卸载时逐条收回）：
- *   1. 注册模型工具：fishpai_open / fishpai_read / fishpai_write / fishpai_render / fishpai_theme
+ *   1. 注册模型工具：文档协作、渲染、用户资产、lint 与草稿发布
  *   2. 注册 `/fishpai/api/*` 路由：右侧栏面板读写文档的唯一通道
  *   3. 注册 `fishpai` 技能：告诉模型什么时候用、按什么纪律改稿
  *
@@ -15,6 +15,10 @@ import { fileURLToPath } from 'node:url'
 import { registerTools } from './host/tools.mjs'
 import { createApiHandler, API_PREFIX } from './host/routes.mjs'
 import { canonicalCwd, ensureFishpaiLayout } from './host/store.mjs'
+import { openUserStores } from './host/store-domain.mjs'
+import { LearnService } from './host/learn.mjs'
+import { SnippetService } from './host/snippets.mjs'
+import { PublishJobs } from './host/publish/jobs.mjs'
 
 export const name = 'dsh-fishpai'
 
@@ -82,6 +86,18 @@ export function apply(ctx) {
     }
   }
   const resolveCwd = makeResolveCwd(ctx)
+  let storesPromise = null
+  const getStores = () => {
+    if (!storesPromise) storesPromise = openUserStores(ctx)
+    return storesPromise
+  }
+  ctx.effect(
+    () => async () => {
+      const stores = storesPromise ? await storesPromise : null
+      if (stores) await stores.close()
+    },
+    'fishpai: 用户级资产库',
+  )
 
   // 工作目录里的 .fishpai 布局在第一次真正用到时创建；这里只做一次尽力而为的预处理
   ctx.effect(() => {
@@ -97,8 +113,13 @@ export function apply(ctx) {
     return () => {}
   }, 'fishpai: 初始化 .fishpai 布局')
 
+  const learn = new LearnService(getStores)
+  const snippets = new SnippetService(getStores)
+  const publish = new PublishJobs({ getStores })
+  ctx.effect(() => () => publish.close(), 'fishpai: 发布任务队列')
+
   // ── 1. 模型工具 ────────────────────────────────────────────
-  ctx.effect(() => registerTools(ctx, { resolveCwd, log }), 'fishpai: 注册模型工具')
+  ctx.effect(() => registerTools(ctx, { resolveCwd, log, getStores, learn, snippets, publish }), 'fishpai: 注册模型工具')
 
   // ── 2. HTTP 路由 ───────────────────────────────────────────
   ctx.effect(() => {
@@ -110,7 +131,7 @@ export function apply(ctx) {
     }
     // 注册失败**不再吞掉**：面板打不开却一切"正常"，是最难查的一类故障。
     // 让异常冒到 cordis 的 effect 上，插件挂载当场失败——界面与日志都看得见。
-    const handler = createApiHandler({ resolveCwd, log })
+    const handler = createApiHandler({ resolveCwd, log, getStores, learn, snippets, publish })
     return webServer.register({ kind: 'prefix', path: API_PREFIX, handler })
   }, 'fishpai: /fishpai/api 路由')
 

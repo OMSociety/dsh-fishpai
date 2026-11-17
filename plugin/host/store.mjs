@@ -236,6 +236,7 @@ function defaultState(absPath) {
     footnotes: true,
     macCodeBlock: true,
     mobile: false,
+    target: 'xiumi',
     baseline: null,
     notes: [],
     history: [],
@@ -250,6 +251,7 @@ export function readState(cwd, key) {
   st.notes = Array.isArray(st.notes) ? st.notes : []
   st.history = Array.isArray(st.history) ? st.history : []
   st.openRequests = st.openRequests && typeof st.openRequests === 'object' ? st.openRequests : {}
+  if (st.target !== 'wechat' && st.target !== 'xiumi') st.target = 'xiumi'
   return st
 }
 
@@ -558,7 +560,7 @@ export function rebase({ cwd, docPath, by = 'human' }) {
  * （`color` 替换主题里的 `{{PRIMARY}}` 占位符，`fontSize` 拼进 `font-size: …;`），
  * 两者都在这里过一道形态校验；其余字段只当开关/枚举用，不参与拼串。
  */
-const META_FIELDS = ['theme', 'color', 'font', 'fontSize', 'footnotes', 'macCodeBlock', 'mobile']
+const META_FIELDS = ['theme', 'color', 'font', 'fontSize', 'footnotes', 'macCodeBlock', 'mobile', 'target']
 
 /**
  * 主题色只认 `#` + 3~8 位十六进制。
@@ -579,6 +581,7 @@ function applyMeta(target, meta) {
     if (field === 'color' && meta[field] !== null && !isThemeColor(meta[field])) continue
     // 字号与主题色同一条规矩：它是原样拼进 style 的第二个字段，形态不对就当没写
     if (field === 'fontSize' && !isFontSize(meta[field])) continue
+    if (field === 'target' && meta[field] !== 'wechat' && meta[field] !== 'xiumi') continue
     target[field] = meta[field]
   }
   return target

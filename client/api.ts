@@ -5,6 +5,8 @@
  * 并且把 409 冲突当成**正常返回值**而不是异常——冲突是要给用户看的界面状态。
  */
 
+export type RenderTarget = 'wechat' | 'xiumi'
+
 export interface DocMeta {
   theme: string
   color: string | null
@@ -13,6 +15,7 @@ export interface DocMeta {
   footnotes: boolean
   macCodeBlock: boolean
   mobile: boolean
+  target: RenderTarget
 }
 
 export interface Block {
@@ -102,6 +105,8 @@ export interface ThemeInfo {
   name: string
   emoji: string
   desc: string
+  /** 内置主题与用户级命名主题共用一份目录。 */
+  scope: 'builtin' | 'user'
   /** 该主题是否使用主题色（只有用到的主题才显示取色控件）。 */
   usesAccent: boolean
   /** 用渐变文字（background-clip: text + 透明字色）：微信编辑器可能重写掉。 */
@@ -110,6 +115,65 @@ export interface ThemeInfo {
   darkWrapper: boolean
   /** 综合判断：是否适合直接粘进公众号（= !gradientText && !darkWrapper）。 */
   wechatSafe: boolean
+}
+
+export type PublishTarget = 'wechat' | 'xiumi'
+export type PublishJobStatus = 'queued' | 'running' | 'need-login' | 'done' | 'failed'
+
+export interface AuthStatus {
+  ok: true
+  platform: PublishTarget
+  loggedIn: boolean
+  savedAt: number | null
+}
+
+export interface PublishJob {
+  id: string
+  platform: PublishTarget
+  status: PublishJobStatus
+  phase: string
+  progress: number
+  message: string
+  result: { url?: string; appmsgid?: string; [key: string]: unknown } | null
+  error: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+export interface LearnStyle {
+  styleId: string
+  tone: string | string[]
+  structure: string | string[]
+  audience: string | string[]
+  purpose: string | string[]
+  do: string | string[]
+  dont: string | string[]
+  sourceName: string
+  sourceRef: string
+  createdAt: number
+}
+
+export interface LearnPreview {
+  ok: true
+  pendingId: string
+  style: LearnStyle
+  warnings: string[]
+}
+
+export interface SnippetInfo {
+  id: string
+  name: string
+  headerHtml: string
+  footerHtml: string
+  footerImg: string
+  createdAt: number
+}
+
+export interface SnippetPreview {
+  ok: true
+  pendingId: string
+  snippet: SnippetInfo
+  warnings: string[]
 }
 
 export interface ThemesPayload {
@@ -175,11 +239,11 @@ export const api = {
       body: JSON.stringify({ sessionId, title }),
     }),
 
-  /** 面板主题列表里的 ×：删掉工作目录级的那一套「自定义主题」。 */
-  clearTheme: (sessionId: string) =>
+  /** 删除用户级主题库中指定 key 的命名主题。 */
+  clearTheme: (sessionId: string, themeKey: string) =>
     call<{ ok: true; removed: boolean; reverted: boolean }>('/theme', {
       method: 'POST',
-      body: JSON.stringify({ sessionId, action: 'clear' }),
+      body: JSON.stringify({ sessionId, action: 'clear', theme: themeKey }),
     }),
   activate: (sessionId: string, docKey: string) =>
     call<{ ok: true; docKey: string }>(`/active`, {
@@ -211,7 +275,7 @@ export const api = {
    * 代码块 token 只有 class、没有颜色——宿主把同一份色表（hljs-map.json）生成 CSS 带下来，
    * 客户端注入 srcdoc。发布产物不吃它（走内联），所以 golden 不受影响。
    */
-  renderPreview: (sessionId: string, docKey: string, markdown: string, meta: Partial<DocMeta>) =>
+  renderPreview: (sessionId: string, docKey: string, markdown: string, meta: Partial<DocMeta>, target: RenderTarget) =>
     call<{
       ok: true
       html: string
@@ -225,14 +289,50 @@ export const api = {
       images: ImageInfo[]
     }>(`/render`, {
       method: 'POST',
-      body: JSON.stringify({ sessionId, docKey, markdown, meta, mode: 'preview' }),
+      body: JSON.stringify({ sessionId, docKey, markdown, meta, target, mode: 'preview' }),
     }),
 
-  renderPublish: (sessionId: string, docKey: string, markdown: string, meta: Partial<DocMeta>) =>
-    call<{ ok: true; html: string; themeName: string }>(`/render`, {
+  renderPublish: (
+    sessionId: string,
+    docKey: string,
+    markdown: string,
+    meta: Partial<DocMeta>,
+    options: { target?: RenderTarget; snippetId?: string } = {},
+  ) =>
+    call<{ ok: true; html: string; themeName: string; target?: RenderTarget }>(`/render`, {
       method: 'POST',
-      body: JSON.stringify({ sessionId, docKey, markdown, meta, mode: 'publish' }),
+      body: JSON.stringify({ sessionId, docKey, markdown, meta, mode: 'publish', ...options }),
     }),
+
+  publish: (
+    sessionId: string,
+    payload: { platform: PublishTarget; title: string; author?: string; html: string },
+  ) =>
+    call<{ ok: true; jobId: string; status: PublishJobStatus }>(`/publish`, {
+      method: 'POST',
+      body: JSON.stringify({ sessionId, ...payload }),
+    }),
+
+  publishStatus: (sessionId: string, jobId: string) =>
+    call<{ ok: true; job: PublishJob }>(`/publish/status?${q({ sessionId, jobId })}`),
+
+  authStatus: (sessionId: string, platform: PublishTarget) =>
+    call<AuthStatus>(`/auth`, { method: 'POST', body: JSON.stringify({ sessionId, action: 'status', platform }) }),
+
+  clearAuth: (sessionId: string, platform: PublishTarget) =>
+    call<AuthStatus>(`/auth`, { method: 'POST', body: JSON.stringify({ sessionId, action: 'clear', platform }) }),
+
+  learn: (sessionId: string, payload: Record<string, unknown>) =>
+    call<LearnPreview | { ok: true; styles: LearnStyle[] } | { ok: true; style: LearnStyle } | { ok: true; removed: boolean }>(
+      `/learn`,
+      { method: 'POST', body: JSON.stringify({ sessionId, ...payload }) },
+    ),
+
+  snippets: (sessionId: string, payload: Record<string, unknown>) =>
+    call<SnippetPreview | { ok: true; snippets: SnippetInfo[] } | { ok: true; snippet: SnippetInfo } | { ok: true; removed: boolean }>(
+      `/snippets`,
+      { method: 'POST', body: JSON.stringify({ sessionId, ...payload }) },
+    ),
 
   notes: (sessionId: string, docKey: string, payload: Record<string, unknown>) =>
     call<{ ok: true; notes: Note[] }>(`/notes`, {

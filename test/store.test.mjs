@@ -42,6 +42,8 @@ export const api = {
   clearTheme: need('clearTheme'),
   renderPreview: need('renderPreview'),
   renderPublish: need('renderPublish'),
+  authStatus: need('authStatus'),
+  clearAuth: need('clearAuth'),
   upload: need('upload'),
   notes: need('notes'),
   history: need('history'),
@@ -78,7 +80,7 @@ const stub = (methods) => {
 
 const docPayload = (key, markdown, revision) => ({
   doc: { key, path: `${key}.md`, title: '测试文档', markdown, revision, updatedAt: 1, updatedBy: 'human', baseline: null },
-  meta: { theme: 'default', color: null, font: 'sans', fontSize: '16px', footnotes: true, macCodeBlock: true, mobile: false },
+  meta: { theme: 'default', color: null, font: 'sans', fontSize: '16px', footnotes: true, macCodeBlock: true, mobile: false, target: 'xiumi' },
   blocks: [],
   notes: [],
   placeholders: [],
@@ -339,6 +341,42 @@ test('重开面板时当前文档读不出来：状态要落到 error，不能�
   assert.equal(st.status, 'error', '失败必须落到 error 态，否则面板永远转圈')
   assert.match(String(st.error), /正文文件读不出来/, '要让用户看见失败原因')
   assert.equal(st.markdown, '服务端的正文', '屏幕上的正文不该被清空')
+  store.dispose()
+})
+
+test('发布登录态：按平台查询，清除后使用后端返回的未登录状态', async () => {
+  const store = createFishpaiStore('s-auth')
+  const calls = []
+  stub({
+    authStatus: async (sid, platform) => {
+      calls.push(['status', sid, platform])
+      return { ok: true, platform, loggedIn: true, savedAt: 1700000000000 }
+    },
+    clearAuth: async (sid, platform) => {
+      calls.push(['clear', sid, platform])
+      return { ok: true, platform, loggedIn: false, savedAt: null }
+    },
+  })
+
+  await store.actions.refreshAuthStatus('wechat')
+  assert.equal(store.getSnapshot().auth.wechat.status.loggedIn, true)
+  assert.equal(store.getSnapshot().auth.wechat.status.savedAt, 1700000000000)
+  assert.equal(store.getSnapshot().auth.wechat.loading, false)
+
+  await store.actions.refreshAuthStatus('xiumi')
+  assert.equal(store.getSnapshot().auth.xiumi.status.loggedIn, true)
+  assert.equal(store.getSnapshot().auth.wechat.status.loggedIn, true, '两个平台的记录要分开保存')
+
+  await store.actions.clearAuth('wechat')
+  assert.equal(store.getSnapshot().auth.wechat.status.loggedIn, false)
+  assert.equal(store.getSnapshot().auth.wechat.status.savedAt, null)
+  assert.equal(store.getSnapshot().auth.wechat.clearing, false)
+  assert.equal(store.getSnapshot().auth.xiumi.status.loggedIn, true, '清除微信不能误清秀米')
+  assert.deepEqual(calls, [
+    ['status', 's-auth', 'wechat'],
+    ['status', 's-auth', 'xiumi'],
+    ['clear', 's-auth', 'wechat'],
+  ])
   store.dispose()
 })
 

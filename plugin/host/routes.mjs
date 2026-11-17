@@ -23,10 +23,12 @@
  * 「正文文件不见了」必须是 404：回 200 + 空正文会让面板把"读不到"显示成"文档被清空"。
  */
 import { render as renderCore, themeCatalog, hljsPreviewCss, isFontSize } from '../core/render.mjs'
-import { clearCustomTheme, customCatalogEntry, themeFor, CUSTOM_THEME_KEY } from './custom-theme.mjs'
+import { clearCustomTheme, customCatalogEntries, normalizeCustomThemeId, themeFor } from './custom-theme.mjs'
 import { colorPresets } from '../core/runtime.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
 import { attachPlaceholdersToBlocks, extractPlaceholders, reanchorNotes } from '../core/notes.mjs'
+import { lintWechatHtml } from '../core/wechat-lint.mjs'
+import { renderXiumi, renderXiumiPublish } from '../core/xiumi/index.mjs'
 import * as store from './store.mjs'
 import { listLocalImages, makeImageResolver, readAsset } from './assets.mjs'
 
@@ -192,7 +194,7 @@ function liveSurface({ cwd, key, abs, markdown }) {
   }
 }
 
-function docPayload({ cwd, key }) {
+function docPayload({ cwd, key, domain }) {
   const abs = docPathByKey(cwd, key)
   const state = store.readState(cwd, key)
   if (!state) throw new Error(`文档状态缺失：${key}`)
@@ -209,15 +211,15 @@ function docPayload({ cwd, key }) {
       baseline: state.baseline ? { rev: state.baseline.rev, at: state.baseline.at, by: state.baseline.by } : null,
     },
     meta: {
-      // 状态里的主题可能已经被移除（上游主题删过两套）：退回默认，别让文档打不开。
-      // `custom` 走磁盘（工作目录那唯一一套），文件被删也会退回默认——面板因此不会显示一个选不中的项。
-      theme: themeFor({ cwd, name: state.theme }).key,
+      // 命名主题被移除后退回默认，面板不会显示一个选不中的项。
+      theme: themeFor({ domain, name: state.theme }).key,
       color: state.color,
       font: state.font,
       fontSize: state.fontSize,
       footnotes: state.footnotes !== false,
       macCodeBlock: state.macCodeBlock !== false,
       mobile: !!state.mobile,
+      target: state.target,
     },
     ...liveSurface({ cwd, key, abs, markdown }),
     history: publicHistory(state.history),
@@ -229,10 +231,10 @@ function docPayload({ cwd, key }) {
 /**
  * 建一个 `/fishpai/api` 前缀处理器。
  *
- * @param {{resolveCwd: (sessionId: string) => string, log?: (msg: string) => void}} deps
+ * @param {{resolveCwd: (sessionId: string) => string, log?: (msg: string) => void, getStores?: () => Promise<object|null>}} deps
  * @returns {(req: object, res: object) => Promise<void>}
  */
-export function createApiHandler({ resolveCwd, log = () => {} }) {
+export function createApiHandler({ resolveCwd, log = () => {}, getStores = async () => null, learn, snippets, publish }) {
   function sessionOf(source, url) {
     const sessionId = String(source.sessionId || url.searchParams.get('sessionId') || '')
     if (!sessionId) throw new Error('缺少 sessionId')
@@ -247,15 +249,17 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
     const route = `${req.method} ${url.pathname.slice(API_PREFIX.length)}`
 
     try {
+      if (route === 'GET /publish/status') {
+        sessionOf({}, url)
+        const job = publish.status(String(url.searchParams.get('jobId') || ''))
+        return json(res, 200, { ok: true, job })
+      }
+
       if (route === 'GET /themes') {
-        // 「自定义主题」是**工作目录级**的，所以要问会话要 cwd。
-        // 没带 sessionId 的调用方照旧只拿内置主题（面板一定会带）。
-        const sessionId = String(url.searchParams.get('sessionId') || '')
-        const cwd = sessionId ? resolveCwd(sessionId) : null
-        const custom = cwd ? customCatalogEntry(cwd) : null
+        const stores = await getStores()
         return json(res, 200, {
           ok: true,
-          themes: custom ? [...themeCatalog(), custom] : themeCatalog(),
+          themes: [...themeCatalog(), ...customCatalogEntries(stores?.themes)],
           presets: colorPresets(),
           fonts: ['sans', 'serif', 'mono'],
           sizes: ['14px', '15px', '16px', '17px', '18px'],
@@ -268,6 +272,7 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         const state = key ? store.readState(cwd, key) : null
         const pending = store.pendingOpenRequest(state, sessionId)
         const entry = key ? store.readIndex(cwd).docs[key] : null
+        const stores = await getStores()
         return json(res, 200, {
           ok: true,
           cwd,
@@ -279,7 +284,7 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
                 revision: state ? state.revision : entry.revision,
                 // 主题也一起报：模型用 fishpai_theme 换了主题时 revision **不会变**，
                 // 面板只看 revision 就发现不了。这里报**解析后**的 key（自定义主题被删就退回 default）。
-                theme: state ? themeFor({ cwd, name: state.theme }).key : 'default',
+                theme: state ? themeFor({ domain: stores?.themes, name: state.theme }).key : 'default',
               }
             : null,
           openRequest: pending ? { key, at: pending } : null,
@@ -289,7 +294,11 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
 
       if (route === 'GET /doc') {
         const { cwd } = sessionOf({}, url)
-        return json(res, 200, { ok: true, ...docPayload({ cwd, key: String(url.searchParams.get('docKey') || '') }) })
+        const stores = await getStores()
+        return json(res, 200, {
+          ok: true,
+          ...docPayload({ cwd, key: String(url.searchParams.get('docKey') || ''), domain: stores?.themes }),
+        })
       }
 
       if (route === 'GET /asset') {
@@ -361,22 +370,41 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
       }
 
       if (route === 'POST /theme') {
-        // 面板主题列表里那个 ×：删掉工作目录级的那一套「自定义主题」（只有一套）。
-        // 当前文档若正用着它，顺手退回「默认公众号」，不留"选不中的主题"。
+        // 当前文档若正用着被删的命名主题，顺手退回默认，不留选不中的状态。
         const { sessionId, cwd } = sessionOf(body, url)
         if (String(body.action || '') !== 'clear') return fail(res, 400, '未知 action（可用 clear）')
-        const removed = clearCustomTheme(cwd)
+        const id = normalizeCustomThemeId(body.theme)
+        const themeKey = `custom:${id}`
+        const stores = await getStores()
+        if (!stores?.themes) throw new Error('命名主题库不可用：当前宿主没有提供 storageDomain')
+        const removed = await clearCustomTheme(stores.themes, id)
         let reverted = false
         if (removed) {
           const key = store.activeKey(cwd, sessionId)
           const entry = key ? store.readIndex(cwd).docs[key] : null
           const docPath = entry ? store.resolveInCwd(cwd, entry.path) : null
-          if (docPath && store.readState(cwd, key)?.theme === CUSTOM_THEME_KEY) {
+          if (docPath && store.readState(cwd, key)?.theme === themeKey) {
             store.updateMeta({ cwd, docPath, meta: { theme: 'default' } })
             reverted = true
           }
         }
         return json(res, 200, { ok: true, removed, reverted })
+      }
+
+      if (route === 'POST /lint') {
+        if (typeof body.html !== 'string') return fail(res, 400, 'lint 需要 html 字符串')
+        return json(res, 200, { ok: true, lint: lintWechatHtml(body.html) })
+      }
+
+      if (route === 'POST /learn') {
+        if (!learn) return fail(res, 503, 'learn 服务未初始化')
+        const action = String(body.action || 'preview')
+        if (body.path) return fail(res, 400, '浏览器请发送定稿正文，不支持服务器路径')
+        if (action === 'preview') return json(res, 200, { ok: true, ...await learn.preview(body) })
+        if (action === 'commit') return json(res, 200, { ok: true, ...await learn.commit(body) })
+        if (action === 'list') return json(res, 200, { ok: true, styles: await learn.list() })
+        if (action === 'delete') return json(res, 200, { ok: true, ...await learn.delete(body) })
+        return fail(res, 400, '未知 action（可用 preview / commit / list / delete）')
       }
 
       if (route === 'POST /upload') {
@@ -429,15 +457,35 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
         return json(res, 200, { ok: true, notes: reanchorNotes(state.notes, splitBlocks(readText(abs))) })
       }
 
+      if (route === 'POST /snippets') {
+        sessionOf(body, url)
+        const action = String(body.action || 'preview')
+        if (action === 'preview') return json(res, 200, { ok: true, ...(await snippets.preview(body)) })
+        if (action === 'commit') return json(res, 200, { ok: true, snippet: await snippets.commit({ pendingId: body.pendingId, confirm: body.confirm }) })
+        if (action === 'list') return json(res, 200, { ok: true, snippets: await snippets.list() })
+        if (action === 'delete') return json(res, 200, { ok: true, removed: await snippets.delete(body.name) })
+        return fail(res, 400, `未知 action: ${action}`)
+      }
+
       if (route === 'POST /render') {
         const { cwd } = sessionOf(body, url)
         const key = String(body.docKey || '')
         const abs = docPathByKey(cwd, key)
         const state = store.readState(cwd, key)
-        const markdown = typeof body.markdown === 'string' ? body.markdown : readText(abs)
+        const sourceMarkdown = typeof body.markdown === 'string' ? body.markdown : readText(abs)
+        const markdown = body.snippetId ? await snippets.compose(sourceMarkdown, body.snippetId) : sourceMarkdown
+        const target = String(body.target || 'wechat')
+        if (!['wechat', 'xiumi'].includes(target)) return fail(res, 400, `未知渲染目标：${target}`)
+        if (target === 'xiumi') {
+          const isPublish = String(body.mode) === 'publish'
+          // 发布/复制走文本包裹形态（过粘贴 lint）；预览保持原始产物。
+          const out = isPublish ? renderXiumiPublish(markdown, { spec: body.xiumi_spec || {} }) : renderXiumi(markdown, { spec: body.xiumi_spec || {} })
+          return json(res, 200, { ok: true, target, mode: isPublish ? 'publish' : 'preview', html: out.html, themeKey: out.themeKey, themeName: out.themeName })
+        }
         const meta = { ...(state || {}), ...(body.meta || {}) }
+        const stores = await getStores()
         const common = {
-          theme: themeFor({ cwd, name: meta.theme }).theme,
+          theme: themeFor({ domain: stores?.themes, name: meta.theme }).theme,
           // 状态里存着的色也要再判一次：它是**原样拼进 style 属性**的那个字段，
           // 而 `body.meta` 能盖过状态（下面的 spread）——写入侧校验收口在这里补第二道。
           color: store.isThemeColor(meta.color) ? meta.color : undefined,
@@ -489,6 +537,33 @@ export function createApiHandler({ resolveCwd, log = () => {} }) {
           // 面板因此不必等"保存 + 重载"才看得到自己刚写的东西。
           ...liveSurface({ cwd, key, abs, markdown }),
         })
+      }
+
+      if (route === 'POST /publish') {
+        sessionOf(body, url)
+        const job = publish.submit({ platform: body.platform, title: body.title, author: body.author, html: body.html })
+        return json(res, 202, { ok: true, jobId: job.id, status: job.status })
+      }
+
+      // 登录态管理：查询某平台的登录状态，或清除它（清除后下次发布自动弹出扫码重登）。
+      // 登录态本体（Cookie/storageState）绝不回传到面板——只回「是否已登录 + 保存时间」。
+      if (route === 'POST /auth') {
+        sessionOf(body, url)
+        const platform = String(body.platform || '')
+        if (!['wechat', 'xiumi'].includes(platform)) return fail(res, 400, 'platform 只支持 wechat / xiumi')
+        const action = String(body.action || 'status')
+        const stores = await getStores()
+        if (!stores?.auth) return fail(res, 503, 'storageDomain 不可用，无法读取登录态')
+        const table = stores.auth.table('auth')
+        if (action === 'status') {
+          const saved = table.get(platform)
+          return json(res, 200, { ok: true, platform, loggedIn: Boolean(saved?.storageState), savedAt: saved?.savedAt || null })
+        }
+        if (action === 'clear') {
+          await table.delete(platform)
+          return json(res, 200, { ok: true, platform, loggedIn: false, savedAt: null })
+        }
+        return fail(res, 400, '未知 action（可用 status / clear）')
       }
 
       if (route === 'POST /history') {

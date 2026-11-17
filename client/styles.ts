@@ -81,13 +81,19 @@ export const CSS = `
 }
 .fp-menu-group-title{font-weight:500}
 .fp-menu-group-note{font-size:10px;color:var(--dsw-alias-label-secondary);opacity:.8}
-/* 「我的」那一组右边的删除按钮：只有这一组能删（自定义主题只有一套） */
+/* 命名主题在各自行内删除，选择主题与删除是两个并列按钮。 */
+.fp-menu-item{display:flex;align-items:center;gap:2px;min-width:0}
+.fp-menu-item .fp-menu-row{flex:1 1 auto;min-width:0;width:auto}
 .fp-menu-x{
-  position:absolute;top:4px;right:4px;font:inherit;font-size:12px;line-height:1;
-  padding:2px 5px;cursor:pointer;color:var(--dsw-alias-label-secondary);
+  flex:none;font:inherit;font-size:12px;line-height:1;
+  padding:3px 5px;cursor:pointer;color:var(--dsw-alias-label-secondary);
   background:transparent;border:0;border-radius:4px;
 }
 .fp-menu-x:hover{color:var(--dsw-alias-state-warn-primary);background:var(--dsw-alias-interactive-bg-hover)}
+.fp-menu-scope{
+  flex:none;padding:0 3px;border-radius:4px;font-size:10px;line-height:1.6;
+  color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);
+}
 /* 第二组之前来一条细分隔线：一眼能看出"上面是能直接用的，下面是另一类" */
 .fp-menu-group[data-risk="true"]{
   margin-top:5px;padding-top:7px;border-top:1px solid var(--dsw-alias-border-l2);
@@ -265,6 +271,88 @@ export const CSS = `
   font-size:10.5px;padding:1px 5px;border-radius:4px;white-space:nowrap;
   border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);
 }
+
+/* 专业组件插入浮层：定位上下文与快捷键一样，都是编辑器工具行。 */
+.fp-components{display:inline-flex;flex:none}
+.fp-component-popover{
+  position:absolute;top:calc(100% + 4px);right:0;z-index:4;width:320px;max-width:calc(100% - 12px);
+  max-height:60vh;overflow:auto;padding:8px;border-radius:8px;
+  border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);box-shadow:var(--dsw-shadow-lv2);
+  color:var(--dsw-alias-label-primary);
+}
+.fp-component-title{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;padding:0 2px 7px;font-size:11.5px}
+.fp-component-title .fp-muted{font-size:10.5px}
+.fp-component-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.fp-component-item{
+  display:flex;align-items:flex-start;gap:6px;min-width:0;padding:6px;text-align:left;font:inherit;cursor:pointer;
+  border:1px solid var(--dsw-alias-border-l2);border-radius:7px;background:transparent;color:var(--dsw-alias-label-primary);
+}
+.fp-component-item:hover{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l1)}
+.fp-component-thumb{
+  display:grid;place-items:center;flex:none;width:26px;height:26px;border-radius:6px;
+  background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-size:15px;line-height:1;
+}
+.fp-component-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fp-component-name{font-size:11.5px;line-height:1.4}
+.fp-component-description{color:var(--dsw-alias-label-secondary);font-size:10.5px;line-height:1.45}
+.fp-root[data-narrow="true"] .fp-component-list{grid-template-columns:1fr}
+
+/* 草稿箱组合按钮与发布参数浮层。 */
+.fp-publish{position:relative;display:inline-flex;min-width:0}
+.fp-publish-split{display:inline-flex;align-items:stretch;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2)}
+.fp-publish-split .fp-btn{border:0;background:transparent}
+.fp-publish-main{max-width:15em;overflow:hidden;text-overflow:ellipsis}
+.fp-publish-caret{border-left:1px solid var(--dsw-alias-border-l2)!important;border-radius:0 5px 5px 0!important;padding-left:4px!important;padding-right:4px!important}
+.fp-publish-popover{
+  position:absolute;top:calc(100% + 5px);right:0;z-index:45;width:280px;max-width:calc(100vw - 24px);
+  display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:8px;
+  border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);box-shadow:var(--dsw-shadow-lv2);
+  color:var(--dsw-alias-label-primary);
+}
+.fp-publish-targets{display:flex;gap:4px}
+.fp-publish-targets .fp-btn{flex:1 1 50%;min-width:0;white-space:normal}
+.fp-publish-auth{display:flex;align-items:center;gap:6px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.5}
+.fp-publish-auth > span{flex:1 1 auto;min-width:0}
+.fp-publish-auth .fp-btn{flex:none;padding:3px 6px;font-size:11px}
+.fp-field{display:flex;flex-direction:column;gap:3px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px}
+.fp-input{
+  width:100%;min-width:0;font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);
+  border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:5px 7px;outline:none;
+}
+.fp-input:focus{border-color:var(--dsw-alias-border-l1)}
+.fp-input[disabled]{opacity:.6}
+.fp-publish-note,.fp-publish-progress{font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary)}
+.fp-publish-error{font-size:11px;line-height:1.6;color:var(--dsw-alias-state-error-primary);word-break:break-word}
+.fp-publish-result{color:var(--dsw-alias-label-primary);font-size:11px}
+.fp-publish-submit{justify-content:center;text-align:center}
+.fp-root[data-narrow="true"] .fp-publish-main{max-width:9em}
+
+/* 风格与页头页尾素材库。 */
+.fp-btn.danger{color:var(--dsw-alias-state-error-primary)}
+.fp-item-title{font-weight:500;color:var(--dsw-alias-label-primary);word-break:break-word}
+.fp-item-meta{margin-top:2px;font-size:11px;color:var(--dsw-alias-label-secondary);word-break:break-word}
+.fp-item-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:6px}
+.fp-item details{margin-top:5px;color:var(--dsw-alias-label-secondary)}
+.fp-item summary{cursor:pointer}
+.fp-compose textarea.fp-library-source{min-height:84px;resize:vertical}
+.fp-library-error{padding:4px 2px;color:var(--dsw-alias-state-error-primary);word-break:break-word}
+.fp-library-status{padding:8px 2px;color:var(--dsw-alias-label-secondary)}
+.fp-library-pending{
+  display:flex;flex-direction:column;gap:5px;margin:6px 0;padding:8px;border-radius:7px;
+  border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);
+}
+.fp-library-list{margin-top:6px}
+.fp-style-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:5px 0}
+.fp-style-grid > div{min-width:0;padding:4px 6px;border-radius:5px;background:var(--dsw-alias-bg-layer-1)}
+.fp-style-grid dt{font-size:10px;color:var(--dsw-alias-label-secondary)}
+.fp-style-grid dd{margin:1px 0 0;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word}
+.fp-root[data-narrow="true"] .fp-style-grid{grid-template-columns:1fr}
+.fp-snippet-html{
+  max-height:140px;overflow:auto;margin:5px 0 0;padding:6px;border-radius:5px;white-space:pre-wrap;word-break:break-all;
+  border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:10px;
+}
+.fp-banner-copy{min-width:0;flex:1 1 auto}
 `
 
 /** 幂等注入样式表（重复挂载只插一次；HMR 卸载由调用方决定是否移除）。 */

@@ -258,6 +258,24 @@ export function continueList(text: string, start: number, end: number): EditResu
 
 // ── 动作入口 ───────────────────────────────────────────────────
 
+/** 在光标处插入一个块级容器，并选中它的第一行占位内容，方便直接改写。 */
+export function insertBlockTemplate(text: string, start: number, end: number, template: string): EditResult {
+  const prefix = start === 0 ? '' : text[start - 1] === '\n' ? (start > 1 && text[start - 2] === '\n' ? '' : '\n') : '\n\n'
+  const suffix = end === text.length ? '' : text[end] === '\n' ? (text[end + 1] === '\n' ? '' : '\n') : '\n\n'
+  const insert = prefix + template + suffix
+  const firstBreak = template.indexOf('\n')
+  const contentFrom = firstBreak < 0 ? 0 : firstBreak + 1
+  const nextBreak = template.indexOf('\n', contentFrom)
+  const contentTo = nextBreak < 0 ? template.length : nextBreak
+  return {
+    from: start,
+    to: end,
+    insert,
+    start: start + prefix.length + contentFrom,
+    end: start + prefix.length + contentTo,
+  }
+}
+
 /** 面板里所有格式化动作的唯一入口。 */
 export function applyAction(id: EditAction, text: string, start: number, end: number): EditResult {
   switch (id) {

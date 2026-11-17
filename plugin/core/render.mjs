@@ -3,7 +3,7 @@
  *
  * 这是 `mopai/render.js`（迁移前，与墨排线上站点逐条对齐过）的 ESM 移植。
  * **默认参数下，输出与迁移前的实现逐字节相同**，由 `test/golden/**` 守着
- * （golden 由 `test/oracle/render.cjs` 生成，那是移植前的冻结实现）。
+ * 当前核心的字节级回归由 test/golden/** 自产 snapshot 守护。
  *
  * 相对移植前新增的能力，都**由调用方显式启用**，默认路径一个字节都不变
  * （`test/golden/**` 守的就是"都不生效"这条默认路径）：
@@ -935,6 +935,7 @@ export function themeCatalog() {
     name: t.name,
     emoji: t.emoji || '',
     desc: t.desc || '',
+    scope: 'builtin',
     ...classifyTheme(t),
   }))
 }

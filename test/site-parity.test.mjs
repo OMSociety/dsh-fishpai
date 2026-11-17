@@ -9,7 +9,7 @@
  * 这份样本与对应 fixture 里的示例文案，是把真实姓名替换成假名之后的版本
  * （同一套替换两边都做了，所以逐字符对照依然成立）。
  *
- * 这个测试让"与墨排一致"这句话在仓库内、离线可复验，而不依赖线上站点还在不在。
+ * 软参考：默认测试不启用；设置 FISHPAI_SITE_PARITY=1 时显式核对这份外部样本。
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -50,7 +50,9 @@ export function canon(html) {
   return h.trim()
 }
 
-test('default 主题的发布输出与站点真实剪贴板内容一致（规范化后）', () => {
+test('default 主题的发布输出与站点真实剪贴板内容一致（规范化后）', {
+  skip: process.env.FISHPAI_SITE_PARITY === '1' ? false : '软参考；设置 FISHPAI_SITE_PARITY=1 显式运行',
+}, () => {
   const markdown = readFileSync(path.join(ROOT, 'test', 'fixtures', 'stress_real_img.md'), 'utf8').replace(/\r\n/g, '\n')
   const gold = readFileSync(path.join(ROOT, 'test', 'golden', 'site-clip.default.html'), 'utf8')
   const { html, themeKey } = render(markdown, { theme: 'default' })

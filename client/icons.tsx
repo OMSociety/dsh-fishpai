@@ -88,14 +88,13 @@ const THEME_GLYPH: Record<string, React.ComponentType<GlyphProps>> = {
   tech: CodeGlyph, // 技术风格（代码）
   dark_night: DarkGlyph, // 暗夜模式
   gradient: EnhanceGlyph, // 渐变彩虹（增色）
-  // 「自定义主题」：工作目录里那**一套**模型生成的主题，图标固定这一个。
+  // 命名主题库中的主题共用编辑图标；custom:<id> 也走下面的通用回退。
   custom: EditGlyph,
 }
 
 /** 某套主题的图标。 */
 export function ThemeGlyph({ themeKey, size = 16, className }: GlyphProps & { themeKey: string }) {
-  const Icon = THEME_GLYPH[themeKey]
-  if (!Icon) return null
+  const Icon = THEME_GLYPH[themeKey] || EditGlyph
   return <Icon size={size} className={className} />
 }
 

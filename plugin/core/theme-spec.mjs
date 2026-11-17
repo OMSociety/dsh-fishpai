@@ -268,9 +268,9 @@ export function validateThemeSpec(spec, baseThemes) {
  * @param {{name: string, styles: Record<string,string>}} spec `validateThemeSpec()` 的产物
  * @returns {object} 可以直接交给 `render({theme})` 的主题对象
  */
-export function mergeTheme(baseTheme, spec) {
+export function mergeTheme(baseTheme, spec, key = 'custom') {
   return {
-    key: 'custom',
+    key,
     name: spec.name,
     emoji: '✳️',
     desc: `自定义主题（基于「${baseTheme.name}」）`,
@@ -280,9 +280,9 @@ export function mergeTheme(baseTheme, spec) {
 }
 
 /** 一步到位：校验 + 合并。给工具与路由用。 */
-export function buildCustomTheme(spec, baseThemes) {
+export function buildCustomTheme(spec, baseThemes, key = 'custom') {
   const checked = validateThemeSpec(spec, baseThemes)
-  return { theme: mergeTheme(baseThemes[checked.base], checked), spec: checked }
+  return { theme: mergeTheme(baseThemes[checked.base], checked, key), spec: checked }
 }
 
 /** 给模型看的一行说明（工具返回里带上，省得它去猜自己写了什么）。 */

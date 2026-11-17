@@ -199,6 +199,19 @@ test('快捷键表：id 不重复、label 不为空、速查表两组都有', ()
   assert.deepEqual([...groups].sort(), ['编辑', '面板'])
 })
 
+test('组件容器：在光标处补好块级空行，并选中第一行占位内容', () => {
+  const template = ':::expand\n点这里展开\n---\n展开后的内容（支持多行、图片、列表）\n:::'
+  const empty = run('', md.insertBlockTemplate('', 0, 0, template))
+  assert.equal(empty.text, template)
+  assert.equal(empty.picked, '点这里展开', '插入后直接打字就能替换占位内容')
+
+  const source = '前段\n后段'
+  const at = source.indexOf('后段')
+  const inserted = run(source, md.insertBlockTemplate(source, at, at, template))
+  assert.equal(inserted.text, `前段\n\n${template}\n\n后段`, '容器前后都要与原有段落隔开')
+  assert.equal(inserted.picked, '点这里展开')
+})
+
 test('快捷键匹配：Mac 的 ⌘ 与 Windows 的 Ctrl 等效，多按/少按修饰键都不命中', () => {
   for (const spec of md.SHORTCUTS) {
     if (spec.scope !== 'editor') continue

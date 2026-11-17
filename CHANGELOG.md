@@ -10,6 +10,52 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-11-18
+
+### 新增
+
+- 新增写作规范技能参考 `skills/fishpai/references/writing.md`：九字段风格卡、AI 味指纹库、五维质量自评与文末收束规范，起草与润色时按需读取。
+- 新增 `fishpai_lint` 与 `POST /lint`：检查微信粘贴结构、内联样式与正文对比度，并明确区分 API 路径观察与粘贴路径推论。
+- 新增 `fishpai_learn` 与 `POST /learn`：从定稿、HTML 或公开网页反推写作风格九字段，经 pending 候选与用户确认后写入 storageDomain writing 表。
+- 新增 `fishpai_snippets` 与 `POST /snippets`：页头首图、可配置页尾锚点片段经预览确认后入库；`fishpai_render` 与 `POST /render` 可用 `snippetId` 在渲染前装配。
+- 新增独立秀米渲染目标与 SVG 组件库；`fishpai_render` 和 `POST /render` 接受 `target:'xiumi'`，不影响微信渲染管线。
+- 新增专业组件手册 `skills/fishpai/references/components.md`，含 8 个 SMIL 交互组件（点击展开 `expand`、点击换图 `swap`、滑动图集 `swiper`、探照灯 `spotlight`、弹幕 `danmaku`、进度条 `progress`、时间线 `timeline`、对比卡 `compare`）与静态版式组件；`fishpai_lint` 补 CSS 动画禁令与 SMIL 循环校验。
+- 新增 `POST /auth`：查询/清除指定平台的登录态（只回 `loggedIn`/`savedAt`，Cookie 绝不回流面板）；面板发布流程内提供登录态管理。
+- 新增 `fishpai_publish`、`POST /publish` 与 `GET /publish/status`：异步打开浏览器，仅保存微信或秀米草稿；登录态存 storageDomain auth 表。
+
+### 变更
+
+- **BREAKING**：文档默认走秀米组件管线（专业，`target:'xiumi'`）；墨排内核保留为「快速」模式（`target:'wechat'`）。`fishpai_render` 省略 `target` 时跟随文档当前模式。
+- 新增首个运行时依赖 `playwright-core`（草稿发布自动化引擎），并声明可选 peer `@deepseek-ai/dsh-storage-domain`（用户级库存储）；首次发布时若本机无 Chrome / Edge，会在用户插件数据区懒下载 Chromium。
+- **BREAKING**：命名自定义主题改为用户级多主题库，存入 storageDomain themes 表，主题 key 使用 `custom:<id>`；`fishpai_theme` 支持 `set` / `show` / `clear` / `list`，并可用 `theme_id` 指定主题。不再读取 `.fishpai/theme.json` 或主题名 `custom`。
+- 渲染 golden 改为当前核心自产 snapshot，`scripts/regen-golden.mjs` 只从 `plugin/core/render.mjs` 生成；站点样本 parity 由 `FISHPAI_SITE_PARITY=1` 显式启用。
+
+### 移除
+
+- 移除 `test/oracle/` 与 regen 的 `--from-core` 分支，渲染测试只保留当前核心这一份实现。
+
+### Added
+
+- Added the writing-guide reference `skills/fishpai/references/writing.md`: nine-field style cards, AI-flavor fingerprint library, five-dimension quality self-review, and closing conventions, read on demand while drafting or polishing.
+- Added `fishpai_lint` and `POST /lint` for WeChat paste-structure, inline-style, and text-contrast checks with explicit evidence boundaries.
+- Added `fishpai_learn` and `POST /learn`: infer nine writing-style fields from drafts, HTML, or public pages, then persist confirmed candidates to the storageDomain writing table.
+- Added `fishpai_snippets` and `POST /snippets`: confirm header/footer fragments before storage, then compose them by `snippetId` before rendering.
+- Added an independent Xiumi rendering target and SVG component library; `fishpai_render` and `POST /render` accept `target:'xiumi'` without changing the WeChat renderer signature.
+- Added the component reference `skills/fishpai/references/components.md` with 8 SMIL interactive components plus static layout components; `fishpai_lint` now flags CSS animations and risky SMIL loops.
+- Added `POST /auth` to query or clear a platform's login state (returns only `loggedIn`/`savedAt`, never cookies), with login management in the panel publish flow.
+- Added `fishpai_publish`, `POST /publish`, and `GET /publish/status`: asynchronous browser jobs save WeChat or Xiumi drafts only, with login state confined to the storageDomain auth table.
+
+### Changed
+
+- **BREAKING**: Documents default to the Xiumi component pipeline (professional, `target:'xiumi'`); the MoPai core remains available as the "quick" mode (`target:'wechat'`). `fishpai_render` follows the document's current mode when `target` is omitted.
+- Added the first runtime dependency `playwright-core` (draft-publish automation engine) and an optional peer `@deepseek-ai/dsh-storage-domain` (user-level stores); on first publish without a local Chrome / Edge, Chromium is lazily downloaded into the user plugin-data area.
+- **BREAKING**: Named custom themes now live in the user-level storageDomain themes table and use `custom:<id>` keys. `fishpai_theme` supports `set` / `show` / `clear` / `list` with an optional `theme_id`. `.fishpai/theme.json` and the bare `custom` theme name are no longer read.
+- Rendering goldens are now snapshots produced by the current core, with `scripts/regen-golden.mjs` using only `plugin/core/render.mjs`; site parity is an opt-in soft reference via `FISHPAI_SITE_PARITY=1`.
+
+### Removed
+
+- Removed `test/oracle/` and the regen `--from-core` branch, leaving a single rendering implementation for tests.
+
 ## [1.2.1] - 2026-11-02
 
 ### 修复

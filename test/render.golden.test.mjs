@@ -1,8 +1,5 @@
 /**
- * 渲染回归：`plugin/core/render.mjs` 必须与 `test/golden/**` 逐字节相同。
- *
- * golden 由**迁移前的冻结实现**（`test/oracle/render.cjs`）生成——两份独立代码互为对照，
- * 所以这个测试有意义：移植出错就会红，而不是自己给自己打分。
+ * 渲染回归：`plugin/core/render.mjs` 必须与自产 `test/golden/**` 逐字节相同。
  * 重新生成见 `scripts/regen-golden.mjs` 与 AGENTS.md 的不变量 #1。
  */
 import test from 'node:test'
@@ -22,6 +19,7 @@ function readFixture(name) {
 }
 
 test('golden 清单覆盖全部主题与全部 fixture', () => {
+  assert.equal(manifest.source, 'plugin/core/render.mjs')
   // 不写死主题数量：删/加主题（那是 themes.js 里的数据）时只该重生成 golden，不该再改这里
   assert.deepEqual(manifest.themes, themeCatalog().map((t) => t.key))
   assert.ok(manifest.themes.length >= 8, `主题太少了：${manifest.themes.length}`)

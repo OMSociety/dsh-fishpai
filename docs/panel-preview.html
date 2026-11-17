@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>鱼排 FishPai · 面板预览</title>
+<!--
+  本文件是 README 效果图的可复用 HTML 源（docs/panel-preview.png 由它渲染而来）。
+  改文案 / 配色后用浏览器或截图工具按 .frame 区域截取即可再生成预览图。
+  注意：图中所有字数、revision、正文与状态均为演示数据，非真实会话内容。
+-->
+<style>
+  /* 自包含预览图：仅用于 README 展示，不依赖任何外部资源。
+     改文案 / 配色即可复用；用浏览器或截图工具按 1080×1320 截取。 */
+  :root {
+    --bg: #1e1f22;
+    --bg-soft: #26272b;
+    --bg-panel: #2b2c31;
+    --border: #3a3b41;
+    --text: #e6e7ea;
+    --text-dim: #9a9ba2;
+    --accent: #4f6ef7;
+    --accent-soft: #3a4a8c;
+    --green: #3fb27f;
+    --paper: #ffffff;
+    --paper-text: #2b2b2b;
+    --paper-dim: #6a6a6a;
+    --paper-accent: #4a6cf7;
+    --quote-bg: #f2f5ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #141518;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+  }
+  .frame {
+    width: 1032px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    color: var(--text);
+    font-size: 13px;
+  }
+  /* 顶部标签条 */
+  .titlebar {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg-soft);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 10px;
+    color: var(--text);
+  }
+  .tab .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .tab .close { color: var(--text-dim); margin-left: 4px; }
+  .titlebar .spacer { flex: 1; }
+  .titlebar .win { color: var(--text-dim); letter-spacing: 6px; }
+  /* 工具行 */
+  .toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .seg {
+    display: flex; background: var(--bg-panel);
+    border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+  }
+  .seg span { padding: 4px 12px; color: var(--text-dim); }
+  .seg span.on { background: var(--accent-soft); color: #fff; }
+  .toolbar .spacer { flex: 1; }
+  .btn {
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 12px; color: var(--text); background: var(--bg-panel);
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.ghost { background: transparent; }
+  /* 主题行 */
+  .themerow {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+  }
+  .theme-select {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px;
+  }
+  .theme-select .swatch { width: 12px; height: 12px; border-radius: 3px; background: var(--accent); }
+  .theme-select .caret { color: var(--text-dim); }
+  .palette { display: flex; gap: 5px; }
+  .palette i { width: 16px; height: 16px; border-radius: 50%; display: block; border: 1px solid rgba(255,255,255,.15); }
+  .fontsize {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px; color: var(--text);
+  }
+  .chip {
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 10px; color: var(--text-dim);
+  }
+  .chip.on { color: var(--text); border-color: var(--accent); }
+  /* 主区 */
+  .main { display: grid; grid-template-columns: 1fr 1fr; min-height: 720px; }
+  .pane { display: flex; flex-direction: column; }
+  .pane.left { border-right: 1px solid var(--border); }
+  .pane-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; color: var(--text-dim);
+    border-bottom: 1px solid var(--border); background: var(--bg-soft);
+    font-size: 12px;
+  }
+  .pane-head .tag { border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+  /* 编辑器 */
+  .editor {
+    padding: 16px 18px; line-height: 1.85; color: #cfd0d4;
+    font-family: "Cascadia Code", "Consolas", monospace; font-size: 12.5px;
+    white-space: pre-wrap;
+  }
+  .editor .h { color: #7aa2ff; }
+  .editor .h2 { color: #8fd0a0; }
+  .editor .b { color: #e6b567; font-weight: 600; }
+  .editor .q { color: #9a9ba2; }
+  .editor .code { color: #d18ce0; }
+  /* 预览（公众号） */
+  .preview { background: var(--paper); color: var(--paper-text); padding: 22px 26px; line-height: 1.9; }
+  .preview h1 { font-size: 21px; text-align: center; color: #1a1a1a; line-height: 1.5; margin-bottom: 6px; }
+  .preview .rule { height: 2px; background: var(--paper-accent); margin: 14px 0 18px; }
+  .preview p { margin: 12px 0; color: #3a3a3a; font-size: 14px; }
+  .preview strong { color: #1a1a1a; }
+  .preview .accent { color: var(--paper-accent); font-weight: 600; }
+  .preview blockquote {
+    background: var(--quote-bg); border-left: 3px solid var(--paper-accent);
+    padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0;
+  }
+  .preview blockquote .qt { color: var(--paper-accent); font-weight: 600; display: block; margin-bottom: 4px; }
+  .preview ol { margin: 12px 0 12px 22px; color: #3a3a3a; font-size: 14px; }
+  .preview ol li { margin: 6px 0; }
+  /* 底部批注条 */
+  .annotate {
+    border-top: 1px solid var(--border); padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px; color: var(--text-dim);
+  }
+  .annotate .box {
+    flex: 1; background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px; color: var(--text-dim);
+  }
+  /* 状态栏 */
+  .statusbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 14px; border-top: 1px solid var(--border);
+    background: var(--bg-soft); color: var(--text-dim); font-size: 12px;
+  }
+  .statusbar .ok { color: var(--green); }
+  .statusbar .spacer { flex: 1; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <!-- 标签条 -->
+  <div class="titlebar">
+    <div class="tab"><span class="dot"></span>鱼排编辑器<span class="close">✕</span></div>
+    <div class="tab" style="opacity:.55">＋</div>
+    <div class="spacer"></div>
+    <div class="win">— ▢ ✕</div>
+  </div>
+
+  <!-- 工具行 -->
+  <div class="toolbar">
+    <div class="seg"><span class="on">编辑</span><span>预览</span><span>并排</span><span>手机</span></div>
+    <div class="spacer"></div>
+    <div class="btn ghost">刷新</div>
+    <div class="btn">导出 HTML</div>
+    <div class="btn primary">复制到公众号 ▾</div>
+  </div>
+
+  <!-- 主题行 -->
+  <div class="themerow">
+    <div class="theme-select"><span class="swatch"></span>默认公众号<span class="caret">▾</span></div>
+    <div class="palette">
+      <i style="background:#3fb27f"></i><i style="background:#4f6ef7"></i><i style="background:#7a5af8"></i>
+      <i style="background:#e05a9a"></i><i style="background:#e07a3f"></i><i style="background:#e0b93f"></i>
+      <i style="background:#3fa8e0"></i><i style="background:#9a9ba2"></i>
+    </div>
+    <div class="fontsize">16px ▾</div>
+    <div class="chip on">脚注</div>
+    <div class="chip">Mac 代码框</div>
+    <div class="chip">＋批注</div>
+  </div>
+
+  <!-- 主区 -->
+  <div class="main">
+    <!-- 编辑器 -->
+    <div class="pane left">
+      <div class="pane-head">Markdown 源码<span class="tag">标题 · 第 1 行</span><span>快捷键</span></div>
+      <div class="editor"><span class="h"># 鱼排 FishPai：把公众号排版台搬进 DSH</span>
+
+天下人苦微信公众号官方编辑器已久，我们需要一个 AI 时代的公众号排版工作流！
+
+用 AI 写公众号，最常见的流程是：在对话框里生成全文，复制进编辑器；改到第三轮，你已经分不清哪一版最新。<span class="b">**断点在于 AI 看不见编辑器。**</span>
+
+基于墨排开发的<span class="b">**鱼排**</span>（FishPai）想解决的正是这一断点。它是一个跑在 DeepSeek Harness 里的插件：排版台直接长在 AI 的侧边栏。
+
+<span class="q">> **一句话概括**</span>
+<span class="q">> 你在侧栏改稿，AI 读懂你改了什么，成品仍可复制粘贴或一键存为草稿。</span>
+
+<span class="h2">## 它比排版工具多做了几件事</span>
+
+1. <span class="b">**块级 diff**</span>：AI 读到的是「第 4 段改了、第 7 段是新增的」
+2. <span class="b">**批注**</span>：光标停在哪一段，就能留一句只写给 AI 看的话
+3. <span class="b">**命名主题**</span>：在内置主题上只改几个槽位，存成自己的一套
+4. <span class="b">**一键存草稿**</span>：微信 / 秀米都能存，只存草稿、绝不群发</div>
+    </div>
+
+    <!-- 预览 -->
+    <div class="pane right">
+      <div class="pane-head">公众号预览<span class="tag">默认公众号</span></div>
+      <div class="preview">
+        <h1>鱼排 FishPai：把公众号<br>排版台搬进 DSH</h1>
+        <div class="rule"></div>
+        <p>天下人苦微信公众号官方编辑器已久，我们需要一个 AI 时代的公众号排版工作流！</p>
+        <p>用 AI 写公众号，最常见的流程是：在对话框里生成全文，复制进编辑器；改到第三轮，你已经分不清哪一版最新。<strong class="accent">断点在于 AI 看不见编辑器。</strong></p>
+        <p>基于墨排开发的<span class="accent">鱼排</span>（FishPai）想解决的正是这一断点。它是一个跑在 DeepSeek Harness 里的插件：排版台直接长在 AI 的侧边栏。</p>
+        <blockquote>
+          <span class="qt">一句话概括</span>
+          你在侧栏改稿，AI 读懂你改了什么，成品仍可复制粘贴或一键存为草稿。
+        </blockquote>
+        <ol>
+          <li><strong>块级 diff</strong>：AI 读到的是「第 4 段改了」</li>
+          <li><strong>命名主题</strong>：只改几个槽位，存成自己的一套</li>
+          <li><strong>一键存草稿</strong>：只存草稿、绝不群发</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- 批注条 -->
+  <div class="annotate">
+    <span>批注</span><span>待补</span><span>块 9</span><span>历史</span>
+    <div class="box">给光标所在段落留一条批注…（模型下次读文档时会看到）</div>
+  </div>
+
+  <!-- 状态栏 -->
+  <div class="statusbar">
+    <span>412 字</span><span>约 1 分钟</span><span>rev 81</span>
+    <span class="ok">已保存</span>
+    <div class="spacer"></div>
+    <span>默认公众号 · 适合微信</span>
+  </div>
+</div>
+</body>
+</html>

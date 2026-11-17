@@ -1,6 +1,6 @@
 {
-  "$comment": "渲染回归标准答案。由 scripts/regen-golden.mjs 生成；source 记录生成时用的是冻结 oracle 还是 core。",
-  "source": "test/oracle/render.cjs",
+  "$comment": "渲染核心自产 snapshot。由 scripts/regen-golden.mjs 生成；source 固定为当前核心入口。",
+  "source": "plugin/core/render.mjs",
   "themes": [
     "default",
     "tech",

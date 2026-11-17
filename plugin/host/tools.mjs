@@ -1,5 +1,5 @@
 /**
- * 模型侧工具：`fishpai_open` / `fishpai_read` / `fishpai_write` / `fishpai_render` / `fishpai_theme`。
+ * 模型侧工具：文档协作、渲染、用户资产、微信 lint 与草稿发布。
  *
  * 用 **raw JSON-Schema 注册**（`ctx.tools.register({name, description, parameters, output, execute})`），
  * 不要 import `defineTool`——树外插件解析 `@deepseek-ai/dsh-tools` 不可靠（本机 dsh-ssh-tunnel /
@@ -12,15 +12,17 @@ import path from 'node:path'
 import { render as renderCore, safeThemeKey } from '../core/render.mjs'
 import { themes } from '../core/runtime.mjs'
 import { buildCustomTheme, describeThemeSpec } from '../core/theme-spec.mjs'
+import { lintWechatHtml } from '../core/wechat-lint.mjs'
+import { renderXiumi, renderXiumiPublish } from '../core/xiumi/index.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
 import { diffBlocks } from '../core/diff.mjs'
 import { applyPatches } from '../core/patch.mjs'
 import { attachPlaceholdersToBlocks, extractPlaceholders, reanchorNotes } from '../core/notes.mjs'
 import * as store from './store.mjs'
 import {
-  CUSTOM_THEME_KEY,
   clearCustomTheme,
   describeCustomTheme,
+  listCustomThemes,
   themeFor,
   writeCustomTheme,
 } from './custom-theme.mjs'
@@ -143,7 +145,7 @@ function readBaseline(cwd, state) {
 }
 
 /**
- * 注册五个工具。
+ * 注册鱼排模型工具。
  * @param {object} ctx 宿主 cordis 上下文（需要 ctx.tools）
  * @param {{resolveCwd: (sessionId: string) => string|null, log?: Function}} deps
  * @returns {() => void} 全部工具的卸载函数
@@ -466,6 +468,9 @@ export function registerTools(ctx, deps) {
         out_path: { type: 'string', description: '输出 HTML 路径（工作目录内；可省略扩展名，会自动补 .html）；省略则与文档同名的 .html' },
         embed_images: { type: 'boolean', description: '是否把本地图片内嵌成 base64，默认 true' },
         publish: { type: 'boolean', description: 'true（默认）=「复制到公众号」形态；false = 预览原样 HTML' },
+        snippetId: { type: 'string', description: '已确认的页头页尾片段名；渲染前拼入 Markdown，不改源文件' },
+        target: { type: 'string', enum: ['wechat', 'xiumi'], description: '渲染目标；省略则跟随文档的专业/快速模式（默认专业 xiumi），wechat 走墨排快速管线' },
+        xiumi_spec: { type: 'object', additionalProperties: true, description: 'target=xiumi 时的 DEFAULT_SPEC 增量覆盖' },
       },
       required: [],
       additionalProperties: false,
@@ -474,14 +479,22 @@ export function registerTools(ctx, deps) {
     async execute(args, exec) {
       try {
         const { cwd, key, abs, state } = locate(deps, exec, args)
-        const markdown = typeof args.markdown === 'string' ? args.markdown : readText(abs)
+        const sourceMarkdown = typeof args.markdown === 'string' ? args.markdown : readText(abs)
+        const markdown = args.snippetId ? await deps.snippets.compose(sourceMarkdown, args.snippetId) : sourceMarkdown
         // 自定义主题（模型给的规格）：校验成数据再合并到 base 上，**不求值任何模型给的代码**。
         // 校验不过就直接失败——错误文案是写给模型看的，让它自己改对再来一次。
-        const custom = args.theme_spec ? buildCustomTheme(args.theme_spec, themes()) : null
-        // 主题名可能来自状态（那两套被移除的主题）、模型手写、或工作目录那套自定义主题
-        //（`custom` 要读磁盘）：认不出就退回默认，别让导出整个失败。
-        const theme = custom ? custom.theme : themeFor({ cwd, name: args.theme ? String(args.theme) : state.theme }).theme
-        const out = renderCore(markdown, {
+        const targetName = args.target || state.target || 'xiumi'
+        if (!['wechat', 'xiumi'].includes(targetName)) throw new Error(`未知渲染目标：${targetName}`)
+        const custom = targetName === 'wechat' && args.theme_spec ? buildCustomTheme(args.theme_spec, themes()) : null
+        const stores = targetName === 'wechat' && deps.getStores ? await deps.getStores() : null
+        const theme = targetName === 'xiumi'
+          ? null
+          : custom
+            ? custom.theme
+            : themeFor({ domain: stores?.themes, name: args.theme ? String(args.theme) : state.theme }).theme
+        const out = targetName === 'xiumi'
+          ? (args.publish !== false ? renderXiumiPublish(markdown, { spec: args.xiumi_spec || {} }) : renderXiumi(markdown, { spec: args.xiumi_spec || {} }))
+          : renderCore(markdown, {
           theme,
           color: state.color || undefined,
           font: state.font,
@@ -505,7 +518,7 @@ export function registerTools(ctx, deps) {
         fs.mkdirSync(path.dirname(target), { recursive: true })
         fs.writeFileSync(target, out.html, 'utf8')
         const lines = [
-          `已导出 HTML：${path.relative(cwd, target).replace(/\\/g, '/')}`,
+          `${targetName === 'xiumi' ? '已导出秀米 HTML' : '已导出 HTML'}：${path.relative(cwd, target).replace(/\\/g, '/')}`,
           `主题「${out.themeName}」　${out.html.length} 字符（约 ${Math.round(Buffer.byteLength(out.html, 'utf8') / 1024)} KB）`,
           args.embed_images === false ? '本地图片未内嵌。' : '本地图片已内嵌 base64。',
         ]
@@ -529,14 +542,14 @@ export function registerTools(ctx, deps) {
   register({
     name: 'fishpai_theme',
     description:
-      '工作目录级的「自定义主题」：一个工作目录**只有一套**，存在 `.fishpai/theme.json`，' +
-      '面板的主题列表里就是那一个「自定义主题」占位（不是主题库，改一次覆盖一次）。' +
-      'action=set 写入并覆盖，同时把当前文档切到它（你能在面板里立刻看到）；action=show 看现在这套（改它就在这份规格上改）；' +
-      'action=clear 移除，文档退回默认主题。只想试一次、不落盘，就用 fishpai_render 的 theme_spec。',
+      '管理用户级命名主题库。action=set 新建或用 theme_id 覆盖一套主题，并把当前文档切到 custom:<id>；' +
+      'action=show 查看规格，action=list 列出全部主题，action=clear 删除指定主题。' +
+      '只有一套时 show/clear 可省略 theme_id，多套时必须指定。只想临时试一次，就用 fishpai_render 的 theme_spec。',
     parameters: {
       type: 'object',
       properties: {
-        action: { type: 'string', enum: ['set', 'show', 'clear'], description: '默认 show' },
+        action: { type: 'string', enum: ['set', 'show', 'clear', 'list'], description: '默认 show' },
+        theme_id: { type: 'string', description: '命名主题 id 或 custom:<id>；set 省略时新建，show/clear 在只有一套时可省略' },
         theme_spec: {
           type: 'object',
           additionalProperties: true,
@@ -551,64 +564,188 @@ export function registerTools(ctx, deps) {
     output: { schema: OUT_SCHEMA, render: renderText },
     async execute(args, exec) {
       try {
-        // 这个工具是**工作目录级**的，不需要先有一篇文档：只要会话有 cwd 就能用
         const { sessionId, cwd } = sessionOf(deps, exec)
+        const stores = deps.getStores ? await deps.getStores() : null
+        const domain = stores?.themes
+        if (!domain) throw new Error('命名主题库不可用：当前宿主没有提供 storageDomain')
         const action = String(args.action || 'show')
 
-        if (action === 'show') {
-          const current = describeCustomTheme(cwd)
-          if (!current) {
-            return ok('这个工作目录还没有自定义主题。用 action=set 写一套，面板主题列表里就会出现「自定义主题」。')
-          }
+        if (action === 'list') {
+          const all = listCustomThemes(domain)
+          if (!all.length) return ok('命名主题库还是空的。用 action=set 新建一套。')
           return ok(
             [
-              `当前自定义主题「${current.spec.name}」（base=${current.spec.base}）改了 ${Object.keys(current.spec.styles).length} 个槽位：`,
-              JSON.stringify({ name: current.spec.name, base: current.spec.base, styles: current.spec.styles }, null, 2),
-              '要改就在这份规格上改，然后 action=set 覆盖（只有这一套）。',
+              `共 ${all.length} 套命名主题：`,
+              ...all.map((item) => `${item.key}｜${item.spec.name}｜base=${item.spec.base}`),
             ].join('\n'),
           )
         }
 
-        // 当前文档（可能没有）：写/删之后顺手把文档状态对齐，别留下"选不中的主题"
+        if (action === 'show') {
+          const current = describeCustomTheme(domain, args.theme_id)
+          if (!current) return ok('没有找到这套命名主题。action=list 可查看主题库。')
+          return ok(
+            [
+              `${current.key}「${current.spec.name}」（base=${current.spec.base}）改了 ${Object.keys(current.spec.styles).length} 个槽位：`,
+              JSON.stringify({ name: current.spec.name, base: current.spec.base, styles: current.spec.styles }, null, 2),
+              '要修改它，请用同一个 theme_id 执行 action=set。',
+            ].join('\n'),
+          )
+        }
+
         const activeKey = store.activeKey(cwd, sessionId)
         const activeEntry = activeKey ? store.readIndex(cwd).docs[activeKey] : null
         const docPath = activeEntry ? store.resolveInCwd(cwd, activeEntry.path) : null
 
         if (action === 'clear') {
-          const removed = clearCustomTheme(cwd)
+          const current = describeCustomTheme(domain, args.theme_id)
+          if (!current) return ok('没有找到要删除的命名主题，什么都没动。', activeKey || undefined)
+          const removed = await clearCustomTheme(domain, current.id)
           let reverted = false
-          if (docPath && store.readState(cwd, activeKey)?.theme === CUSTOM_THEME_KEY) {
+          if (removed && docPath && store.readState(cwd, activeKey)?.theme === current.key) {
             store.updateMeta({ cwd, docPath, meta: { theme: 'default' } })
             reverted = true
           }
           return ok(
-            removed
-              ? `已移除自定义主题${reverted ? '；当前文档已退回「默认公众号」' : ''}。`
-              : '本来就没有自定义主题，什么都没动。',
+            `已移除 ${current.key}「${current.spec.name}」${reverted ? '；当前文档已退回「默认公众号」' : ''}。`,
             activeKey || undefined,
           )
         }
 
-        if (action !== 'set') return err(`未知 action：${action}（可用 set / show / clear）`)
+        if (action !== 'set') return err(`未知 action：${action}（可用 set / show / clear / list）`)
 
-        const built = writeCustomTheme({ cwd, spec: args.theme_spec })
+        const built = await writeCustomTheme({ domain, spec: args.theme_spec, id: args.theme_id })
         let switched = false
         if (docPath) {
-          store.updateMeta({ cwd, docPath, meta: { theme: CUSTOM_THEME_KEY } })
+          store.updateMeta({ cwd, docPath, meta: { theme: built.key } })
           switched = true
         }
         const lines = [
-          `已保存自定义主题「${built.spec.name}」（base=${built.spec.base}，改了 ${Object.keys(built.spec.styles).length} 个槽位）。`,
+          `已保存命名主题 ${built.key}「${built.spec.name}」（base=${built.spec.base}，改了 ${Object.keys(built.spec.styles).length} 个槽位）。`,
           switched
             ? '当前文档已切到它——面板里就能看到效果（预览与「复制到公众号」都走这套）。'
-            : '面板的主题列表里会多出「自定义主题」这一项，选它即可。',
-          '工作目录里只有这一套：再 set 一次就是覆盖，不会多出第二套。',
+            : `在文档主题设置里选择 ${built.key} 即可使用。`,
         ]
         for (const note of built.spec.notes) lines.push(`提示：${note}`)
         return ok(lines.join('\n'), activeKey || undefined)
       } catch (error) {
         return err(`fishpai_theme 失败：${error.message}`)
       }
+    },
+  })
+
+  register({
+    name: 'fishpai_learn',
+    description:
+      '从定稿 Markdown、HTML、公开 HTTPS 网页或工作目录内的 .md/.html 反推写作风格。' +
+      'action=preview 只生成九字段候选并返回 pending_id；必须把候选交给用户确认，再用 action=commit、confirm=true 入库。' +
+      'action=list/delete 管理用户级风格库。',
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        action: { type: 'string', enum: ['preview', 'commit', 'list', 'delete'], description: '默认 preview' },
+        markdown: { type: 'string', description: '定稿 Markdown；与 html/url/path 四选一' },
+        html: { type: 'string', description: '定稿 HTML；与 markdown/url/path 四选一' },
+        url: { type: 'string', description: '公开 HTTPS 网页；拒绝本机与私有网络地址' },
+        path: { type: 'string', description: '会话工作目录内的 .md/.html 定稿' },
+        styleId: { type: 'string', description: '目标风格 id；省略则 preview 生成' },
+        sourceName: { type: 'string', description: '来源的可读名称' },
+        sourceRef: { type: 'string', description: '来源 URL、工作目录相对路径或其它可追溯引用' },
+        pending_id: { type: 'string', description: 'commit 时填 preview 返回的 pending_id' },
+        confirm: { type: 'boolean', description: 'commit 必须为 true，表示用户已确认候选' },
+        style: { type: 'object', additionalProperties: true, description: 'commit 时经用户确认的字段修订；styleId 不可改' },
+      },
+      required: [],
+    },
+    output: { schema: OUT_SCHEMA, render: renderText },
+    async execute(args, exec) {
+      try {
+        if (!deps.learn) throw new Error('learn 服务未初始化')
+        const action = String(args.action || 'preview')
+        if (action === 'preview') {
+          const { cwd } = sessionOf(deps, exec)
+          const preview = await deps.learn.preview({ ...args, cwd })
+          return ok(`风格候选（尚未入库）：\n${JSON.stringify(preview, null, 2)}\n请把九字段交给用户确认；确认后用 pending_id 执行 commit。`)
+        }
+        if (action === 'commit') {
+          const result = await deps.learn.commit({ pendingId: args.pending_id, confirm: args.confirm, style: args.style })
+          return ok(`已入库写作风格 ${result.style.styleId}：\n${JSON.stringify(result.style, null, 2)}`)
+        }
+        if (action === 'list') return ok(JSON.stringify(await deps.learn.list(), null, 2))
+        if (action === 'delete') {
+          const result = await deps.learn.delete(args)
+          return ok(result.removed ? `已删除风格 ${args.styleId}` : '没有找到这套风格，什么都没动。')
+        }
+        return err(`未知 action：${action}`)
+      } catch (error) {
+        return err(`fishpai_learn 失败：${error.message}`)
+      }
+    },
+  })
+
+  register({
+    name: 'fishpai_snippets',
+    description: '提取并管理页头页尾片段。preview 只生成候选；用户确认后 action=commit、confirm=true 入库。渲染时用 fishpai_render 的 snippetId 装配，不改源 Markdown。',
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        action: { type: 'string', enum: ['preview', 'commit', 'list', 'delete'] },
+        name: { type: 'string', description: '片段名，也是 snippetId' },
+        url: { type: 'string', description: '公开 HTTPS 文章 URL' },
+        headerHtml: { type: 'string' }, footerHtml: { type: 'string' }, footerImg: { type: 'string' },
+        footerAnchors: { type: 'array', items: { type: 'string' }, description: '页尾锚点关键词，必须由用户配置' },
+        pending_id: { type: 'string' }, confirm: { type: 'boolean' }, force: { type: 'boolean', description: 'preview 时允许覆盖同名片段' },
+      },
+      required: [],
+    },
+    output: { schema: OUT_SCHEMA, render: renderText },
+    async execute(args) {
+      try {
+        const action = String(args.action || 'preview')
+        if (action === 'preview') return ok(`片段候选（尚未入库）：\n${JSON.stringify(await deps.snippets.preview(args), null, 2)}`)
+        if (action === 'commit') return ok(`已入库片段：\n${JSON.stringify(await deps.snippets.commit({ pendingId: args.pending_id, confirm: args.confirm }), null, 2)}`)
+        if (action === 'list') return ok(JSON.stringify(await deps.snippets.list(), null, 2))
+        if (action === 'delete') return ok((await deps.snippets.delete(args.name)) ? `已删除片段 ${args.name}` : '没有找到这个片段。')
+        return err(`未知 action：${action}`)
+      } catch (error) { return err(`fishpai_snippets 失败：${error.message}`) }
+    },
+  })
+
+  register({
+    name: 'fishpai_lint',
+    description: '检查 HTML 是否满足微信粘贴约束；结果会区分草稿 API 路径的既有观察与粘贴路径推论。',
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: { html: { type: 'string', description: '待检查的内联样式 HTML' } },
+      required: ['html'],
+    },
+    output: { schema: OUT_SCHEMA, render: renderText },
+    async execute(args) {
+      try { return ok(JSON.stringify(lintWechatHtml(args.html), null, 2)) }
+      catch (error) { return err(`fishpai_lint 失败：${error.message}`) }
+    },
+  })
+
+  register({
+    name: 'fishpai_publish',
+    description: '异步打开浏览器，把 HTML 保存为微信或秀米草稿并立即返回 job id；绝不群发，登录需用户在可见浏览器中完成。',
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        platform: { type: 'string', enum: ['wechat', 'xiumi'] },
+        title: { type: 'string' },
+        author: { type: 'string' },
+        html: { type: 'string', description: '已由 fishpai_render 生成的完整 HTML' },
+      },
+      required: ['platform', 'title', 'html'],
+    },
+    output: { schema: OUT_SCHEMA, render: renderText },
+    async execute(args) {
+      try {
+        const job = deps.publish.submit(args)
+        return ok(JSON.stringify({ jobId: job.id, status: job.status, message: '任务已提交；通过 GET /fishpai/api/publish/status?sessionId=<当前会话>&jobId=<jobId> 轮询。只保存草稿。' }, null, 2))
+      } catch (error) { return err(`fishpai_publish 失败：${error.message}`) }
     },
   })
 
