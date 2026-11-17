@@ -346,6 +346,30 @@ test('专业默认与组件抽屉：渲染目标贯通，八种容器模板都�
   assert.ok(source.includes('state.meta.target,'), '预览 renderPreview 要显式收到渲染目标')
 })
 
+test('专业模式收起快速控件，面板与编辑器跟随 DSH 侧栏底色', () => {
+  const panel = fs.readFileSync(path.join(ROOT, 'client', 'panel.tsx'), 'utf8')
+  const styles = fs.readFileSync(path.join(ROOT, 'client', 'styles.ts'), 'utf8')
+  assert.match(
+    panel,
+    /\{state\.meta\.target === 'wechat' \? \(\s*<div className="fp-row fp-quick-settings">/,
+    '主题、色板、字体、字号、脚注与 Mac 代码框必须只在快速模式渲染',
+  )
+  assert.ok(panel.includes('const [drawerOpen, setDrawerOpen] = React.useState(false)'), '辅助抽屉默认收起')
+  assert.ok(panel.includes('{props.open ? ('), '抽屉 body 只在展开时挂载')
+  assert.ok(styles.includes('background:var(--dsw-specific-sidebar-fill)'), '面板要使用 DSH 侧栏底色')
+  for (const token of [
+    '--dsw-alias-interactive-bg-hover',
+    '--dsw-alias-button-primary-fill',
+    '--dsw-alias-label-primary-foreground',
+  ]) {
+    assert.ok(!styles.includes(token), `不能引用 Theme provider 未提供的令牌：${token}`)
+  }
+  const bundle = fs.readFileSync(BUNDLE, 'utf8')
+  for (const hook of ['fp-quick-settings', 'fp-more-menu', 'data-open']) {
+    assert.ok(bundle.includes(hook), `精简后的面板结构要进入产物：${hook}`)
+  }
+})
+
 test('发布登录态：按当前平台查询与清除，且只宣称后端能确认的两种状态', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   for (const copy of ['正在检查登录态', '已登录', '未登录', '保存于', '清除登录态', '清除后重新发布']) {

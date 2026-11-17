@@ -530,6 +530,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot)
   const [mode, setMode] = React.useState<ViewMode>('side')
   const [tab, setTab] = React.useState<Tab>('notes')
+  const [drawerOpen, setDrawerOpen] = React.useState(false)
   const [noteDraft, setNoteDraft] = React.useState('')
   const [narrow, setNarrow] = React.useState(false)
   // 哪一套主题的风险提示被用户关掉了。换主题时清空（见下面的 effect）：
@@ -650,6 +651,14 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
   const layout: 'stack' | 'side' = mode === 'side' && !narrow ? 'side' : 'stack'
   const showEditor = mode !== 'preview'
   const showPreview = mode !== 'edit' || layout === 'side'
+  const selectDrawerTab = (next: Tab) => {
+    if (drawerOpen && tab === next) {
+      setDrawerOpen(false)
+      return
+    }
+    setTab(next)
+    setDrawerOpen(true)
+  }
 
   const openNotes = state.notes.filter((n) => !n.resolved)
   const currentTheme = state.themes.find((t) => t.key === state.meta.theme) || null
@@ -809,21 +818,51 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             手机
           </Btn>
           <span className="fp-spacer" />
+          <Btn
+            title="给光标所在段落写一条批注"
+            onClick={() => {
+              setTab('notes')
+              setDrawerOpen(true)
+              requestAnimationFrame(() => noteInputRef.current?.focus())
+            }}
+          >
+            批注
+          </Btn>
           <span className="fp-actions">
-            <Btn title="重新载入文档（有未保存的改动会先保存，不会丢字）" onClick={() => void store.actions.reloadSafely()}>
-              刷新
-            </Btn>
-            <Btn primary title="下载「复制到公众号」形态的自包含 HTML 文件（本地图片已内嵌 base64）" onClick={() => void onExport()}>
-              导出 HTML
-            </Btn>
             <Btn primary title={`复制后直接粘进公众号编辑器（${COPY_HINT}）`} onClick={() => void onCopy()}>
               复制到公众号
             </Btn>
             <PublishControls store={store} narrow={narrow} />
+            <details className="fp-more">
+              <summary className="fp-btn" title="更多操作">更多</summary>
+              <div className="fp-more-menu">
+                <button
+                  type="button"
+                  className="fp-menu-row"
+                  onClick={(event) => {
+                    event.currentTarget.closest('details')?.removeAttribute('open')
+                    void store.actions.reloadSafely()
+                  }}
+                >
+                  重新载入文档
+                </button>
+                <button
+                  type="button"
+                  className="fp-menu-row"
+                  onClick={(event) => {
+                    event.currentTarget.closest('details')?.removeAttribute('open')
+                    void onExport()
+                  }}
+                >
+                  导出 HTML
+                </button>
+              </div>
+            </details>
           </span>
         </div>
 
-        <div className="fp-row">
+        {state.meta.target === 'wechat' ? (
+        <div className="fp-row fp-quick-settings">
           <ThemePicker
             themes={state.themes}
             value={state.meta.theme}
@@ -898,20 +937,11 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
           >
             Mac 代码框
           </Btn>
-          <Btn
-            title="在下方「批注」里写一句给模型的话（会挂在光标所在段落上）"
-            onClick={() => {
-              setTab('notes')
-              // 不清空已有草稿，直接聚焦输入框——点了就能打字
-              requestAnimationFrame(() => noteInputRef.current?.focus())
-            }}
-          >
-            ＋批注
-          </Btn>
         </div>
+        ) : null}
       </div>
 
-      {currentTheme && !currentTheme.wechatSafe && riskDismissed !== currentTheme.key ? (
+      {state.meta.target === 'wechat' && currentTheme && !currentTheme.wechatSafe && riskDismissed !== currentTheme.key ? (
         <div className="fp-banner" data-kind="warn">
           <span>
             {currentTheme.gradientText
@@ -1017,7 +1047,8 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
       <Drawer
         store={store}
         tab={tab}
-        setTab={setTab}
+        open={drawerOpen}
+        onTab={selectDrawerTab}
         notes={state.notes}
         placeholders={state.placeholders}
         blocks={state.blocks}
@@ -1057,9 +1088,11 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
         {state.placeholders.length ? <span className="fp-warn">待补 {state.placeholders.length}</span> : null}
         {openNotes.length ? <span>批注 {openNotes.length}</span> : null}
         <span className="fp-muted" title={currentTheme ? currentTheme.desc : undefined}>
-          {state.themeName}
+          {state.meta.target === 'xiumi' ? '秀米组件管线' : state.themeName}
           {/* 公众号编辑器只认黑体：选了衬线/等宽，主题再"适合微信"也会在编辑器里退回黑体 */}
-          {currentTheme ? ` · ${currentTheme.wechatSafe && state.meta.font === 'sans' ? '适合微信' : '导出 HTML 更稳'}` : ''}
+          {state.meta.target === 'wechat' && currentTheme
+            ? ` · ${currentTheme.wechatSafe && state.meta.font === 'sans' ? '适合微信' : '导出 HTML 更稳'}`
+            : ''}
         </span>
       </div>
 
@@ -1497,7 +1530,8 @@ function Preview(props: {
 function Drawer(props: {
   store: FishpaiStore
   tab: Tab
-  setTab: (t: Tab) => void
+  open: boolean
+  onTab: (t: Tab) => void
   notes: Note[]
   placeholders: Placeholder[]
   blocks: Block[]
@@ -1512,29 +1546,30 @@ function Drawer(props: {
   onJumpNote: (note: Note) => void
   onRestore: (id: string, label: string) => void
 }) {
-  const open = props.notes.filter((n) => !n.resolved)
+  const openNotes = props.notes.filter((n) => !n.resolved)
   return (
-    <div className="fp-drawer">
+    <div className="fp-drawer" data-open={props.open ? 'true' : 'false'}>
       <div className="fp-drawer-tabs">
-        <Btn on={props.tab === 'notes'} onClick={() => props.setTab('notes')}>
-          批注 {open.length || ''}
+        <Btn on={props.open && props.tab === 'notes'} onClick={() => props.onTab('notes')}>
+          批注 {openNotes.length || ''}
         </Btn>
-        <Btn on={props.tab === 'todo'} onClick={() => props.setTab('todo')}>
+        <Btn on={props.open && props.tab === 'todo'} onClick={() => props.onTab('todo')}>
           待补 {props.placeholders.length || ''}
         </Btn>
-        <Btn on={props.tab === 'blocks'} onClick={() => props.setTab('blocks')}>
+        <Btn on={props.open && props.tab === 'blocks'} onClick={() => props.onTab('blocks')}>
           块 {props.blocks.length}
         </Btn>
-        <Btn on={props.tab === 'history'} onClick={() => props.setTab('history')}>
+        <Btn on={props.open && props.tab === 'history'} onClick={() => props.onTab('history')}>
           历史
         </Btn>
-        <Btn on={props.tab === 'learn'} onClick={() => props.setTab('learn')}>
+        <Btn on={props.open && props.tab === 'learn'} onClick={() => props.onTab('learn')}>
           风格库
         </Btn>
-        <Btn on={props.tab === 'snippets'} onClick={() => props.setTab('snippets')}>
+        <Btn on={props.open && props.tab === 'snippets'} onClick={() => props.onTab('snippets')}>
           页头页尾
         </Btn>
       </div>
+      {props.open ? (
       <div className="fp-drawer-body">
         {props.tab === 'notes' ? (
           <>
@@ -1637,6 +1672,7 @@ function Drawer(props: {
         {props.tab === 'learn' ? <LearnLibrary store={props.store} /> : null}
         {props.tab === 'snippets' ? <SnippetLibrary store={props.store} /> : null}
       </div>
+      ) : null}
     </div>
   )
 }
