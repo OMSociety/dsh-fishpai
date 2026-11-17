@@ -385,18 +385,19 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       patch({
         previewHtml: res.html,
         hljsCss: res.hljsCss || '',
-        blocks: res.blocks,
-        placeholders: res.placeholders,
-        images: res.images,
+        // 面板状态始终保持可用的空集合；不同渲染目标回带的预览字段可以有多寡。
+        blocks: res.blocks || [],
+        placeholders: res.placeholders || [],
+        images: res.images || [],
         linkCount: res.linkCount,
         hasCode: res.hasCode,
-        ...(epoch === notesEpoch ? { notes: res.notes } : {}),
+        ...(epoch === notesEpoch ? { notes: res.notes || [] } : {}),
         themeName: res.themeName,
         previewing: false,
         // 成功即清掉上一次的失败红条——否则一次瞬时失败会一直挂到点「重试」或重载文档为止
         error: null,
       })
-      void ensureImages(res.images, docKey)
+      void ensureImages(res.images || [], docKey)
     } catch (error) {
       if (token !== previewToken) return
       patch({ previewing: false, error: `预览渲染失败：${(error as Error).message}` })

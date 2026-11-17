@@ -49,7 +49,7 @@ test('fishpai_render target=xiumi 走独立目标，微信默认路径不变', a
   assert.equal(renderCore(md).themeKey, 'default')
 })
 
-test('POST /render target=xiumi 使用同一组件管线', async (t) => {
+test('POST /render target=xiumi 使用同一组件管线并回带面板状态', async (t) => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'fishpai-xiumi-route-'))
   const opened = store.createDoc({ cwd, title: '秀米路由' })
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }))
@@ -58,11 +58,20 @@ test('POST /render target=xiumi 使用同一组件管线', async (t) => {
   server.listen(0, '127.0.0.1'); await once(server, 'listening')
   t.after(() => new Promise((resolve) => server.close(resolve)))
   const origin = `http://127.0.0.1:${server.address().port}`
-  const response = await fetch(`${origin}/fishpai/api/render`, { method: 'POST', headers: { host: `127.0.0.1:${server.address().port}`, origin, 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: 'x', docKey: opened.key, markdown: '# 标题', target: 'xiumi' }) })
+  const markdown = '# 标题\n\n正文\n\n<!-- 鱼排: 补一句 -->'
+  const response = await fetch(`${origin}/fishpai/api/render`, { method: 'POST', headers: { host: `127.0.0.1:${server.address().port}`, origin, 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: 'x', docKey: opened.key, markdown, target: 'xiumi' }) })
   const body = await response.json()
   assert.equal(response.status, 200, JSON.stringify(body))
   assert.equal(body.ok, true)
   assert.equal(body.target, 'xiumi')
   assert.equal(body.themeKey, 'xiumi')
   assert.match(body.html, /标题/)
+  for (const field of ['blocks', 'notes', 'placeholders', 'images']) {
+    assert.ok(Array.isArray(body[field]), `专业预览应回带数组字段 ${field}`)
+  }
+  assert.equal(body.placeholders.length, 1)
+  assert.match(body.placeholders[0].text, /补一句/)
+  assert.equal(body.linkCount, 0)
+  assert.equal(body.hasCode, false)
+  assert.equal(body.hljsCss, '')
 })

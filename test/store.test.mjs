@@ -344,6 +344,28 @@ test('重开面板时当前文档读不出来：状态要落到 error，不能�
   store.dispose()
 })
 
+test('预览：缺省的面板字段按空集合处理', async () => {
+  let releasePreview = null
+  stub({
+    activate: async () => ({ ok: true }),
+    doc: async () => docPayload('k1', '正文', 1),
+    renderPreview: () => new Promise((resolve) => { releasePreview = resolve }),
+  })
+  const store = createFishpaiStore('s-preview')
+  await store.actions.openDocByKey('k1')
+  assert.equal(typeof releasePreview, 'function', '前置条件：载入后应发起预览')
+
+  releasePreview({ html: '<p>正文</p>', themeName: '秀米', linkCount: 0, hasCode: false })
+  for (let i = 0; i < 20; i++) await Promise.resolve()
+
+  const st = store.getSnapshot()
+  for (const field of ['blocks', 'notes', 'placeholders', 'images']) {
+    assert.deepEqual(st[field], [], `${field} 必须保持数组`)
+  }
+  assert.equal(st.error, null)
+  store.dispose()
+})
+
 test('发布登录态：按平台查询，清除后使用后端返回的未登录状态', async () => {
   const store = createFishpaiStore('s-auth')
   const calls = []

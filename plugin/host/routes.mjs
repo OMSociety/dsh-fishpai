@@ -480,7 +480,23 @@ export function createApiHandler({ resolveCwd, log = () => {}, getStores = async
           const isPublish = String(body.mode) === 'publish'
           // 发布/复制走文本包裹形态（过粘贴 lint）；预览保持原始产物。
           const out = isPublish ? renderXiumiPublish(markdown, { spec: body.xiumi_spec || {} }) : renderXiumi(markdown, { spec: body.xiumi_spec || {} })
-          return json(res, 200, { ok: true, target, mode: isPublish ? 'publish' : 'preview', html: out.html, themeKey: out.themeKey, themeName: out.themeName })
+          if (isPublish) {
+            return json(res, 200, { ok: true, target, mode: 'publish', html: out.html, themeKey: out.themeKey, themeName: out.themeName })
+          }
+          return json(res, 200, {
+            ok: true,
+            target,
+            mode: 'preview',
+            html: out.html,
+            themeKey: out.themeKey,
+            themeName: out.themeName,
+            hljsCss: '',
+            // 专业管线不提供微信脚注和 Mac 代码框，面板对应开关保持不可用。
+            linkCount: 0,
+            hasCode: false,
+            // 两条渲染管线共用面板；块、批注、占位与本地图片始终跟随本次预览的正文。
+            ...liveSurface({ cwd, key, abs, markdown }),
+          })
         }
         const meta = { ...(state || {}), ...(body.meta || {}) }
         const stores = await getStores()
