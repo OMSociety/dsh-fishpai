@@ -370,6 +370,25 @@ test('专业模式收起快速控件，面板与编辑器跟随 DSH 侧栏底色
   }
 })
 
+test('专业模式默认预览，文稿与预览标题保持作者视角', () => {
+  const panel = fs.readFileSync(path.join(ROOT, 'client', 'panel.tsx'), 'utf8')
+  assert.ok(panel.includes("React.useState<ViewMode>('preview')"), '专业模式的初始视图是预览')
+  assert.match(
+    panel,
+    /setMode\(state\.meta\.target === 'xiumi' \? 'preview' : 'side'\)/,
+    '切换渲染管线时采用各自的默认视图，之后仍可由用户切换',
+  )
+  assert.ok(panel.includes('<span>Markdown 文稿</span>'), '编辑区标题应说明它是可写文稿')
+  assert.ok(!panel.includes('Markdown 源码'), '面板不再把作者文稿称为最终代码')
+  const preview = panel.slice(panel.indexOf('function Preview'), panel.indexOf('// ── 抽屉'))
+  assert.ok(preview.includes('<span>公众号预览</span>'), '预览标题保留渠道名称')
+  assert.ok(!preview.includes('themeName'), '预览标题不追加渲染管线或主题名')
+  const bundle = fs.readFileSync(BUNDLE, 'utf8')
+  for (const copy of ['Markdown 文稿', '只看文稿', '公众号预览']) {
+    assert.ok(bundle.includes(copy), `文稿与预览文案要进入产物：${copy}`)
+  }
+})
+
 test('发布登录态：按当前平台查询与清除，且只宣称后端能确认的两种状态', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   for (const copy of ['正在检查登录态', '已登录', '未登录', '保存于', '清除登录态', '清除后重新发布']) {

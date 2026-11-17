@@ -1,5 +1,5 @@
 /**
- * 鱼排面板：Markdown 源码 + 公众号实时预览 + 批注抽屉。
+ * 鱼排面板：Markdown 文稿 + 公众号实时预览 + 批注抽屉。
  *
  * 面板不自己发请求，全部通过 `store`（状态机）转一手——这样"预览跟手、保存防抖、
  * 冲突不丢字"这些时序只有一处实现。
@@ -528,7 +528,7 @@ function FontPicker(props: { fonts: string[]; value: string; onPick: (font: stri
 export function Panel(props: { store: FishpaiStore; sessionId: string }) {
   const { store, sessionId } = props
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot)
-  const [mode, setMode] = React.useState<ViewMode>('side')
+  const [mode, setMode] = React.useState<ViewMode>('preview')
   const [tab, setTab] = React.useState<Tab>('notes')
   const [drawerOpen, setDrawerOpen] = React.useState(false)
   const [noteDraft, setNoteDraft] = React.useState('')
@@ -545,6 +545,11 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
   React.useEffect(() => {
     void store.actions.init()
   }, [store])
+
+  // 专业模式先看成品；快速模式保留文稿与预览并排。用户随后可自由切换视图。
+  React.useEffect(() => {
+    setMode(state.meta.target === 'xiumi' ? 'preview' : 'side')
+  }, [state.docKey, state.meta.target])
 
   // 换主题就重置"已关掉的风险提示"：切走再切回来，提示要重新出现（而不是被永久关掉）
   React.useEffect(() => {
@@ -795,7 +800,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             </Btn>
           </div>
           <div className="fp-seg">
-            <Btn on={mode === 'edit'} onClick={() => setMode('edit')} title="只看源码">
+            <Btn on={mode === 'edit'} onClick={() => setMode('edit')} title="只看文稿">
               编辑
             </Btn>
             <Btn on={mode === 'preview'} onClick={() => setMode('preview')} title="只看公众号效果">
@@ -1038,7 +1043,6 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             hljsCss={state.hljsCss}
             mobile={state.meta.mobile}
             previewing={state.previewing}
-            themeName={state.themeName}
             onLoad={restoreScroll}
           />
         ) : null}
@@ -1427,7 +1431,7 @@ function Editor(props: {
   return (
     <div className="fp-pane">
       <div className="fp-pane-head">
-        <span>Markdown 源码</span>
+        <span>Markdown 文稿</span>
         <span className="fp-spacer" />
         <span className="fp-muted">
           {props.currentBlock ? `${kindLabel(props.currentBlock.kind)} · 第 ${props.currentBlock.startLine} 行` : '未在块内'}
@@ -1495,7 +1499,6 @@ function Preview(props: {
   hljsCss: string
   mobile: boolean
   previewing: boolean
-  themeName: string
   onLoad: () => void
 }) {
   return (
@@ -1504,7 +1507,6 @@ function Preview(props: {
         <span>公众号预览</span>
         <span className="fp-spacer" />
         {props.previewing ? <span>渲染中…</span> : null}
-        <span className="fp-muted">{props.themeName}</span>
       </div>
       <div className="fp-preview-wrap">
         {props.html ? (
