@@ -1,8 +1,7 @@
 /**
  * 面板样式：只用 DSH 主题变量 `--dsw-alias-*`（浅色/深色自动跟随）。
  *
- * 注意别用旧名（`--dsw-text-secondary` 之类）——当前 DSH 里那些 token 一个都不存在，
- * 写 var(--x, #666) 会在深色主题下退化成硬编码浅色，出现白块。
+ * 颜色由当前 Theme provider 按浅色 / 深色主题提供。
  */
 
 export const STYLE_TAG_ID = 'dsh-fishpai/panel.css'
@@ -11,7 +10,7 @@ export const CSS = `
 .fp-root{
   display:flex;flex-direction:column;height:100%;min-height:0;
   color:var(--dsw-alias-label-primary);
-  background:var(--dsw-specific-sidebar-fill);
+  background:var(--dsw-alias-bg-base);
   font-size:12px;line-height:1.6;
 }
 .fp-root *{box-sizing:border-box}
@@ -36,6 +35,9 @@ export const CSS = `
   border-color:var(--dsw-alias-brand-primary);
 }
 .fp-btn-primary:hover{color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-bg-layer-1)}
+/* 焦点通过底色与描边呈现，保持键盘路径清晰。 */
+.fp-btn:focus{outline:none}
+.fp-btn:focus-visible{background:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-brand-primary)}
 .fp-seg{display:inline-flex;gap:1px;padding:1px;border-radius:7px;background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2)}
 .fp-seg .fp-btn{border-radius:5px;padding:2px 8px}
 .fp-seg .fp-btn[data-on="true"]{background:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-border-l1)}
@@ -144,18 +146,23 @@ export const CSS = `
 .fp-editor{
   flex:1 1 auto;min-height:0;width:100%;resize:none;border:0;outline:none;
   padding:10px 12px;font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Consolas,monospace);
-  font-size:12.5px;line-height:1.75;color:var(--dsw-alias-label-primary);background:var(--dsw-specific-sidebar-fill);
+  font-size:12.5px;line-height:1.75;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);
   tab-size:2;
 }
-.fp-preview-wrap{flex:1 1 auto;min-height:0;overflow:hidden;background:var(--dsw-specific-sidebar-fill);display:flex;justify-content:center}
+.fp-preview-wrap{flex:1 1 auto;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base);display:flex;justify-content:center}
 .fp-preview{width:100%;height:100%;border:0;background:#fff}
 .fp-preview[data-mobile="true"]{width:375px;max-width:100%;box-shadow:0 0 0 1px var(--dsw-alias-border-l2)}
 .fp-preview-empty{color:var(--dsw-alias-label-secondary);padding:16px;text-align:center}
 
 .fp-drawer{flex:none;border-top:1px solid var(--dsw-alias-border-l2);display:flex;flex-direction:column;max-height:46%;min-height:0}
-.fp-drawer-tabs{display:flex;gap:2px;padding:3px 6px;flex-wrap:wrap;border-bottom:1px solid var(--dsw-alias-border-l2)}
-.fp-drawer[data-open="false"] .fp-drawer-tabs{border-bottom:0}
-.fp-drawer-body{overflow:auto;padding:6px 8px;min-height:0}
+.fp-drawer-bar{display:flex;align-items:center;gap:4px;padding:2px 6px;min-height:30px;flex:none}
+.fp-drawer[data-open="true"] .fp-drawer-bar{border-bottom:1px solid var(--dsw-alias-border-l2)}
+.fp-drawer-tabs{display:flex;align-items:center;gap:1px;flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}
+.fp-drawer-tabs::-webkit-scrollbar{display:none}
+.fp-drawer-tabs .fp-btn{padding:2px 5px}
+.fp-status{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0;margin-left:auto;font-size:11px;color:var(--dsw-alias-label-secondary);white-space:nowrap;flex:none}
+.fp-root[data-narrow="true"] .fp-status{gap:4px}
+.fp-drawer-body{overflow:auto;padding:6px 8px;min-height:0;border-top:0}
 .fp-empty{color:var(--dsw-alias-label-secondary);padding:8px 2px}
 .fp-item{
   border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);
@@ -170,10 +177,6 @@ export const CSS = `
 .fp-compose textarea{
   width:100%;min-height:48px;resize:vertical;font:inherit;padding:5px 7px;border-radius:6px;
   border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);
-}
-.fp-status{
-  display:flex;align-items:center;gap:8px;padding:3px 8px;flex:none;font-size:11px;
-  color:var(--dsw-alias-label-secondary);border-top:1px solid var(--dsw-alias-border-l2);flex-wrap:wrap;
 }
 .fp-banner{
   margin:6px 8px;padding:6px 8px;border-radius:7px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;
@@ -258,8 +261,7 @@ export const CSS = `
 .fp-keys-btn[data-on="true"]{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}
 .fp-keys{
   position:absolute;top:calc(100% + 4px);right:0;z-index:3;
-  /* 宽度**随面板收缩**：以前写死 266px，窄面板里比面板还宽、向左溢出被裁掉，
-     表现就是"快捷键标签全被切掉、只剩右边一排键帽"。 */
+  /* 宽度随面板收缩；max-width 留出 12px 余量，完整显示标签与键帽。 */
   width:auto;min-width:min(232px,100%);max-width:calc(100% - 12px);
   max-height:60vh;overflow:auto;
   padding:6px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);

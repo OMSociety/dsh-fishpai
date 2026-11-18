@@ -50,14 +50,12 @@ export function applyPatches(markdown, blocks, patches) {
     resolved.push({ op, block, text: patch.markdown === undefined ? null : String(patch.markdown) })
   }
 
-  // 同一个块的补丁**必须在块内连续算**。
-  // 块的行范围只在那一次 `splitBlocks` 里成立：前一条补丁改了长度之后，后一条再按老行号
-  // `splice` 就会落进上一条的结果内部（实测：同块 `replace` 变长 + `insert_after`，新段落被
-  // 插进替换结果中间，却报 applied=2、errors=[]）。所以按块分组，块内维护两个游标：
+  // 同一个块的补丁**必须在块内连续算**：行范围只属于本次 `splitBlocks`，变长补丁会移动后续落点。
+  // 按块分组并维护三个游标：
   //   head 块头（块内所有编辑都在它之后，所以它不动）
   //   end  块自身的末尾（replace / delete 的作用范围，独占）
   //   tail 下一条 insert_after 的落点（插进来的内容不属于块自身，replace 不该吃掉它）
-  // 块的先后仍是"自下而上"：先动下面的块，上面块的行号才不会被顶偏。
+  // 块按"自下而上"处理，下方块的长度变化不会影响上方块的行号。
   resolved.sort((a, b) => b.block.startLine - a.block.startLine)
 
   const linesOf = (text) =>
@@ -105,7 +103,6 @@ export function applyPatches(markdown, blocks, patches) {
         // 先把块自己的行范围摘掉，再按 placeAt 的规矩放回去。
         // 块的范围**可能含着末尾那个空行**（列表就是，段落不含），摘掉之后分隔行可能一起没了——
         // placeAt 会按前后实况补回来，所以这里不用再单独判断"要不要保分隔行"。
-        // 踩过：改一次列表项，吃掉了文末的「项目地址」两行。
         const removed = end - head
         lines.splice(head, removed)
         const inserted = placeAt(head, newLines)

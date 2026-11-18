@@ -102,8 +102,8 @@ export interface FishpaiState {
   auth: Record<PublishTarget, AuthState>
   presets: Array<{ name: string; color: string }>
   /**
-   * 字体预设（`sans` / `serif` / `mono`）。宿主一直在 `/themes` 里回它，但面板以前既没存也没用——
-   * 于是"把正文换成衬线"在界面上根本做不到，而主题自带的字体栈又会被这个预设覆盖（站点既有行为）。
+   * 字体预设（`sans` / `serif` / `mono`）。宿主经 `/themes` 返回预设，面板保存并应用它；
+   * 预设覆盖主题自带的字体栈（站点既有行为）。
    */
   fonts: string[]
   sizes: string[]
@@ -415,7 +415,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
 
   async function saveNow() {
     if (!state.docKey || !state.dirty) return
-    // 冲突未决之前不再重试：否则用户每打一个字都会再撞一次 409
+    // 冲突未决时暂停自动保存，避免每次输入重复触发 409
     if (state.conflict) return
     // 「外部更新」提示在场时同样不自动保存：本地 revision 已过期，写出去必然 409，
     // 只会把这条提示替换成语义重叠的「冲突」提示。用户的输入留在编辑器里，
@@ -434,7 +434,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         dirty: state.markdown !== snapshotMarkdown,
         conflict: null,
         external: null,
-        // 每次写入都会留一份快照，宿主顺手把它回带过来——「历史」抽屉不用再手动刷新
+        // 每次写入都会留一份快照；宿主回带写入后的历史清单，面板直接同步「历史」抽屉
         ...(res.history ? { history: res.history } : {}),
       })
     } catch (error) {
@@ -460,7 +460,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
    *
    * 带请求令牌：快速切文档、或轮询（`onActiveDoc`）与点击同时发生时，先发的响应可能后到——
    * 没有令牌就会把已经切过去的那一篇盖回来（面板显示 A、宿主当前却是 B，
-   * 此后打的字会按 `docKey = A` 存进 A）。`refreshPreview` 一直有同款 `previewToken`，这里补齐。
+   * 此后打的字会按 `docKey = A` 存进 A）。请求令牌与 `refreshPreview` 的 `previewToken` 采用同一机制。
    *
    * 未保存的改动由调用方负责（`reloadSafely` / `restore` / `createDoc` / `openDocByKey`
    * 都是"先落盘再重载"）；但调用方的 dirty 检查只在 await **之前**——
@@ -471,8 +471,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
    * - 失败的是**当前这篇**（刷新、轮询发现 AI 改过）：正文原样留在屏幕上，只挂错误横幅，返回 false；
    * - 失败的是**要切过去的那篇**：把错误抛给调用方（它才知道该不该换文档、怎么提示）。
    *
-   * 宿主以前把"正文文件读不出来"降级成 `200 + markdown: ""`，面板照单全收，
-   * 于是用户看到的是"文档被清空"而不是"文件不在了"——所以现在宿主回 404，这里也不吞。
+   * 宿主对正文读取失败返回 404；面板保留当前正文并显示错误，空正文只来自真实的空文档。
    */
   async function loadDoc(docKey: string): Promise<boolean> {
     if (!docKey || isPublishBusy(state.publish.phase)) return false
@@ -540,8 +539,8 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
 
   /**
    * 切换文档前的统一约定：有未保存的输入就先落盘，保存失败就取消切换。
-   * 少了这一步，「新建空白文档 / 最近打开」会把用户刚敲的字静默丢掉——
-   * 与 `reloadSafely` / `restore` 是同一条纪律，只是这两个入口原先漏了。
+   * 「新建空白文档 / 最近打开」与 `reloadSafely` / `restore` 共用这一入口，
+   * 避免切换文档时静默丢失用户输入。
    */
   async function saveBeforeSwitch(): Promise<boolean> {
     if (!state.dirty || state.conflict || state.external) return true

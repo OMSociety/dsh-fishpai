@@ -82,7 +82,7 @@ test('每套主题都配了图标（面板的主题列表靠它，不许悄悄�
     [...block.matchAll(/^\s{2}([a-z_]+):\s*([A-Za-z0-9]+),/gm)].map((m) => [m[1], m[2]]),
   )
   const keys = themeCatalog().map((t) => t.key)
-  // 方向一：内置主题一个都不许漏（这条是原本的意图）
+  // 方向一：每套内置主题都必须有图标
   const missing = keys.filter((k) => !mapped.has(k))
   assert.deepEqual(missing, [], `THEME_GLYPH 缺图标：${missing.join(', ')}（加了主题就要补一行）`)
   // 方向二：多出来的键必须是**有意**的。`custom` 是允许的——「自定义主题」由**路由层**加进清单，

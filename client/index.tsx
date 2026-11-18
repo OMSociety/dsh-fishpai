@@ -149,7 +149,7 @@ export function apply(ctx: any): void {
       const sidebarRight = pick(injected, 'sidebarRight')
 
       // 0.1.7 线读"当前会话"：右侧栏座位挂载的会话就是屏幕上那个（ISidebarRight.mounted）。
-      // 旧版没有这个公开字段，读不到就返回 null、走别的读法。
+      // 0.1.5 未公开 mounted；读取失败返回 null，并使用其它会话读法。
       // 装在 tab 注册守卫之前：挂载读法与注册无关，裁剪构建（有 mounted、没有席位注册）也要能读。
       getMountedSession = () => {
         try {
@@ -170,7 +170,7 @@ export function apply(ctx: any): void {
           guide: [
             {
               // 0.1.7 起 guide 条目契约要求稳定 id（注册时的唯一性检查与渲染 key 都按它走）；
-              // 旧版注册处不读这个字段，多了无害。
+              // 0.1.5 的注册实现忽略该字段。
               id: 'editor',
               order: 45,
               title: () => '鱼排编辑器',
@@ -225,7 +225,7 @@ export function apply(ctx: any): void {
     let lastKey: string | null = null
     let lastTheme = ''
     let lastSession = ''
-    /** 已经轮询过的会话：第一次 tick 不触发 onActiveDoc（面板自己会 init），之后不再抑制。 */
+    /** 已轮询会话：第一次 tick 由面板 init，后续 tick 正常触发 onActiveDoc。 */
     const seenSessions = new Set<string>()
     const tick = async () => {
       if (stopped || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return

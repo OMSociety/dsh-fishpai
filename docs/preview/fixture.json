@@ -1,0 +1,682 @@
+{
+  "key": "preview",
+  "sessionId": "preview",
+  "markdown": "# 鱼排 FishPai：把公众号排版台搬进 DSH\n\n在右侧栏完成改稿、组件排版与公众号预览，AI 能读懂人的每一处修改。\n\n**专业管线**把 Markdown 文稿与交互组件组合成公众号 HTML，复制或保存草稿都使用同一份产物。\n\n::: gradient_banner\n从 Markdown 到公众号，一份文稿走完整条排版链\n:::\n\n## 内容按阅读节奏展开\n\n::: expand\n点我展开详情\n---\n补充说明、进阶阅读和技术细节可以收进展开组件，正文继续保持清晰。\n:::\n\n## 本周文稿进度\n\n::: progress\n86 编辑与校对\n:::\n\n::: compare\n**写作者专注内容**\n\n文稿、批注与块级修改留在同一个工作流里。\n---\n**读者获得清晰节奏**\n\n标题、展开组件与进度信息组成易读的版面。\n:::\n",
+  "meta": {
+    "theme": "default",
+    "color": null,
+    "font": "sans",
+    "fontSize": "16px",
+    "footnotes": true,
+    "macCodeBlock": true,
+    "mobile": false,
+    "target": "xiumi"
+  },
+  "themes": {
+    "themes": [
+      {
+        "key": "default",
+        "name": "默认公众号",
+        "emoji": "📱",
+        "desc": "经典微信公众号排版",
+        "scope": "builtin",
+        "usesAccent": true,
+        "gradientText": false,
+        "darkWrapper": false,
+        "wechatSafe": true
+      },
+      {
+        "key": "tech",
+        "name": "技术风格",
+        "emoji": "💻",
+        "desc": "适合技术文章",
+        "scope": "builtin",
+        "usesAccent": false,
+        "gradientText": true,
+        "darkWrapper": false,
+        "wechatSafe": false
+      },
+      {
+        "key": "elegant",
+        "name": "优雅简约",
+        "emoji": "✨",
+        "desc": "精致杂志风排版",
+        "scope": "builtin",
+        "usesAccent": false,
+        "gradientText": false,
+        "darkWrapper": false,
+        "wechatSafe": true
+      },
+      {
+        "key": "deep_read",
+        "name": "深度阅读",
+        "emoji": "📖",
+        "desc": "适合长文阅读",
+        "scope": "builtin",
+        "usesAccent": false,
+        "gradientText": false,
+        "darkWrapper": false,
+        "wechatSafe": true
+      },
+      {
+        "key": "nyt",
+        "name": "纽约时报",
+        "emoji": "📰",
+        "desc": "经典报刊风格",
+        "scope": "builtin",
+        "usesAccent": false,
+        "gradientText": false,
+        "darkWrapper": false,
+        "wechatSafe": true
+      },
+      {
+        "key": "apple",
+        "name": "Apple 极简",
+        "emoji": "🍎",
+        "desc": "苹果风格极简设计",
+        "scope": "builtin",
+        "usesAccent": false,
+        "gradientText": false,
+        "darkWrapper": false,
+        "wechatSafe": true
+      },
+      {
+        "key": "claude",
+        "name": "Claude",
+        "emoji": "🤖",
+        "desc": "Anthropic Claude 风格",
+        "scope": "builtin",
+        "usesAccent": false,
+        "gradientText": false,
+        "darkWrapper": false,
+        "wechatSafe": true
+      },
+      {
+        "key": "sspai",
+        "name": "少数派",
+        "emoji": "🔮",
+        "desc": "sspai 清新科技风",
+        "scope": "builtin",
+        "usesAccent": false,
+        "gradientText": false,
+        "darkWrapper": false,
+        "wechatSafe": true
+      },
+      {
+        "key": "bamboo",
+        "name": "竹林",
+        "emoji": "🎋",
+        "desc": "中国风绿色雅致",
+        "scope": "builtin",
+        "usesAccent": false,
+        "gradientText": false,
+        "darkWrapper": false,
+        "wechatSafe": true
+      },
+      {
+        "key": "dark_night",
+        "name": "暗夜模式",
+        "emoji": "🌃",
+        "desc": "暗色背景高对比",
+        "scope": "builtin",
+        "usesAccent": false,
+        "gradientText": false,
+        "darkWrapper": true,
+        "wechatSafe": false
+      },
+      {
+        "key": "gradient",
+        "name": "渐变彩虹",
+        "emoji": "🌈",
+        "desc": "标题彩色渐变效果",
+        "scope": "builtin",
+        "usesAccent": false,
+        "gradientText": true,
+        "darkWrapper": false,
+        "wechatSafe": false
+      }
+    ],
+    "presets": [
+      {
+        "name": "翡翠绿",
+        "color": "#10b981"
+      },
+      {
+        "name": "天空蓝",
+        "color": "#3b82f6"
+      },
+      {
+        "name": "靛蓝",
+        "color": "#4f6ef7"
+      },
+      {
+        "name": "薰衣紫",
+        "color": "#8b5cf6"
+      },
+      {
+        "name": "玫瑰粉",
+        "color": "#ec4899"
+      },
+      {
+        "name": "珊瑚红",
+        "color": "#ef4444"
+      },
+      {
+        "name": "琥珀橙",
+        "color": "#f59e0b"
+      },
+      {
+        "name": "青碧",
+        "color": "#0d9488"
+      },
+      {
+        "name": "海军蓝",
+        "color": "#1e40af"
+      },
+      {
+        "name": "深玫瑰",
+        "color": "#be185d"
+      },
+      {
+        "name": "石墨灰",
+        "color": "#4b5563"
+      },
+      {
+        "name": "经典蓝",
+        "color": "#1890ff"
+      }
+    ],
+    "fonts": [
+      "sans",
+      "serif",
+      "mono"
+    ],
+    "sizes": [
+      "14px",
+      "15px",
+      "16px",
+      "17px",
+      "18px"
+    ]
+  },
+  "state": {
+    "cwd": "/workspace",
+    "active": {
+      "key": "preview",
+      "path": "/workspace/.fishpai/docs/preview.md",
+      "title": "鱼排 FishPai：把公众号排版台搬进 DSH",
+      "revision": 12,
+      "theme": "default"
+    },
+    "openRequest": null,
+    "docs": [
+      {
+        "key": "preview",
+        "path": "/workspace/.fishpai/docs/preview.md",
+        "title": "鱼排 FishPai：把公众号排版台搬进 DSH",
+        "revision": 12,
+        "updatedAt": 1794988800000
+      }
+    ]
+  },
+  "doc": {
+    "doc": {
+      "key": "preview",
+      "path": "/workspace/.fishpai/docs/preview.md",
+      "title": "鱼排 FishPai：把公众号排版台搬进 DSH",
+      "revision": 12,
+      "updatedAt": 1794988800000,
+      "markdown": "# 鱼排 FishPai：把公众号排版台搬进 DSH\n\n在右侧栏完成改稿、组件排版与公众号预览，AI 能读懂人的每一处修改。\n\n**专业管线**把 Markdown 文稿与交互组件组合成公众号 HTML，复制或保存草稿都使用同一份产物。\n\n::: gradient_banner\n从 Markdown 到公众号，一份文稿走完整条排版链\n:::\n\n## 内容按阅读节奏展开\n\n::: expand\n点我展开详情\n---\n补充说明、进阶阅读和技术细节可以收进展开组件，正文继续保持清晰。\n:::\n\n## 本周文稿进度\n\n::: progress\n86 编辑与校对\n:::\n\n::: compare\n**写作者专注内容**\n\n文稿、批注与块级修改留在同一个工作流里。\n---\n**读者获得清晰节奏**\n\n标题、展开组件与进度信息组成易读的版面。\n:::\n",
+      "updatedBy": "human",
+      "baseline": null
+    },
+    "meta": {
+      "theme": "default",
+      "color": null,
+      "font": "sans",
+      "fontSize": "16px",
+      "footnotes": true,
+      "macCodeBlock": true,
+      "mobile": false,
+      "target": "xiumi"
+    },
+    "blocks": [
+      {
+        "index": 0,
+        "id": "08kz52k",
+        "kind": "heading",
+        "variant": null,
+        "lang": null,
+        "level": 1,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH"
+        ],
+        "startLine": 1,
+        "endLine": 1,
+        "hash": "08kz52k",
+        "preview": "# 鱼排 FishPai：把公众号排版台搬进 DSH"
+      },
+      {
+        "index": 1,
+        "id": "01gr1oh",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH"
+        ],
+        "startLine": 3,
+        "endLine": 3,
+        "hash": "01gr1oh",
+        "preview": "在右侧栏完成改稿、组件排版与公众号预览，AI 能读懂人的每一处修改。"
+      },
+      {
+        "index": 2,
+        "id": "0q759nh",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH"
+        ],
+        "startLine": 5,
+        "endLine": 5,
+        "hash": "0q759nh",
+        "preview": "**专业管线**把 Markdown 文稿与交互组件组合成公众号 HTML，复制或保存草稿都使用同一份产物。"
+      },
+      {
+        "index": 3,
+        "id": "1i4vcrf",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH"
+        ],
+        "startLine": 7,
+        "endLine": 9,
+        "hash": "1i4vcrf",
+        "preview": "::: gradient_banner"
+      },
+      {
+        "index": 4,
+        "id": "1rpo3ty",
+        "kind": "heading",
+        "variant": null,
+        "lang": null,
+        "level": 2,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "内容按阅读节奏展开"
+        ],
+        "startLine": 11,
+        "endLine": 11,
+        "hash": "1rpo3ty",
+        "preview": "## 内容按阅读节奏展开"
+      },
+      {
+        "index": 5,
+        "id": "1phfpmc",
+        "kind": "heading",
+        "variant": null,
+        "lang": null,
+        "level": 2,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "::: expand\n点我展开详情\n---"
+        ],
+        "startLine": 13,
+        "endLine": 15,
+        "hash": "1phfpmc",
+        "preview": "::: expand"
+      },
+      {
+        "index": 6,
+        "id": "07buw4n",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "::: expand\n点我展开详情\n---"
+        ],
+        "startLine": 16,
+        "endLine": 17,
+        "hash": "07buw4n",
+        "preview": "补充说明、进阶阅读和技术细节可以收进展开组件，正文继续保持清晰。"
+      },
+      {
+        "index": 7,
+        "id": "0xx0ygw",
+        "kind": "heading",
+        "variant": null,
+        "lang": null,
+        "level": 2,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "本周文稿进度"
+        ],
+        "startLine": 19,
+        "endLine": 19,
+        "hash": "0xx0ygw",
+        "preview": "## 本周文稿进度"
+      },
+      {
+        "index": 8,
+        "id": "0q7h6x5",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "本周文稿进度"
+        ],
+        "startLine": 21,
+        "endLine": 23,
+        "hash": "0q7h6x5",
+        "preview": "::: progress"
+      },
+      {
+        "index": 9,
+        "id": "0z75c6d",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "本周文稿进度"
+        ],
+        "startLine": 25,
+        "endLine": 26,
+        "hash": "0z75c6d",
+        "preview": "::: compare"
+      },
+      {
+        "index": 10,
+        "id": "0eqxzqe",
+        "kind": "heading",
+        "variant": null,
+        "lang": null,
+        "level": 2,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "文稿、批注与块级修改留在同一个工作流里。\n---"
+        ],
+        "startLine": 28,
+        "endLine": 29,
+        "hash": "0eqxzqe",
+        "preview": "文稿、批注与块级修改留在同一个工作流里。"
+      },
+      {
+        "index": 11,
+        "id": "12vizkz",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "文稿、批注与块级修改留在同一个工作流里。\n---"
+        ],
+        "startLine": 30,
+        "endLine": 30,
+        "hash": "12vizkz",
+        "preview": "**读者获得清晰节奏**"
+      },
+      {
+        "index": 12,
+        "id": "12gem0z",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "文稿、批注与块级修改留在同一个工作流里。\n---"
+        ],
+        "startLine": 32,
+        "endLine": 33,
+        "hash": "12gem0z",
+        "preview": "标题、展开组件与进度信息组成易读的版面。"
+      }
+    ],
+    "notes": [],
+    "placeholders": [],
+    "images": [],
+    "history": [
+      {
+        "id": "preview-r12",
+        "rev": 12,
+        "at": 1794988800000,
+        "by": "human",
+        "chars": 374,
+        "label": "演示文稿"
+      }
+    ]
+  },
+  "render": {
+    "mode": "preview",
+    "html": "<section style=\"max-width:677px;margin:0 auto;padding:24px 20px 32px;box-sizing:border-box;background-color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;letter-spacing:0.01em;\"><h1 style=\"margin:0 0 22px;color:#1f2329;font-size:24px;line-height:1.4;text-align:left;font-weight:700;letter-spacing:0.02em;padding-bottom:16px;border-bottom:1px solid #f5f6f8;\">鱼排 FishPai：把公众号排版台搬进 DSH</h1><p style=\"margin:0 0 14px;color:#3f4650;font-size:16px;line-height:1.8;\">在右侧栏完成改稿、组件排版与公众号预览，AI 能读懂人的每一处修改。</p><p style=\"margin:0 0 14px;color:#3f4650;font-size:16px;line-height:1.8;\"><strong style=\"color:#1f2329;font-weight:700;\">专业管线</strong>把 Markdown 文稿与交互组件组合成公众号 HTML，复制或保存草稿都使用同一份产物。</p><section style=\"margin:0 0 16px;padding:24px 16px;background:linear-gradient(135deg, #3f63d7 0%, #5b7cdb 100%);border-radius:8px;color:#ffffff;text-align:center;font-size:24px;font-weight:700;line-height:1.35;\">从 Markdown 到公众号，一份文稿走完整条排版链</section><h2 style=\"margin:30px 0 14px;color:#1f2329;font-size:21px;line-height:1.4;text-align:left;font-weight:700;letter-spacing:0.02em;\">内容按阅读节奏展开</h2><section style=\"margin:0 0 20px;overflow:hidden;line-height:0;\"><section style=\"height:0;min-height:0;overflow:visible;display:flow-root;\"><section style=\"margin-top:64px;padding:16px;box-sizing:border-box;background-color:#f5f6f8;border-radius:8px;color:#3f4650;font-size:16px;line-height:1.8;\"><p style=\"margin:0 0 14px;color:#3f4650;font-size:16px;line-height:1.8;\">补充说明、进阶阅读和技术细节可以收进展开组件，正文继续保持清晰。</p></section></section><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"56\" style=\"display:block;cursor:pointer;\" role=\"button\" aria-label=\"点我展开详情\"><rect x=\"0\" y=\"0\" width=\"100%\" height=\"56\" rx=\"8\" fill=\"#f5f6f8\"/><text x=\"16\" y=\"33\" fill=\"#1f2329\" font-size=\"15\" font-weight=\"600\">点我展开详情</text><text x=\"96%\" y=\"35\" text-anchor=\"end\" fill=\"#3f63d7\" font-size=\"24\" font-weight=\"400\">＋</text><animate attributeName=\"height\" from=\"56\" to=\"136\" dur=\"0.4s\" begin=\"click\" fill=\"freeze\"/></svg></section><h2 style=\"margin:30px 0 14px;color:#1f2329;font-size:21px;line-height:1.4;text-align:left;font-weight:700;letter-spacing:0.02em;\">本周文稿进度</h2><section style=\"margin:0 0 18px;\"><section style=\"display:flex;justify-content:space-between;margin:0 0 6px;color:#3f4650;font-size:13px;line-height:1.5;\"><span>编辑与校对</span><span style=\"color:#3f63d7;font-weight:600;\">86%</span></section><section style=\"background-color:#f5f6f8;border-radius:3px;height:6px;overflow:hidden;box-sizing:border-box;\"><section style=\"width:86%;height:6px;background-color:#3f63d7;border-radius:3px;\"></section></section></section><table style=\"width:100%;border-collapse:collapse;margin:0 0 18px;table-layout:fixed;\" role=\"presentation\"><tbody><tr><td style=\"width:50%;vertical-align:top;box-sizing:border-box;padding:14px;font-size:16px;line-height:1.8;overflow-wrap:break-word;border-right:1px solid #f5f6f8;color:#3f4650;\"><section style=\"color:#3f4650;font-size:16px;line-height:1.8;\"><p style=\"margin:0 0 14px;color:#3f4650;font-size:16px;line-height:1.8;\"><strong style=\"color:#1f2329;font-weight:700;\">写作者专注内容</strong></p><p style=\"margin:0 0 14px;color:#3f4650;font-size:16px;line-height:1.8;\">文稿、批注与块级修改留在同一个工作流里。</p></section></td><td style=\"width:50%;vertical-align:top;box-sizing:border-box;padding:14px;font-size:16px;line-height:1.8;overflow-wrap:break-word;color:#3f4650;\"><section style=\"color:#3f4650;font-size:16px;line-height:1.8;\"><p style=\"margin:0 0 14px;color:#3f4650;font-size:16px;line-height:1.8;\"><strong style=\"color:#1f2329;font-weight:700;\">读者获得清晰节奏</strong></p><p style=\"margin:0 0 14px;color:#3f4650;font-size:16px;line-height:1.8;\">标题、展开组件与进度信息组成易读的版面。</p></section></td></tr></tbody></table></section>",
+    "themeKey": "xiumi",
+    "themeName": "秀米",
+    "componentCount": 9,
+    "hljsCss": ".hljs-comment{color: rgb(92, 99, 112); font-style: italic;}\n.hljs-quote{color: rgb(92, 99, 112); font-style: italic;}\n.hljs-doctag{color: rgb(198, 120, 221);}\n.hljs-formula{color: rgb(198, 120, 221);}\n.hljs-keyword{color: rgb(198, 120, 221);}\n.hljs-deletion{color: rgb(224, 108, 117);}\n.hljs-name{color: rgb(224, 108, 117);}\n.hljs-section{color: rgb(224, 108, 117);}\n.hljs-selector-tag{color: rgb(224, 108, 117);}\n.hljs-subst{color: rgb(224, 108, 117);}\n.hljs-literal{color: rgb(86, 182, 194);}\n.hljs-addition{color: rgb(152, 195, 121);}\n.hljs-attribute{color: rgb(152, 195, 121);}\n.hljs-meta{color: rgb(97, 174, 238);}\n.hljs-regexp{color: rgb(152, 195, 121);}\n.hljs-string{color: rgb(152, 195, 121);}\n.hljs-attr{color: rgb(209, 154, 102);}\n.hljs-number{color: rgb(209, 154, 102);}\n.hljs-selector-attr{color: rgb(209, 154, 102);}\n.hljs-selector-class{color: rgb(209, 154, 102);}\n.hljs-selector-pseudo{color: rgb(209, 154, 102);}\n.hljs-template-variable{color: rgb(209, 154, 102);}\n.hljs-type{color: rgb(209, 154, 102);}\n.hljs-variable{color: rgb(209, 154, 102);}\n.hljs-bullet{color: rgb(97, 174, 238);}\n.hljs-link{color: rgb(97, 174, 238);}\n.hljs-selector-id{color: rgb(97, 174, 238);}\n.hljs-symbol{color: rgb(97, 174, 238);}\n.hljs-title{color: rgb(97, 174, 238);}\n.hljs-params{color: rgb(171, 178, 191);}\n.hljs-emphasis{color: rgb(171, 178, 191); font-style: italic;}\n.hljs-strong{color: rgb(171, 178, 191); font-weight: 700;}",
+    "linkCount": 0,
+    "hasCode": false,
+    "blocks": [
+      {
+        "index": 0,
+        "id": "08kz52k",
+        "kind": "heading",
+        "variant": null,
+        "lang": null,
+        "level": 1,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH"
+        ],
+        "startLine": 1,
+        "endLine": 1,
+        "hash": "08kz52k",
+        "preview": "# 鱼排 FishPai：把公众号排版台搬进 DSH"
+      },
+      {
+        "index": 1,
+        "id": "01gr1oh",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH"
+        ],
+        "startLine": 3,
+        "endLine": 3,
+        "hash": "01gr1oh",
+        "preview": "在右侧栏完成改稿、组件排版与公众号预览，AI 能读懂人的每一处修改。"
+      },
+      {
+        "index": 2,
+        "id": "0q759nh",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH"
+        ],
+        "startLine": 5,
+        "endLine": 5,
+        "hash": "0q759nh",
+        "preview": "**专业管线**把 Markdown 文稿与交互组件组合成公众号 HTML，复制或保存草稿都使用同一份产物。"
+      },
+      {
+        "index": 3,
+        "id": "1i4vcrf",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH"
+        ],
+        "startLine": 7,
+        "endLine": 9,
+        "hash": "1i4vcrf",
+        "preview": "::: gradient_banner"
+      },
+      {
+        "index": 4,
+        "id": "1rpo3ty",
+        "kind": "heading",
+        "variant": null,
+        "lang": null,
+        "level": 2,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "内容按阅读节奏展开"
+        ],
+        "startLine": 11,
+        "endLine": 11,
+        "hash": "1rpo3ty",
+        "preview": "## 内容按阅读节奏展开"
+      },
+      {
+        "index": 5,
+        "id": "1phfpmc",
+        "kind": "heading",
+        "variant": null,
+        "lang": null,
+        "level": 2,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "::: expand\n点我展开详情\n---"
+        ],
+        "startLine": 13,
+        "endLine": 15,
+        "hash": "1phfpmc",
+        "preview": "::: expand"
+      },
+      {
+        "index": 6,
+        "id": "07buw4n",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "::: expand\n点我展开详情\n---"
+        ],
+        "startLine": 16,
+        "endLine": 17,
+        "hash": "07buw4n",
+        "preview": "补充说明、进阶阅读和技术细节可以收进展开组件，正文继续保持清晰。"
+      },
+      {
+        "index": 7,
+        "id": "0xx0ygw",
+        "kind": "heading",
+        "variant": null,
+        "lang": null,
+        "level": 2,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "本周文稿进度"
+        ],
+        "startLine": 19,
+        "endLine": 19,
+        "hash": "0xx0ygw",
+        "preview": "## 本周文稿进度"
+      },
+      {
+        "index": 8,
+        "id": "0q7h6x5",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "本周文稿进度"
+        ],
+        "startLine": 21,
+        "endLine": 23,
+        "hash": "0q7h6x5",
+        "preview": "::: progress"
+      },
+      {
+        "index": 9,
+        "id": "0z75c6d",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "本周文稿进度"
+        ],
+        "startLine": 25,
+        "endLine": 26,
+        "hash": "0z75c6d",
+        "preview": "::: compare"
+      },
+      {
+        "index": 10,
+        "id": "0eqxzqe",
+        "kind": "heading",
+        "variant": null,
+        "lang": null,
+        "level": 2,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "文稿、批注与块级修改留在同一个工作流里。\n---"
+        ],
+        "startLine": 28,
+        "endLine": 29,
+        "hash": "0eqxzqe",
+        "preview": "文稿、批注与块级修改留在同一个工作流里。"
+      },
+      {
+        "index": 11,
+        "id": "12vizkz",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "文稿、批注与块级修改留在同一个工作流里。\n---"
+        ],
+        "startLine": 30,
+        "endLine": 30,
+        "hash": "12vizkz",
+        "preview": "**读者获得清晰节奏**"
+      },
+      {
+        "index": 12,
+        "id": "12gem0z",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "鱼排 FishPai：把公众号排版台搬进 DSH",
+          "文稿、批注与块级修改留在同一个工作流里。\n---"
+        ],
+        "startLine": 32,
+        "endLine": 33,
+        "hash": "12gem0z",
+        "preview": "标题、展开组件与进度信息组成易读的版面。"
+      }
+    ],
+    "notes": [],
+    "placeholders": [],
+    "images": []
+  }
+}

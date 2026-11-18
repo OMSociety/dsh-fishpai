@@ -15,18 +15,18 @@ import * as store from '../plugin/host/store.mjs'
 
 const md = '# 标题\n\n正文 **加粗**。\n\n- 甲\n- 乙'
 
-test('秀米：规格十一键与 6 HTML / 3 SVG / 8 wc_* 组件', () => {
+test('秀米：规格十一键与静态组件、交互组件注册表', () => {
   assert.deepEqual(Object.keys(DEFAULT_SPEC).sort(), ['title_color','title_size','title_align','body_color','body_size','line_height','card_bg','card_radius','card_padding','accent','accent2'].sort())
   assert.deepEqual(Object.keys(HTML_COMPONENTS), ['heading','paragraph','card','two_columns','quote','divider'])
   assert.deepEqual(Object.keys(SVG_COMPONENTS), ['svg_gradient_banner','svg_wave_divider','svg_number_icons'])
-  assert.deepEqual(Object.keys(WECHAT_COMPONENTS), ['wc_heading','wc_paragraph','wc_card','wc_gradient_banner','wc_wave_divider','wc_number_steps','wc_quote','wc_two_columns'])
+  assert.deepEqual(Object.keys(WECHAT_COMPONENTS), ['wc_heading','wc_paragraph','wc_card','wc_bullet_list','wc_gradient_banner','wc_wave_divider','wc_number_steps','wc_quote','wc_two_columns'])
 })
 test('秀米：Markdown 与指令经 wc 别名组成页面', () => {
   const components = componentsFromMarkdown('# 标题\n\n正文\n\n:::card\n卡片\n:::\n\n:::gradient_banner\n渐变\n:::')
   assert.deepEqual(components.map((x) => x.type), ['heading','paragraph','card','gradient_banner'])
   const html = buildPage(components)
-  assert.match(html, /^<section style="padding:10px; box-sizing:border-box;">/)
-  assert.match(html, /linear-gradient\(135deg, #667eea 0%, #764ba2 100%\)/)
+  assert.match(html, /^<section style="max-width:677px;margin:0 auto;padding:24px 20px 32px;box-sizing:border-box;background-color:#ffffff;/)
+  assert.match(html, /linear-gradient\(135deg, #3f63d7 0%, #5b7cdb 100%\)/)
   assert.match(SVG_COMPONENTS.svg_wave_divider({}, DEFAULT_SPEC), /^<svg/)
 })
 test('秀米：自定义规格与未知组件边界', () => {

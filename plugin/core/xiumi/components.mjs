@@ -14,8 +14,12 @@ function safeInline(value) {
 const section = (style, content) => `<section style="${style}">${content}</section>`
 
 export function heading({ text = '', level = 1 }, spec = DEFAULT_SPEC) {
-  const tag = /^h[1-6]$/.test(level) ? level : `h${Math.min(6, Math.max(1, Number(level) || 1))}`
-  return `<${tag} style="margin:0 0 16px;color:${spec.title_color};font-size:${spec.title_size}px;line-height:1.35;text-align:${spec.title_align};font-weight:700;">${safeInline(text)}</${tag}>`
+  const depth = /^h[1-6]$/.test(level) ? Number(level.slice(1)) : Math.min(6, Math.max(1, Number(level) || 1))
+  const tag = `h${depth}`
+  const fontSize = Math.max(spec.body_size, spec.title_size - (depth - 1) * 3)
+  const margin = depth === 1 ? '0 0 22px' : '30px 0 14px'
+  const border = depth === 1 ? `padding-bottom:16px;border-bottom:1px solid ${spec.card_bg};` : ''
+  return `<${tag} style="margin:${margin};color:${spec.title_color};font-size:${fontSize}px;line-height:1.4;text-align:${spec.title_align};font-weight:700;letter-spacing:0.02em;${border}">${safeInline(text)}</${tag}>`
 }
 
 export function paragraph({ html = '', text }, spec = DEFAULT_SPEC) {
@@ -35,7 +39,7 @@ export function twoColumns({ left = '', right = '' }, spec = DEFAULT_SPEC) {
 
 export function quote({ html = '', text }, spec = DEFAULT_SPEC) {
   const content = text === undefined ? safeInline(html) : escapeHtml(text)
-  return section(`margin:0 0 16px;padding:12px 16px;border-left:4px solid ${spec.accent};background-color:${spec.card_bg};color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};`, content)
+  return section(`margin:0 0 16px;padding:12px 14px;border-left:1px solid ${spec.accent};background-color:${spec.card_bg};color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};`, content)
 }
 
 export function divider(_props = {}, spec = DEFAULT_SPEC) {
@@ -44,8 +48,7 @@ export function divider(_props = {}, spec = DEFAULT_SPEC) {
 
 export function svgGradientBanner({ text = '' }, spec = DEFAULT_SPEC) {
   const label = escapeHtml(text)
-  // 微信会剥离 SVG 的 id 属性，url(#…) 渐变引用随之失效；
-  // 这里用纯色 rect（accent）兜底，不依赖 <defs>/<linearGradient> 的 id 引用。
+  // 微信会剥离 SVG 的 id 属性；标题横幅用纯色 rect 直接呈现 accent。
   return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 600 120" role="img" aria-label="${label}"><rect width="600" height="120" rx="${spec.card_radius}" fill="${spec.accent}"/><text x="300" y="68" text-anchor="middle" fill="#ffffff" font-size="${spec.title_size}" font-weight="700">${label}</text></svg>`
 }
 
@@ -72,6 +75,14 @@ export function wcCard(props, spec) {
   return card(props, spec)
 }
 
+export function wcBulletList({ items = [] }, spec = DEFAULT_SPEC) {
+  const rows = items.map((item) => {
+    const text = typeof item === 'string' ? item : item.text || ''
+    return `<p style="margin:0 0 10px;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};"><span style="color:${spec.accent};margin-right:8px;">•</span>${safeInline(text)}</p>`
+  }).join('')
+  return section('margin:0 0 20px;', rows)
+}
+
 export function wcGradientBanner({ text = '' }, spec = DEFAULT_SPEC) {
   return section(`margin:0 0 16px;padding:24px 16px;background:linear-gradient(135deg, ${spec.accent} 0%, ${spec.accent2} 100%);border-radius:${spec.card_radius}px;color:#ffffff;text-align:center;font-size:${spec.title_size}px;font-weight:700;line-height:1.35;`, escapeHtml(text))
 }
@@ -83,7 +94,7 @@ export function wcWaveDivider(_props = {}, spec = DEFAULT_SPEC) {
 export function wcNumberSteps({ items = [] }, spec = DEFAULT_SPEC) {
   return section('margin:0 0 16px;', items.map((item, index) => {
     const text = typeof item === 'string' ? item : item.text || ''
-    return section('display:flex;align-items:flex-start;margin:0 0 12px;', `<span style="flex:0 0 28px;width:28px;height:28px;line-height:28px;text-align:center;border-radius:50%;background-color:${spec.accent};color:#ffffff;font-size:14px;font-weight:700;margin-right:10px;">${index + 1}</span><span style="flex:1;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};">${safeInline(text)}</span>`)
+    return section('display:flex;align-items:flex-start;margin:0 0 12px;', `<span style="flex:0 0 24px;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background-color:${spec.accent};color:#ffffff;font-size:13px;font-weight:700;margin-right:10px;">${index + 1}</span><span style="flex:1;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};">${safeInline(text)}</span>`)
   }).join(''))
 }
 
@@ -97,5 +108,5 @@ export function wcTwoColumns(props, spec) {
 
 export const HTML_COMPONENTS = Object.freeze({ heading, paragraph, card, two_columns: twoColumns, quote, divider })
 export const SVG_COMPONENTS = Object.freeze({ svg_gradient_banner: svgGradientBanner, svg_wave_divider: svgWaveDivider, svg_number_icons: svgNumberIcons })
-export const WECHAT_COMPONENTS = Object.freeze({ wc_heading: wcHeading, wc_paragraph: wcParagraph, wc_card: wcCard, wc_gradient_banner: wcGradientBanner, wc_wave_divider: wcWaveDivider, wc_number_steps: wcNumberSteps, wc_quote: wcQuote, wc_two_columns: wcTwoColumns })
-export const _WECHAT_ALIAS = Object.freeze({ heading: 'wc_heading', paragraph: 'wc_paragraph', card: 'wc_card', two_columns: 'wc_two_columns', quote: 'wc_quote', divider: 'wc_wave_divider', gradient_banner: 'wc_gradient_banner', wave_divider: 'wc_wave_divider', number_steps: 'wc_number_steps', svg_gradient_banner: 'wc_gradient_banner', svg_wave_divider: 'wc_wave_divider', svg_number_icons: 'wc_number_steps', ...Object.fromEntries(Object.keys(WECHAT_COMPONENTS).map((key) => [key, key])) })
+export const WECHAT_COMPONENTS = Object.freeze({ wc_heading: wcHeading, wc_paragraph: wcParagraph, wc_card: wcCard, wc_bullet_list: wcBulletList, wc_gradient_banner: wcGradientBanner, wc_wave_divider: wcWaveDivider, wc_number_steps: wcNumberSteps, wc_quote: wcQuote, wc_two_columns: wcTwoColumns })
+export const _WECHAT_ALIAS = Object.freeze({ heading: 'wc_heading', paragraph: 'wc_paragraph', card: 'wc_card', bullet_list: 'wc_bullet_list', two_columns: 'wc_two_columns', quote: 'wc_quote', divider: 'wc_wave_divider', gradient_banner: 'wc_gradient_banner', wave_divider: 'wc_wave_divider', number_steps: 'wc_number_steps', svg_gradient_banner: 'wc_gradient_banner', svg_wave_divider: 'wc_wave_divider', svg_number_icons: 'wc_number_steps', ...Object.fromEntries(Object.keys(WECHAT_COMPONENTS).map((key) => [key, key])) })

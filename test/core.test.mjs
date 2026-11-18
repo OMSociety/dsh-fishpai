@@ -213,8 +213,8 @@ test('批注分组：未解决 / 失锚 / 已解决', () => {
 // ── 面板开关的判据（linkCount / hasCode）与占位的代码区域排除 ──
 
 test('linkCount 由渲染结果给出：没写协议的裸域名也算（面板的「脚注」开关靠它）', () => {
-  // `github.com/x/y` 会被 linkify 变成链接、照样生成「参考资料」，
-  // 但以前面板拿正则猜（只认带双斜线的写法），于是开关灰着、效果却在——这条钉住修复
+  // `github.com/x/y` 经 linkify 生成链接并进入「参考资料」；
+  // linkCount 同时统计裸域名与显式 URL，面板的「脚注」开关据此判断是否可用
   const bare = render('看 github.com/OMSociety/dsh-fishpai 这个仓库', { theme: 'default' })
   assert.equal(bare.linkCount, 1)
   assert.match(bare.html, /参考资料/)
@@ -226,9 +226,8 @@ test('linkCount 由渲染结果给出：没写协议的裸域名也算（面板�
   assert.equal(none.linkCount, 0)
   assert.doesNotMatch(none.html, /参考资料/)
 
-  // 关掉脚注：HTML 里不再有「参考资料」，但**计数照旧**——计数说的是"正文里有没有链接"，
-  // 与开关无关。若把 off.linkCount 也记成 0：面板拿 linkCount > 0 判断开关能不能点，
-  // 于是关一次 → 变 0 → 置灰 → 再也打不开（自锁）。这条断言就是那个 bug 的守卫。
+  // 关闭脚注只影响 HTML 中的「参考资料」，linkCount 仍表示正文是否含链接。
+  // 面板以 linkCount > 0 判断开关是否可用；关闭后保留计数，开关才能再次开启。
   const off = render('看 [仓库](https://github.com/OMSociety/dsh-fishpai)', { theme: 'default', footnotes: false })
   assert.equal(off.linkCount, 1, '关的是"转脚注"，不是"正文里没有链接"')
   assert.doesNotMatch(off.html, /参考资料/)

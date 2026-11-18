@@ -129,8 +129,7 @@ export function apply(ctx) {
       log('[fishpai] webServer 不可用，右侧栏面板将无法读写文档')
       return () => {}
     }
-    // 注册失败**不再吞掉**：面板打不开却一切"正常"，是最难查的一类故障。
-    // 让异常冒到 cordis 的 effect 上，插件挂载当场失败——界面与日志都看得见。
+    // 路由注册失败向上抛到 cordis effect，插件挂载失败并在界面与日志中呈现。
     const handler = createApiHandler({ resolveCwd, log, getStores, learn, snippets, publish })
     return webServer.register({ kind: 'prefix', path: API_PREFIX, handler })
   }, 'fishpai: /fishpai/api 路由')

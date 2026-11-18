@@ -40,10 +40,11 @@ test('交互组件：SMIL 用 begin="click" 触发，无 id/class/CSS 动画', (
   assert.ok(!/style="[^"]*\btransition:/.test(out.html), '不得含 CSS transition')
 })
 
-test('交互组件：渐变横幅不再依赖 id 渐变引用', () => {
+test('交互组件：渐变横幅使用内联线性渐变', () => {
   const out = renderXiumi(':::gradient_banner\n标题\n:::')
-  assert.ok(!/url\(#/.test(out.html), '不得含 url(#…) 渐变引用（微信剥 id 会失效）')
-  assert.ok(!/<defs>/.test(out.html), '不得含 <defs>')
+  assert.ok(out.html.includes('background:linear-gradient(135deg, #3f63d7 0%, #5b7cdb 100%)'), '横幅使用规格中的两个主题色')
+  assert.ok(!/url\(#/.test(out.html), '横幅不依赖 SVG 引用')
+  assert.ok(!/<defs>/.test(out.html), '横幅使用内联背景')
 })
 
 test('交互组件：预览不包 span，发布形态包裹文本节点', () => {
@@ -82,8 +83,35 @@ test('交互组件：进度条百分比收敛到 0–100', () => {
   assert.match(renderXiumi(':::progress\n-5\n:::').html, /width:0%/)
 })
 
-test('交互组件：对比卡与时间线用内联/table，不用 grid', () => {
+test('专业默认视觉：中性标题、轻量展开条与单色细进度条', () => {
+  const out = renderXiumi('# 标题\n\n:::expand\n点我展开\n---\n正文\n:::\n\n:::progress\n70 文档完成度\n:::')
+  assert.match(out.html, /color:#1f2329;font-size:24px/, '标题使用中性正文色与清晰层级')
+  assert.match(out.html, /<svg[^>]*height="56"/, '展开触发条保持紧凑')
+  assert.match(out.html, /<rect[^>]*height="56"[^>]*fill="#f5f6f8"/, '展开条使用浅底')
+  assert.match(out.html, /<span>文档完成度<\/span><span style="color:#3f63d7;font-weight:600;">70%<\/span>/, '进度标签与数值分离')
+  assert.match(out.html, /height:6px;background-color:#3f63d7/, '进度条使用单色细轨')
+})
+
+test('展开组件：零高正文随 SVG 高度展开', () => {
+  const out = renderXiumi(':::expand\n点我展开\n---\n点击后可见的正文\n:::\n\n后续段落')
+  assert.match(out.html, /<svg[^>]*height="56"[^>]*>/, '初始高度等于触发条高度')
+  assert.match(out.html, /<section style="height:0;min-height:0;overflow:visible;display:flow-root;">[\s\S]*点击后可见的正文/, '正文位于零高容器')
+  assert.match(out.html, /<animate attributeName="height" from="56" to="\d+"[^>]*begin="click"/, '点击驱动根元素高度展开')
+  assert.doesNotMatch(out.html, /<foreignObject\b/i, '正文使用普通内联 HTML')
+  assert.ok(out.html.indexOf('height:0;min-height:0') < out.html.indexOf('<animate attributeName="height"'), '零高正文先于撑高动画')
+})
+
+test('交互组件：长封面保留完整语义并收敛可见文案', () => {
+  const cover = '这是一段用于检查封面提示长度与完整语义的文字内容'
+  const out = renderXiumi(`:::expand\n${cover}\n---\n正文\n:::\n\n:::swiper\n:::`)
+  assert.ok(out.html.includes(`aria-label="${cover}"`), '封面完整文本进入 aria-label')
+  assert.match(out.html, />[^<]*…<\/text>/, '封面可见文本采用省略号收尾')
+  assert.match(out.html, /待补图片 1/, '图集提供清晰的图片占位提示')
+})
+
+test('交互组件：对比卡与时间线使用内联与 table 布局', () => {
   const out = renderXiumi(':::compare\n左\n---\n右\n:::\n\n:::timeline\n2024 · 甲\n:::')
-  assert.ok(!/display\s*:\s*(?:inline-)?grid/.test(out.html), '不得用 grid 布局')
+  assert.ok(!/display\s*:\s*(?:inline-)?grid/.test(out.html), '布局采用内联与 table')
   assert.match(out.html, /<table/, '对比卡用 table 布局')
+  assert.match(out.html, /border-right:1px solid #f5f6f8/, '对比栏采用细分隔线')
 })

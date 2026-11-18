@@ -1,17 +1,17 @@
 /**
  * 内联主题图标的守卫。
  *
- * 图标几何现在是**本仓库自己的代码**（`client/theme-icons.tsx`，复制自 rc2 的
+ * 图标几何属于**本仓库**（`client/theme-icons.tsx`，复制自 rc2 的
  * `@deepseek-ai/dsh-client-ui-primitives`，MIT）。这里守四件事：
  *   1. `icons.tsx` 引用的每个几何组件都真的导出了（拼错 = 运行时整块白）
  *   2. **导出的每一支几何**（主题用的 12 支 + 控件用的 2 支）都能渲染出带
  *      `viewBox="0 0 16 16"` 的 `<svg>`，且图形节点不为空、颜色走 `currentColor`
  *      （空图形 = 主题列表里一个看不见的洞）
- *   3. `icons.tsx` 里不再出现 `require`，bundle 的宿主依赖只剩 react 系
+ *   3. `icons.tsx` 使用内联几何，bundle 的宿主依赖仅含 react 系
  *   4. 鱼形标与包根 `icon.svg` 同源（取景、描边、渐变都要对得上）
  *
  * 这四件事都只守**结构与接线**，守不住"某条路径的数字被改错"——几何内容要与 rc2
- * 逐字比对，见 `NOTICE.md` 与 AGENTS.md 不变量 11。改几何后必须 `npm run build`。
+ * 逐字比对，见 `NOTICE.md` 与 AGENTS.md 硬约束 10。改几何后必须 `npm run build`。
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -51,15 +51,15 @@ function exportedGlyphNames() {
   return [...source.matchAll(/export function ([A-Za-z0-9]+Glyph)\(/g)].map((m) => m[1])
 }
 
-test('icons.tsx 不再 require 宿主 Client 包（rc2 官方明文禁止）', () => {
+test('icons.tsx 与 bundle 不加载宿主 Client 包（rc2 官方约束）', () => {
   const source = fs.readFileSync(ICONS_SRC, 'utf8')
-  assert.ok(!/require\s*\(/.test(source), 'icons.tsx 里不该再有 require')
+  assert.ok(!/require\s*\(/.test(source), 'icons.tsx 使用内联几何，不加载宿主包')
   const glyphSrc = fs.readFileSync(GLYPH_SRC, 'utf8')
-  assert.ok(!/require\s*\(/.test(glyphSrc), 'theme-icons.tsx 里不该有 require')
+  assert.ok(!/require\s*\(/.test(glyphSrc), 'theme-icons.tsx 使用内联几何，不加载宿主包')
   const bundle = fs.readFileSync(BUNDLE, 'utf8')
   const specs = [...bundle.matchAll(/require\(["']([^"']+)["']\)/g)].map((m) => m[1])
   const hostPackages = [...new Set(specs)].filter((s) => s.startsWith('@deepseek-ai/'))
-  assert.deepEqual(hostPackages, [], `产物里不该再有 Harness Client 包：${hostPackages.join(', ')}`)
+  assert.deepEqual(hostPackages, [], `bundle 的 Harness Client 包依赖必须为空：${hostPackages.join(', ')}`)
 })
 
 test('导出的每一支几何都渲染出 16 画板的 svg、图形非空、颜色走 currentColor', async () => {

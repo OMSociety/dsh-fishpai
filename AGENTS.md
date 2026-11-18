@@ -23,6 +23,7 @@
 | 类型检查（只覆盖 `client/`） | `npm run typecheck` |
 | 打包客户端 bundle | `npm run build` |
 | 构建并核对 lib/ 无漂移 | `npm run check:build` |
+| 重建正式 README 预览 | `npm run build:preview` |
 | 重生成渲染 golden | `npm run test:golden:regen` |
 
 ```powershell
@@ -55,7 +56,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 | 改写作风格学习 | `plugin/core/learn.mjs`（规则反推）+ `plugin/host/learn.mjs`（pending、网页抓取、入库） |
 | 改页头页尾片段 | `plugin/core/snippets.mjs`（提取+装配）+ `plugin/host/snippets.mjs`（pending+入库） |
 | 改微信约束检查 | `plugin/core/wechat-lint.mjs` + `test/wechat-lint.test.mjs` |
-| 改秀米组件渲染 | `plugin/core/xiumi/{spec,components,index}.mjs`（独立目标，不改微信 render 签名） |
+| 改秀米组件渲染 | `plugin/core/xiumi/{spec,components,interactive,index}.mjs`（独立目标，不改微信 render 签名） |
 | 改草稿发布自动化 | `plugin/host/publish/{engine,jobs,wechat,xiumi}.mjs`（浏览器、任务与平台适配器） |
 | 改模型工具 | `plugin/host/tools.mjs`（raw JSON-Schema 注册） |
 | 改面板读写 / 安全边界 | `plugin/host/routes.mjs` + `client/api.ts` |
@@ -76,7 +77,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 - 改 `plugin/vendor/themes.js`：同上重生成 snapshot，并核对主题清单与全部 fixture。
 - 改 `client/theme-icons.tsx` 的几何：先回到 rc2 的 `@deepseek-ai/dsh-client-ui-primitives` 逐字比对（来源记录见 NOTICE.md），再 `npm run build` 提交产物。`test/theme-icons.test.mjs` 只守结构与接线，守不住几何内容。
 - 改包根 `icon.svg`：同步改 `client/icons.tsx` 里 `FishMark` 的同一份 36 画板几何；别处没有第二份。
-- 改 README 效果图：`docs/panel-preview.png` 由同目录 `panel-preview.html` 渲染而来（HTML 是可复用源，改文案 / 配色后重新截取即可，图中数据为演示数据）；不要直接手改 PNG。
+- 改 README 效果图：运行 `npm run build:preview`。构建链直接运行正式 `Panel`、`createFishpaiStore` 与面板 CSS，由 `docs/preview/fixture.json` 应答接口，输出 `docs/preview/panel.html` 与 `docs/panel-preview.png`，并在 Chrome 中验收展开交互；改 client、专业渲染或演示文稿后同步重出预览。
 - 加主题：`plugin/vendor/themes.js` 加定义（仿 `default` 主题那套 19 个槽位），往 `client/icons.tsx` 的 `THEME_GLYPH` 补一行（仿现有行；新几何走 `client/theme-icons.tsx` 的复制流程），再重生成 golden。`test/theme-info.test.mjs` 查漏；README / 技能里写死的「11 套主题」计数同步改。
 - 改快捷键 / 键位文案 / 格式化动作：只改 `client/mdedit.ts` + `test/mdedit.test.mjs`，别处不抄第二份。
 - 改依赖：用 `npm install <pkg>`，锁文件随改动一起提交；新增依赖先查许可证（见硬约束 3）。
@@ -94,7 +95,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 4. **客户端 bundle 必须是** `window.__ModuleLoader__.load({ id, factory: (require) => exports })` 形态（由 `scripts/build-client.mjs` 产出）。
 5. **样式只用 `--dsw-alias-*` 主题变量**（阴影例外：`--dsw-shadow-lv1` / `lv2` / `lv3`）；旧名（`--dsw-text-secondary` 一类）在当前 DSH 里不存在，写了就是深色主题下的白块。
 6. **工作目录文件只能落在会话工作目录内**（`header.cwd`），并过 `store.mjs` 的扩展名白名单（`resolveInCwd`）。命名主题等用户级数据走 `storageDomain`，不进入工作目录；浏览器登录态只允许写 auth 域。新建文件一共两处：`POST /upload`（图片，落文档同级 `assets/`）与 `POST /doc`（文档）；文件名都由宿主生成，客户端给的名字只当可读词、不参与路径拼接；图片上限 `MAX_ASSET_BYTES` 与内嵌上限共用一处定义。
-7. **绝不静默覆盖人的手改**：任何写入带 `base_revision`，不匹配就拒绝并回带最新 diff（409 是界面上的冲突态，不是重试信号）。`applyPatches` 必须在拼接处自己保证恰好一个空行：块的行范围**列表含末尾分隔空行、段落不含**，漏补会让下一块被 markdown 的懒延续并进来，之后改那个被并大的块会把它整段删掉（实测事故，`test/host.test.mjs` 有守卫）。
+7. **绝不静默覆盖人的手改**：任何写入带 `base_revision`，不匹配就拒绝并回带最新 diff（409 是界面上的冲突态，不是重试信号）。`applyPatches` 必须在拼接处自己保证恰好一个空行：块的行范围**列表含末尾分隔空行、段落不含**，漏补会让下一块被 markdown 的懒延续并进来，之后改那个被并大的块会把它整段删掉（`test/host.test.mjs` 覆盖此约束）。
 8. **`package.json` 的 `dsh.client` 是「包依赖边 + 激活提示」，不是服务依赖**。本包客户端只 require shell 基线种子模块（不是依赖图里的行），所以不靠 `inject` 拿服务；`inject` 只写**槽位属主包**——`client/index.tsx` 注册的 `sidebar.right.pane.tab` / `.title` 由 `@deepseek-ai/dsh-client-ui-sidebar-right` 声明，属主的 bundle 必须先到位，所以它列在这里；`external` / `immediately` 留空。把 `slots` / `sessions` 这类服务名写进 `dsh.client.inject` 是无效声明（服务依赖由 bundle 导出的 `inject` 决定）。`test/client.bundle.test.mjs` 守着种子表与这条属主边。
 9. **面板块 id 一律来自 `splitBlocks`**（`plugin/host/routes.mjs` 的 `liveSurface`）：批注锚点与 `fishpai_write` 的 `block_id` 用的就是它。渲染器 HTML 里的 `<fp-block data-b>` 锚点随 `macCodeBlock` 等渲染选项变化，**不能**当成面板的块清单。
 10. **图标全部内联在本包里**：14 支主题/控件图标几何在 `client/theme-icons.tsx`（复制自宿主 rc2 图标包，MIT，见 NOTICE.md）；品牌鱼只有一份几何——`icon.svg`（36 画板、自带渐变）与 `FishMark` 必须同步。除品牌标外颜色只走 `currentColor` 与 `--dsw-alias-*`。
@@ -103,7 +104,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 13. **learn 的候选不是用户资产**：`fishpai_learn` 与 `POST /learn` 必须先生成 pending 候选，只有 `commit + confirm=true` 才写 storageDomain writing 表。九字段必须含 styleId/tone/structure/audience/purpose/do/dont/sourceName/sourceRef；网页只抓公开 HTTPS，DNS 解析到本机或私有网段即拒绝，正文上限 2 MiB。
 14. **页头页尾片段是预览确认后的用户资产**：`POST /snippets` 与 `fishpai_snippets` 走 preview→commit；页头取正文首个 mmbiz 图，页尾锚点关键词必须由用户显式配置。渲染通过 `snippetId` 在 render 前拼 Markdown，不改源文档；片段存 storageDomain snippets 表。
 15. **微信 lint 必须标明证据边界**：`fishpai_lint` 与 `POST /lint` 检查全内联、禁 position/class/id/div/CSS 变量/grid、文本节点包裹与正文 4.5:1 对比度。既有规则观察来自草稿 API 路径；用于鱼排粘贴路径时一律标为推论，不冒充粘贴实测。
-16. **秀米是独立渲染目标**：组件与 Markdown 映射只放 `plugin/core/xiumi/`，接入点是 `fishpai_render.target` 与 `POST /render.target`；微信 `render()` 不加 target。秀米首发带 6 个 HTML、3 个 SVG、8 个 wc_* 组件，DEFAULT_SPEC 的 11 个键按模块常量校验；未知组件必须报错。
+16. **秀米是独立渲染目标**：组件与 Markdown 映射只放 `plugin/core/xiumi/`，接入点是 `fishpai_render.target` 与 `POST /render.target`；微信 `render()` 不加 target。静态组件与 8 个交互组件分别由 components.mjs、interactive.mjs 注册，DEFAULT_SPEC 的 11 个键按模块常量校验；未知组件必须报错。展开组件使用零高正文与 SVG 高度动画，不依赖 foreignObject；微信草稿与移动端行为需在目标账号上实测。
 17. **发布自动化只保存草稿**：`fishpai_publish` 立即返回内存 job id，`GET /publish/status` 轮询 queued/running/need-login/done/failed。浏览器解析顺序为 Chrome → Windows Edge → 用户插件数据区 Chromium（下载约 170 MB，任务消息当场告知）；登录态仅在平台登录标记确认后写 storageDomain auth 表，绝不进工作目录或日志。微信必须从 HOME_URL 的「文章」菜单开新标签，不直接跳编辑器深链；任何注入或保存结果不确定都必须失败并提示人工检查，不群发、不绕风控。
 18. **预览与发布是两条渲染路径，预览的样式问题不许改渲染内核**。`publish` 模式才开三处兼容层；`preview`（`annotate: true`）不开，也不做 hljs 内联。预览 iframe 是沙箱 srcdoc、没有外部样式表：预览缺的样式只能由宿主生成 CSS 随响应下发（范例：`hljsPreviewCss()` → `hljsCss` → 客户端 `buildSrcdoc`），不能改 `render.mjs`（golden 守的是 publish + 默认路径，改内核同时污染两条路）。判据：**预览有差异、发布产物正常 = 补在预览侧，不是内核 bug**。
 
@@ -135,7 +136,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 | 路径 | 风险 | 改动前后置动作 |
 |---|---|---|
 | `plugin/core/render.mjs` | 47KB 主流程，默认路径与 golden 字节级绑定 | 先 `npm test`；动过就全量回归 |
-| `plugin/core/patch.mjs` | CRLF 与拼接空行踩过事故（同块多补丁错位、列表吞掉相邻块） | `node --test test/core.test.mjs test/host.test.mjs` |
+| `plugin/core/patch.mjs` | CRLF、同块多补丁与列表分隔空行会改变补丁落点 | `node --test test/core.test.mjs test/host.test.mjs` |
 | `plugin/host/routes.mjs` | 浏览器与文件系统之间唯一的门；同源守卫挡 DNS rebinding（Host 必须是环路字面量） | `node --test test/security.test.mjs` |
 | `plugin/vendor/themes.js` | 上游数据，删 / 改主题 = golden 全变 | `npm run test:golden:regen` 并在 PR 说明原因 |
 | `client/theme-icons.tsx` | 几何复制自宿主 rc2 图标包；测试只守结构、守不住几何内容 | 与 rc2 原版逐字比对后再 `npm run build` |

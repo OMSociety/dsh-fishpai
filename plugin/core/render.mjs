@@ -1,12 +1,8 @@
 /**
  * 渲染主流程：Markdown → 可直接粘贴进微信公众号编辑器的内联样式 HTML。
  *
- * 这是 `mopai/render.js`（迁移前，与墨排线上站点逐条对齐过）的 ESM 移植。
- * **默认参数下，输出与迁移前的实现逐字节相同**，由 `test/golden/**` 守着
- * 当前核心的字节级回归由 test/golden/** 自产 snapshot 守护。
- *
- * 相对移植前新增的能力，都**由调用方显式启用**，默认路径一个字节都不变
- * （`test/golden/**` 守的就是"都不生效"这条默认路径）：
+ * 本文件是 `mopai/render.js` 的 ESM 实现，默认输出由 `test/golden/**` 自产 snapshot
+ * 做字节级回归。以下能力均由调用方显式启用，默认均为 false：
  *   - `annotate: true`        在每个顶层块前插一个不可见的 `<fp-block data-b="ID">` 锚点（只给预览用）
  *   - `imageResolver`         把图片 src 换成 data URI（宿主实现读文件；只给复制/导出用）
  *   - `wrapText: true`        把文字包进 `<span>`（微信结构校验的兼容层；只给复制/导出用）
@@ -89,22 +85,18 @@ export function isFontSize(value) {
 /**
  * 哪些 `<a>` 会被转成脚注（同一条规则必须被"渲染"与"数给面板看"两处共用）。
  *
- * 为什么要单独数一遍：面板的「脚注」开关以前靠**猜**正文里有没有外链（正则只认带 `//` 的写法），
- * 于是 `github.com/foo/bar` 这种能被 linkify 变成链接、也会生成「参考资料」的写法，
- * 开关却是灰的——用户点了没反应，也关不掉。现在由渲染结果说话。
+ * `linkCount` 直接取渲染结果；`github.com/foo/bar` 这种经 linkify 生成的裸域名链接也计入，
+ * 面板的「脚注」开关据此确定可用状态。
  *
  * 判定前先归一化（实体解码 + 抹空白 + 转小写），再按**白名单**判：只有 http / https / mailto
  * 算外链。`JavaScript:`、`java\tscript:`、`jav&#97;script:` 这类写法都能骗过朴素的前缀比较，
  * 而它们进了「参考资料」就是一条能被点开的可执行链接（导出成 .html 双击即中招）；
  * 白名单把 `data:` / `file:` 这些同样不属于"正文外链"的协议一并挡在外面。
  *
- * `#` 是页内锚点：原判据就不把它当外链（它也不该生成「参考资料」），这里保持原语义。
- *
- * **取舍**：白名单是"只认这几种协议"，不是"排除危险协议"，所以相对链接（`./other.md`）、
- * 根路径（`/abs/path.md`）与 `ftp:` / `tel:` 也不再进「参考资料」——它们会**原样留在产物里**
- * 当普通 `<a>`（`linksToFootnotes` 跳过、`isFootnoteHref` 也把它们排除在计数外）。
- * 这是有意的：粘进公众号的相对链接本来点不开，硬转成文末文本反而把可点的绝对链接和它们混在一起；
- * 要改这条得先想清楚"微信里点不开的链接该长什么样"，不要顺手放宽。
+ * `#` 页内锚点、相对链接（`./other.md`）、根路径（`/abs/path.md`）与 `ftp:` / `tel:`
+ * 保留为普通 `<a>`，不计入「参考资料」（`linksToFootnotes` 与 `isFootnoteHref` 共用这一口径）。
+ * 白名单只接受 http / https / mailto；粘进公众号的相对链接无法点击，转成文末文本会把它们
+ * 与可点击的绝对链接混在一起。调整白名单前必须先确定微信中不可点击链接的呈现方式。
  */
 export function isFootnoteHref(href) {
   const norm = squashUrl(href)
@@ -785,7 +777,7 @@ export function splitDeclarations(style) {
  *
  * 与"正则直接替"的区别：只在**声明级**匹配属性名，绝不咬进别的属性的值里；
  * `/g` 语义靠 `splitDeclarations` 天然满足（CSS 后写胜出，只替第一条会留下后面那条继续生效）。
- * 缩进与空白照抄原文，替换结果对"值里没有分号的正常样式"逐字节等同旧写法。
+ * 缩进与空白照抄原文；值中没有分号的常规样式仅替换目标声明值，其余字节保持原样。
  */
 function replaceDecl(style, prop, next) {
   const text = String(style || '')
@@ -802,7 +794,7 @@ function replaceDecl(style, prop, next) {
     last = d.end
   }
   out += text.slice(last)
-  // 原来末尾没有分号、被我们补了一个的话，去掉多余的空格差异不必管（`;` 在 style 属性里合法）
+  // 声明末尾统一使用分号；该字符在 style 属性中合法
   return out
 }
 

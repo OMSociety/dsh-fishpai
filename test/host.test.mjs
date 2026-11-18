@@ -60,8 +60,7 @@ test('路径守卫：链接指向外部时被拒（目录 junction 与文件级�
   try {
     fs.symlinkSync(outside, path.join(cwd, 'link'), 'junction')
   } catch {
-    // 显式 skip，不再 `return`：以前那样等于把断言静默吞掉——测试空跑也算过，
-    // 在没有权限建链接的环境里既没有信号、也没有保护。
+    // 无法创建链接时显式 skip，使平台限制在测试结果中可见；直接 return 会把测试空跑计为通过。
     t.skip('本平台不允许建链接，越界用例无法执行')
     return
   }
@@ -105,7 +104,7 @@ test('.fishpai/.gitignore 忽略运行时状态与自定义主题；已存在的
   const text = fs.readFileSync(path.join(fresh, '.fishpai', '.gitignore'), 'utf8')
   assert.ok(['state/', 'history/', 'theme.json'].every((line) => text.split(/\r?\n/).includes(line)), 'state / history / theme.json 都要忽略')
 
-  // 老目录（在 theme.json 落盘之前就建过）：用户写的内容一字不动，只追加缺的行
+  // 已有 .gitignore 保留用户内容，只追加缺失的忽略项
   const old = tmpWorkspace()
   const ignore = path.join(old, '.fishpai', '.gitignore')
   fs.mkdirSync(path.dirname(ignore), { recursive: true })
@@ -113,7 +112,7 @@ test('.fishpai/.gitignore 忽略运行时状态与自定义主题；已存在的
   store.ensureFishpaiLayout(old)
   const patched = fs.readFileSync(ignore, 'utf8')
   assert.ok(patched.startsWith('# 我的注释\nstate/\n'), '用户已有的行不动')
-  assert.ok(patched.includes('theme.json'), '补上后来加的 theme.json')
+  assert.ok(patched.includes('theme.json'), 'theme.json 忽略项必须补齐')
   store.ensureFishpaiLayout(old)
   assert.equal(fs.readFileSync(ignore, 'utf8'), patched, '再跑一次是空操作')
 })
@@ -348,9 +347,9 @@ test('批注的身份字段由宿主钉死：调用方塞 id / author / resolved
   assert.equal(forged.blockId, 'x')
 })
 
-test('批注更新也不能改身份字段：action=update 是另一个入口，不能绕开 addNote 的钉子', () => {
-  // 只钉 addNote 是不够的：`{action:'update', patch:{author:'ai', at:1}}` 是同一个数据面的
-  // 另一个入口，实测能把一条人写的批注改成"模型留的"。这里把两个入口一起钉住。
+test('批注更新保留身份字段：action=update 与 addNote 采用同一信任边界', () => {
+  // `{action:'update', patch:{author:'ai', at:1}}` 只能修改业务字段；
+  // addNote 与 updateNote 两个入口都必须保留宿主生成的身份字段。
   const cwd = tmpWorkspace()
   store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   const note = store.addNote({ cwd, docPath: 'a.md', note: { blockId: 'x', text: '人写的批注' } })
@@ -423,9 +422,8 @@ test('块级补丁：多个补丁从下往上应用，行号不会互相顶偏',
 })
 
 test('块级补丁：replace 保住块尾的分隔空行，后面的块不会被吞掉', () => {
-  // 块的行范围含末尾那个空行（块与块的分隔符）。replace 若把它一起吃掉，
-  // 下一块会被 markdown 的"懒延续"并进列表/段落，而人下一轮再改那个被并大的块时，
-  // **被吞掉的块就被整段删掉**（踩过：改一次列表项，吃掉了文末的「项目地址」两行）。
+  // 块的行范围含末尾分隔空行。replace 必须保留分隔，否则下一块会被 markdown 的
+  // "懒延续"并进列表/段落；之后修改被并大的块时，可能整段删掉相邻内容。
   const doc = '第一段。\n\n1. 甲\n2. 乙\n\n**项目地址：**\nexample.com\n'
   const before = splitBlocks(doc)
   assert.equal(before.length, 3, '应当是 段落 / 列表 / 段落 三块')
@@ -504,9 +502,8 @@ test('块级补丁：CRLF 文档不吞分隔行、不混排行尾', () => {
 })
 
 test('块级补丁：同一个块的多条补丁按块内游标连续算，变长替换不会把后一条插进结果中间', () => {
-  // 块的行范围只在那一次 splitBlocks 里成立。同块 `replace` 变长之后再 `insert_after`，
-  // 若后一条仍按老行号 splice，就会落进替换结果内部——而且 applied=2、errors=[]，
-  // 从返回值上完全看不出来（实测踩过：新段落被插进替换出来的段落中间）。
+  // 块的行范围只在那一次 splitBlocks 里成立。同块 `replace` 变长后再 `insert_after`，
+  // 后续补丁必须按块内游标定位；否则 applied=2、errors=[] 也可能把新段落插进替换结果内部。
   const doc = '## 小节\n\n这是第一段。\n\n这是第二段。\n'
   const blocks = splitBlocks(doc)
   const target = blocks.find((b) => b.text.includes('这是第一段'))
@@ -571,7 +568,7 @@ test('块级补丁：replace 的 markdown 自带首尾空行，不许叠出 \\n\
   const both = applyPatches(doc, blocks, [{ block_index: 1, op: 'replace', markdown: '\n新段。\n\n' }])
   assert.equal(both.markdown, '# 标题\n\n新段。\n\n尾段。\n')
 
-  // insert_after 自带空行同样只去重不叠加（这条输入在老实现里反而是干净的，别改坏）
+  // insert_after 自带空行同样只去重不叠加
   const after = applyPatches(doc, blocks, [{ block_index: 1, op: 'insert_after', markdown: '\n插段。' }])
   assert.equal(after.markdown, '# 标题\n\n旧段。\n\n插段。\n\n尾段。\n')
 })
@@ -1238,12 +1235,12 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   // 1) GET /themes —— 面板工具栏
   const themes = await callRoute(handler, { method: 'GET', url: '/fishpai/api/themes' })
   assert.equal(themes.status, 200)
-  // 主题是 themes.js 里的数据，数量会变；这里钉住的是"两套不适合公众号的已被移除"
+  // 主题数量随 themes.js 数据变化；面板主题集不包含 ft 与 medium
   assert.ok(themes.json.themes.length >= 8, `主题太少了：${themes.json.themes.length}`)
   assert.deepEqual(
     themes.json.themes.map((t) => t.key).filter((k) => ['ft', 'medium'].includes(k)),
     [],
-    'ft（整页粉橙异色底）与 medium（与 nyt 几乎重合）不该再出现在面板里',
+    'ft（整页粉橙异色底）与 medium（与 nyt 几乎重合）不属于面板主题集',
   )
   assert.equal(themes.json.presets.length, 12)
   assert.ok(themes.json.sizes.includes('17px'))
@@ -1426,10 +1423,9 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   assert.equal(crossSite.status, 403)
 })
 
-// ── 写入守卫的第二道（路由层）与两条关键路径的测试盲区 ──────────
+// ── 路由层写入守卫与关键路径 ─────────────────────────────
 //
-// 这一组是补洞用的：以前**所有** PUT /doc 用例都带 baseRevision，
-// 于是"不传版本号就能静默覆盖人的手改"那个洞一条用例也覆盖不到。
+// 覆盖缺失 baseRevision、过期版本与成功/失败响应，验证写入请求不会静默覆盖人的手改。
 
 test('路由守卫：PUT /doc 缺/非法 baseRevision 一律 400，过期版本 409 并回带最新正文', async () => {
   const cwd = tmpWorkspace()
@@ -1542,8 +1538,7 @@ test('GET /asset：成功路径回真图与 content-type；越界/远程/不存�
   const handler = createApiHandler({ resolveCwd: () => cwd })
   const get = (src) => callRoute(handler, { method: 'GET', url: `/fishpai/api/asset?sessionId=s1&docKey=${opened.key}&src=${encodeURIComponent(src)}` })
 
-  // 以前这里只有失败分支，而"路由被删掉"同样回 404——那条断言区分不了
-  // "路由在且正确回 404"与"路由不存在"，`readAsset` 的成功分支也从没被执行过。
+  // 成功响应验证 readAsset 返回原图与 content-type；404 用例验证越界、远程与缺失路径约束。
   const ok = await get(saved.src)
   assert.equal(ok.status, 200)
   assert.equal(ok.headers['content-type'], 'image/png')
@@ -1569,8 +1564,7 @@ test('存图守卫在落盘**之前**：assets/ 指向工作目录之外时，�
     () => store.saveAsset({ cwd, docPath: opened.path, name: 'x.png', mime: 'image/png', data: PNG_BYTES.toString('base64') }),
     /越界/,
   )
-  // 这条才是关键：以前是"先 writeFileSync、再 resolveInCwd"，接口虽然回 400，
-  // 但字节已经写到了工作目录外面。所以断言的不是"抛错"，而是"外面干干净净"。
+  // 路径检查必须先于 writeFileSync；外部目录保持为空，证明越界路径没有写出任何字节。
   assert.deepEqual(fs.readdirSync(outside), [], '守卫必须挡在 writeFileSync 之前')
 })
 
@@ -1634,7 +1628,7 @@ test('fishpai_render 的自定义主题：theme_spec 校验后生效，越权规
   const badBase = await renderTool.execute({ target: 'wechat', theme_spec: { base: '火星主题', styles: { p: 'color: #000;' } } }, exec)
   assert.equal(badBase.isError, true)
   assert.match(badBase.text, /base 必须是已有的主题 key/)
-  // 不给 theme_spec 时，老的 theme 参数那条路照旧
+  // 未传 theme_spec 时使用 theme 参数
   const plain = await renderTool.execute({ target: 'wechat', theme: 'bamboo' }, exec)
   assert.equal(plain.isError, false, plain.text)
   assert.match(plain.text, /竹林/)

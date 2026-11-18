@@ -179,11 +179,9 @@ test('自定义主题：病态输入的报错口径（切不出任何声明 / �
 })
 
 test('自定义主题：面板「字号」能替掉 wrapper 上各种合法写法的 font-size（预览与发布同口径）', () => {
-  // 这一条守的是 render.mjs 里那句 `wrapperStyle = replaceDecl(wrapperStyle, 'font-size', size)`。
-  // 以前是 `wrapperStyle.replace(/font-size:\s*\d+px;/, …)`，只认整数 px：
-  // 模型写 `1rem` / `16.5px` / `17PX` / `16` 时 wrapper 原样留着主题自己的字号，
-  // 预览里控件点了没反应，而发布路径的 promoteFontSize 又把 <p> 撑成选定字号——
-  // "预览不动、粘进微信却变了"是最难查的一类不一致。
+  // render.mjs 通过 `wrapperStyle = replaceDecl(wrapperStyle, 'font-size', size)` 应用面板字号。
+  // replaceDecl 支持 px 小数、rem、大写 PX 与无单位形式，预览和发布采用同一替换口径，
+  // 避免 wrapper 保留主题字号而 promoteFontSize 已把 <p> 设为选定字号。
   for (const decl of ['font-size: 16px;', 'font-size: 16.5px;', 'font-size: 1rem;', 'font-size: 17PX;', 'font-size: 16;']) {
     const { theme } = buildCustomTheme(
       { base: 'default', styles: { wrapper: `font-family: serif; ${decl}` } },

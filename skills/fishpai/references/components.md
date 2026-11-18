@@ -69,7 +69,7 @@
 
 > 机制：微信公众号正文禁用 CSS `@keyframes`/`transition`，但为交互排版保留了 **SVG SMIL** 窄缝——`<animate>`/`<animateTransform>`/`<set>` + `begin="click"` 可用。鱼排的交互组件全部是「外层 SVG 动画层 + 内层普通内容层」的混合分层，发布后真实可点。
 >
-> 两条铁律组件已内建遵守：①不用 `id`+`for` 联动（微信剥所有 `id`），纯 SMIL `begin="click"`；②`foreignObject` 里塞 HTML 会被过滤，所以内容层走内联 HTML、动画层走纯 SVG。
+> 组件使用纯 SMIL `begin="click"`，不依赖 `id` 联动或脚本。内容层使用普通内联 HTML，动画层使用纯 SVG；展开组件采用零高正文容器与 SVG 高度动画。微信草稿与移动端行为需在目标账号上实测。
 
 ### 点击展开 `expand`
 

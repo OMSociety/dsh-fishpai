@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 新增 `fishpai_lint` 与 `POST /lint`：检查微信粘贴结构、内联样式与正文对比度，并明确区分 API 路径观察与粘贴路径推论。
 - 新增 `fishpai_learn` 与 `POST /learn`：从定稿、HTML 或公开网页反推写作风格九字段，经 pending 候选与用户确认后写入 storageDomain writing 表。
 - 新增 `fishpai_snippets` 与 `POST /snippets`：页头首图、可配置页尾锚点片段经预览确认后入库；`fishpai_render` 与 `POST /render` 可用 `snippetId` 在渲染前装配。
-- 新增独立秀米渲染目标与 SVG 组件库；`fishpai_render` 和 `POST /render` 接受 `target:'xiumi'`，不影响微信渲染管线。
+- 新增独立秀米渲染目标与 SVG 组件库；`fishpai_render` 和 `POST /render` 接受 `target:'xiumi'`，微信渲染管线保持独立。
 - 新增专业组件手册 `skills/fishpai/references/components.md`，含 8 个 SMIL 交互组件（点击展开 `expand`、点击换图 `swap`、滑动图集 `swiper`、探照灯 `spotlight`、弹幕 `danmaku`、进度条 `progress`、时间线 `timeline`、对比卡 `compare`）与静态版式组件；`fishpai_lint` 补 CSS 动画禁令与 SMIL 循环校验。
 - 新增 `POST /auth`：查询/清除指定平台的登录态（只回 `loggedIn`/`savedAt`，Cookie 绝不回流面板）；面板发布流程内提供登录态管理。
 - 新增 `fishpai_publish`、`POST /publish` 与 `GET /publish/status`：异步打开浏览器，仅保存微信或秀米草稿；登录态存 storageDomain auth 表。
@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `fishpai_lint` and `POST /lint` for WeChat paste-structure, inline-style, and text-contrast checks with explicit evidence boundaries.
 - Added `fishpai_learn` and `POST /learn`: infer nine writing-style fields from drafts, HTML, or public pages, then persist confirmed candidates to the storageDomain writing table.
 - Added `fishpai_snippets` and `POST /snippets`: confirm header/footer fragments before storage, then compose them by `snippetId` before rendering.
-- Added an independent Xiumi rendering target and SVG component library; `fishpai_render` and `POST /render` accept `target:'xiumi'` without changing the WeChat renderer signature.
+- Added an independent Xiumi rendering target and SVG component library; `fishpai_render` and `POST /render` accept `target:'xiumi'`, while the WeChat rendering pipeline remains independent.
 - Added the component reference `skills/fishpai/references/components.md` with 8 SMIL interactive components plus static layout components; `fishpai_lint` now flags CSS animations and risky SMIL loops.
 - Added `POST /auth` to query or clear a platform's login state (returns only `loggedIn`/`savedAt`, never cookies), with login management in the panel publish flow.
 - Added `fishpai_publish`, `POST /publish`, and `GET /publish/status`: asynchronous browser jobs save WeChat or Xiumi drafts only, with login state confined to the storageDomain auth table.
@@ -60,11 +60,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 修复
 
-- **右侧栏页签没声明槽位属主包。** `client/index.tsx` 注册 `sidebar.right.pane.tab` 与 `.title`，但 `package.json` 的 `dsh.client` 段没有 `inject`，属主包 `@deepseek-ai/dsh-client-ui-sidebar-right` 的装载顺序不受约束——缺的是包到包的到达顺序边。现补声明。
+- **右侧栏页签声明槽位属主包。** `client/index.tsx` 注册 `sidebar.right.pane.tab` 与 `.title`；`package.json` 的 `dsh.client.inject` 声明 `@deepseek-ai/dsh-client-ui-sidebar-right`，以包依赖边约束属主包的装载顺序。
 
 ### Fixed
 
-- **The sidebar tab did not declare its slot owner.** `client/index.tsx` registers `sidebar.right.pane.tab` and `.title`, but the `dsh.client` block in `package.json` declared no `inject`, leaving the load order of the owning package `@deepseek-ai/dsh-client-ui-sidebar-right` unconstrained. Now declared.
+- **Declared the sidebar tab's slot owner.** `client/index.tsx` registers `sidebar.right.pane.tab` and `.title`; `dsh.client.inject` in `package.json` declares `@deepseek-ai/dsh-client-ui-sidebar-right`, constraining the owner package's load order through a package dependency edge.
 
 ## [1.2.0] - 2026-10-11
 
@@ -82,18 +82,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 修复
 
-- **图标不再向宿主包要**：主题与控件图标（14 支）的几何改为内联在本包里（`client/theme-icons.tsx`，复制自 DSH 内建图标集，MIT，见 `NOTICE.md`）。此前走 `require('@deepseek-ai/dsh-client-ui-primitives')`，而 rc2 官方明确不赞成客户端 bundle 把 Harness Client 包当模块加载——宿主改名或取不到导出时整块界面会白掉，不是"降级成纯文字"那么轻。图标名随宿主版本变的耦合就此解除。
-- **图标清单的守卫原本是空的**：旧 fixture 自称"就是 npm 发布包的运行时导出表"，实际混进了 6 个宿主不存在的名字（`IconFullAccess*` / `IconReadOnly*` / `IconWorkspaceWrite*`，rc2 里叫 `PermissionIcon*`），又漏收了实有的 6 支；两处差错恰好抵消，`assert.equal(size, 194)` 一直是绿的。新守卫直接核对**本包内联的 14 支几何**，不再依赖外部清单。
-- **正文读不出来不再静默降级成空正文**：文档被删除或改名时，`/doc` 回 404 并给出可读原因，面板进错误态、保留屏幕上已有的正文。此前读失败被当成空串，面板显示"文档被清空"，`fishpai_read` 的差异也会把整篇算成"新增"。
-- **基线快照丢了就明说**：`.fishpai` 状态被清理过时，`fishpai_read` 不再把整篇谎报成"人重写了全文"，而是给出提示并照实给出空差异统计。
-- **同一个块的多条补丁不再错位**：`applyPatches` 此前对同块的多条补丁沿用同一个行号，前一条改了块的长度后，后一条会插进结果中间（`replace` 变长时实测）。现在按块内游标连续计算，拼接处的空行由补丁器自己保证。
-- **面板「字号」能替掉 wrapper 上各种合法写法**：替换规则原先只认整数 px，自定义主题写 `1rem` / `16.5px` / `17PX` / `16` 时预览不动，而发布路径的 `promoteFontSize` 又把 `<p>` 撑成选定字号——预览与粘进微信的结果不一致。现在按声明边界替换（引号里的分号不算边界，同名声明全部替换）。
-- **批注的身份字段由宿主钉死**：`id` / `author` / `at` 不再能被调用方覆盖（`resolved` 仍可改）。
-- **工具或路由注册失败不再只写一行日志**：失败会整体回滚并抛出，不留"一半工具还装作挂载成功"的状态。
-- **`rebase` 读不到正文也回 404**：此前 `rebase` 用裸 `readFileSync`，正文被删时抛原生 ENOENT 落进兜底 400「请求不合法」；现在走 `readDocText`，与 `/doc` 同口径回 404。
-- **同块 `replace` 与 `delete` 组合不再由顺序决定结果**：此前 `[replace, delete]` 会让 delete 静默吃掉刚替换进去的内容、`applied` 照报两条；现在统一保 replace、跳过 delete，并在 errors 里给出信号，与顺序无关。
-- **`replace` 的 markdown 自带首尾空行不再叠出 `\n\n\n`**：自带的空行与现场已留好的分隔空行只去重不叠加；删掉首块后文档开头的前导空行也一并收掉。
-- **自定义主题校验与渲染同用引号感知的声明切分**：`font-family: 'a; font-size: 99px', serif` 里引号内的分号不再是声明边界——此前校验侧的朴素 `split(';')` 会截出假声明，让"不生效"提示引用一句没写过的字号、或让真字号缺失时补全不触发（面板字号成死控件）。
+- **主题与控件图标内联**：14 支图标的几何位于本包 `client/theme-icons.tsx`（复制自 DSH 内建图标集，MIT，见 `NOTICE.md`）。图标渲染与宿主图标包的导出名解耦。
+- **图标守卫核对本包内联几何**：直接验证 14 支几何的导出、渲染与接线。
+- **正文读取失败返回 404**：文档被删除或改名时，`/doc` 给出可读原因，面板进入错误态并保留屏幕上的正文；`fishpai_read` 对缺失正文明确报错。
+- **缺失基线快照明确提示**：`.fishpai` 状态被清理时，`fishpai_read` 给出提示与空差异统计。
+- **同块多条补丁按块内游标连续计算**：变长 `replace` 后的补丁落在正确位置，拼接处的空行由补丁器保证。
+- **面板「字号」支持 wrapper 上的合法字号写法**：`1rem` / `16.5px` / `17PX` / `16` 等形式均按声明边界替换；引号内的分号不作为边界，同名声明全部替换，预览与发布采用同一口径。
+- **批注身份字段由宿主控制**：调用方不能覆盖 `id` / `author` / `at`，`resolved` 仍可修改。
+- **工具或路由注册失败整体回滚并抛出**：插件挂载失败在界面与日志中呈现。
+- **`rebase` 与 `/doc` 共用正文读取口径**：正文不可读时经 `readDocText` 返回 404。
+- **同块 `replace` 与 `delete` 组合采用确定规则**：保留 `replace`、跳过 `delete`，并在 `errors` 中报告冲突，结果与补丁顺序无关。
+- **`replace` 的首尾空行与块间分隔空行去重**：删除首块时同时收掉文档开头的前导空行。
+- **自定义主题校验与渲染共用引号感知的声明切分**：`font-family: 'a; font-size: 99px', serif` 中引号内的分号保留在值内，字号提示与自动补全使用同一份解析结果。
 
 ### Added
 
@@ -109,18 +109,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Icons no longer come from a host package**: the geometry of the 14 theme and control icons is now inlined in this package (`client/theme-icons.tsx`, copied from the DSH built-in icon set, MIT, see `NOTICE.md`). It previously went through `require('@deepseek-ai/dsh-client-ui-primitives')`, which rc2 official guidance discourages for a client bundle — a rename or a missing export blanks the whole surface rather than degrading to plain text.
-- **The icon-list guard was hollow**: the old fixture claimed to be "the npm package's runtime export table" while carrying six names the host does not have (`IconFullAccess*` / `IconReadOnly*` / `IconWorkspaceWrite*`; rc2 calls them `PermissionIcon*`) and missing six that it does. The two errors cancelled out, so `assert.equal(size, 194)` stayed green. The new guard checks the 14 inlined geometries directly.
-- **An unreadable document body no longer degrades to an empty body**: when the file is deleted or renamed, `/doc` returns 404 with a readable reason, and the panel keeps the text already on screen. Previously the read failure became an empty string — the panel showed "the document was cleared" and `fishpai_read` reported the whole file as newly added.
-- **A missing baseline says so**: with `.fishpai` state cleaned out, `fishpai_read` no longer reports the whole document as rewritten by the user; it warns and returns honest empty diff statistics.
-- **Multiple patches to one block no longer drift**: `applyPatches` used one fixed line range for every patch on the same block, so a length-changing `replace` made the next patch land in the middle of the result. Patches now advance an in-block cursor, and the blank line at the seam is guaranteed by the patcher.
-- **The font-size control now replaces every legal spelling in `wrapper`**: the substitution only recognised integer px, so a custom theme writing `1rem` / `16.5px` / `17PX` / `16` left the preview unchanged while the publish path's `promoteFontSize` pushed the chosen size onto `<p>` — preview and WeChat disagreed. Substitution now works on declaration boundaries (a semicolon inside quotes is not a boundary; same-named declarations are all replaced).
-- **Note identity fields are pinned by the host**: `id` / `author` / `at` can no longer be overridden by the caller (`resolved` stays editable).
-- **Tool or route registration failures no longer just log**: they roll back and throw instead of leaving half the tools mounted while claiming success.
-- **`rebase` returns 404 when the body is unreadable**: it used a bare `readFileSync`, so a deleted body threw a raw ENOENT into the catch-all 400 "invalid request"; it now goes through `readDocText`, matching `/doc`.
-- **A same-block `replace` + `delete` pair no longer resolves by ordering**: `[replace, delete]` used to let the delete silently swallow the freshly replaced content while `applied` still reported both. The replace is now kept, the delete skipped, and the conflict surfaces in `errors` — regardless of order.
-- **Leading/trailing blank lines in a `replace` payload no longer stack into `\n\n\n`**: a payload's own blank lines are deduplicated against the separator blank lines already in place; deleting the first block also strips the leading blank line it leaves behind.
-- **Theme-spec validation now shares the quote-aware declaration splitter with rendering**: a semicolon inside quotes (`font-family: 'a; font-size: 99px', serif`) is no longer a declaration boundary — the naive `split(';')` used to cut out a phantom declaration, making the "won't take effect" note quote a font size that was never written, or skipping the auto-completion when the real one was missing (a dead font-size control).
+- **Inlined theme and control icons**: the 14 geometries live in `client/theme-icons.tsx` (copied from the DSH built-in icon set, MIT, see `NOTICE.md`). Icon rendering is decoupled from host icon-package export names.
+- **Icon guards check the inlined geometries**: they validate the export, rendering, and wiring of all 14 geometries directly.
+- **Unreadable document bodies return 404**: when a file is deleted or renamed, `/doc` returns a readable reason and the panel enters its error state while keeping the text on screen; `fishpai_read` reports the missing body explicitly.
+- **Missing baseline snapshots produce an explicit warning**: when `.fishpai` state is cleaned, `fishpai_read` returns empty diff statistics with a warning.
+- **Multiple patches to one block advance an in-block cursor**: patches after a length-changing `replace` land at the correct position, and the patcher guarantees the blank line at each seam.
+- **The font-size control supports legal `wrapper` spellings**: `1rem` / `16.5px` / `17PX` / `16` and similar forms are replaced on declaration boundaries; semicolons inside quotes stay inside values, same-named declarations are all replaced, and preview and publish share the same behavior.
+- **Note identity fields are controlled by the host**: callers cannot override `id` / `author` / `at`, while `resolved` remains editable.
+- **Tool or route registration failures roll back and throw**: mount failures appear in the interface and logs.
+- **`rebase` and `/doc` share body-read behavior**: unreadable bodies return 404 through `readDocText`.
+- **Same-block `replace` + `delete` uses a deterministic rule**: the replace is kept, the delete is skipped, and the conflict is reported in `errors`, regardless of patch order.
+- **Leading/trailing blank lines in `replace` are deduplicated against block separators**: deleting the first block also strips the leading blank line at the start of the document.
+- **Theme-spec validation and rendering share the quote-aware declaration splitter**: in `font-family: 'a; font-size: 99px', serif`, the quoted semicolon stays inside the value, and font-size notes and auto-completion use the same parse result.
 
 ## [1.1.0] - 2026-10-09
 
@@ -144,8 +144,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 新增
 
-- 插件有了自己的图标：包根 `icon.svg`（36×36，渐变描边的侧视鱼），由 `package.json` 顶层 `icon` 字段声明并列入 `files`。插件列表里不再显示 DSH 的默认图形。
-- 插件列表里的显示名与描述有了中英两份（`locale/en.json`、`locale/zh.json` 的 `meta.title` 与 `meta.description`），中文名定为「鱼排编辑器」；`package.json` 的 `exports` 与 `files` 相应放行 `locale/*.json`。此前该处回退成包名与英文 `description`，在中文界面里中英混排。
+- 插件提供包根 `icon.svg`（36×36，渐变描边的侧视鱼），由 `package.json` 顶层 `icon` 字段声明并列入 `files`，插件列表显示鱼排图标。
+- 插件列表的显示名与描述提供中英两份（`locale/en.json`、`locale/zh.json` 的 `meta.title` 与 `meta.description`），中文名为「鱼排编辑器」；`package.json` 的 `exports` 与 `files` 包含 `locale/*.json`。
 
 ### 变更
 
@@ -154,8 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- The plugin now ships its own icon: `icon.svg` at the package root (36×36, a gradient-outlined side-view fish), declared through the top-level `icon` field in `package.json` and listed in `files`. The plugin list no longer falls back to the default DSH artwork.
-- The plugin's display name and description in the plugin list now ship in both languages (`meta.title` and `meta.description` in `locale/en.json` and `locale/zh.json`), with the Chinese name settled as 鱼排编辑器; `exports` and `files` in `package.json` admit `locale/*.json` accordingly. The list previously fell back to the package name and the English `description`, mixing languages inside a Chinese interface.
+- The plugin ships `icon.svg` at the package root (36×36, a gradient-outlined side-view fish), declared through the top-level `icon` field in `package.json` and listed in `files`; the plugin list displays the FishPai artwork.
+- The plugin list display name and description ship in both languages (`meta.title` and `meta.description` in `locale/en.json` and `locale/zh.json`), with the Chinese name 鱼排编辑器; `exports` and `files` in `package.json` include `locale/*.json`.
 
 ### Changed
 
@@ -176,11 +176,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 安全
 
-- **复制回退路径**（没有 `ClipboardItem` 的环境）不再把渲染产物直接写进 WebUI 主文档：改为先解析、剥掉脚本类容器与事件属性、再插入。那个容器与宿主同源，事件属性会在挂载那一刻执行。
-- **自定义主题的样式值不再放行双引号**：样式值会被原样拼进 `style="…"`，一个双引号即可闭合属性并注入任意属性；单引号仍可用。主题色与正文字号改为同一套形态校验，`POST /render` 与文档保存两条写入口共用这份规则。
-- **复制与导出产物在清理阶段剥掉危险标签与事件属性**：`<script>`、`<style>`、`<iframe>`、`<object>`、`<embed>`、`<link>`、`<meta>`、事件属性与危险协议 URL 一律移除，导出的 `.html` 双击打开时稿件里的裸 HTML 不再执行。
-- **外链判定改为「归一化 + 协议白名单」**：`JavaScript:`、`java\tscript:`、实体编码等变体不再被当成正常外链。
-- 代码块的围栏语言串、语言标签与提示卡片标题改为转义后再拼入产物，畸形语言串不再产出第二个 `style` 属性或注入元素。
+- **复制回退路径先清理再插入**（没有 `ClipboardItem` 的环境）：渲染产物经解析、剥除脚本类容器与事件属性后才插入 WebUI 主文档。该文档与宿主同源，事件属性会在挂载时执行。
+- **自定义主题样式值拒绝双引号**：样式值会原样拼进 `style="…"`，双引号可闭合属性并注入任意属性；单引号仍可用。主题色与正文字号共用形态校验，`POST /render` 与文档保存两条写入口采用同一规则。
+- **复制与导出产物在清理阶段剥除危险标签与事件属性**：`<script>`、`<style>`、`<iframe>`、`<object>`、`<embed>`、`<link>`、`<meta>`、事件属性与危险协议 URL 一律移除，双击打开导出的 `.html` 时，稿件中的裸 HTML 不执行。
+- **外链判定采用「归一化 + 协议白名单」**：`JavaScript:`、`java\tscript:`、实体编码等变体按危险协议处理。
+- 代码块的围栏语言串、语言标签与提示卡片标题在拼入产物前转义，畸形语言串不能生成额外 `style` 属性或注入元素。
 
 ### 变更
 
@@ -188,11 +188,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- **The copy fallback path** (environments without `ClipboardItem`) no longer writes the rendered output straight into the WebUI main document: it now parses the output first, strips script-like containers and event attributes, and only then inserts it. That container is same-origin with the host, so an event attribute would execute the moment it is mounted.
-- **Custom theme style values no longer allow double quotes**: a style value is concatenated verbatim into `style="…"`, so a single double quote can close the attribute and inject arbitrary attributes; single quotes are still allowed. Theme colors and body font size now share the same shape validation, and the two write entry points — `POST /render` and document saving — use this same rule.
-- **Copy and export output strips dangerous tags and event attributes during the cleanup stage**: `<script>`, `<style>`, `<iframe>`, `<object>`, `<embed>`, `<link>`, `<meta>`, event attributes and dangerous-protocol URLs are all removed, so bare HTML in the manuscript no longer executes when the exported `.html` is opened by double-clicking.
-- **External link detection now uses normalization plus a protocol whitelist**: variants such as `JavaScript:` and `java\tscript:` and entity-encoded forms are no longer treated as ordinary external links.
-- Code block fence language strings, language labels and prompt card titles are escaped before being concatenated into the output, so a malformed language string no longer produces a second `style` attribute or injects elements.
+- **The copy fallback path sanitizes before insertion** (environments without `ClipboardItem`): rendered output is parsed, stripped of script-like containers and event attributes, and only then inserted into the WebUI main document. That document is same-origin with the host, so event attributes execute when mounted.
+- **Custom theme style values reject double quotes**: a style value is concatenated verbatim into `style="…"`, where a double quote can close the attribute and inject arbitrary attributes; single quotes remain valid. Theme colors and body font size share shape validation across `POST /render` and document saving.
+- **Copy and export output strips dangerous tags and event attributes during cleanup**: `<script>`, `<style>`, `<iframe>`, `<object>`, `<embed>`, `<link>`, `<meta>`, event attributes and dangerous-protocol URLs are removed, so bare HTML in the manuscript does not execute when the exported `.html` is opened by double-clicking.
+- **External link detection uses normalization plus a protocol whitelist**: variants such as `JavaScript:`, `java\tscript:`, and entity-encoded forms are handled as dangerous protocols.
+- Code block fence language strings, language labels, and prompt card titles are escaped before output composition, so malformed language strings cannot produce extra `style` attributes or inject elements.
 
 ### Changed
 
@@ -202,6 +202,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 修复
 
-- 适配 DSH 0.1.7 的 ui-primitives 图标改名（0.1.7 起导出名去尺寸后缀、改字重后缀，旧拼写在 0.1.7 的导出表里已消失）：主题图标、下拉箭头与选中勾按「0.1.7 名 → 0.1.5 名」运行时探测解析，两代宿主共用一份产物（此前 0.1.7 上解析不到导出、按纯文字降级）。
-- 适配 DSH 0.1.7 客户端「Session 多实例」后的当前会话解析：会话列表快照不再携带当前选中，改为读右侧栏座位的挂载会话（0.1.5 线仍走快照）；轮询在两代宿主上都定位得到会话（此前 0.1.7 读不到当前会话、整轮空转）。
+- 适配 DSH 0.1.7 的 ui-primitives 图标导出名（尺寸后缀与字重后缀两种形式）：主题图标、下拉箭头与选中勾按「0.1.7 名 → 0.1.5 名」在运行时探测解析，两代宿主共用一份产物。
+- 适配 DSH 0.1.7 客户端「Session 多实例」的当前会话解析：0.1.7 读取右侧栏座位的挂载会话，0.1.5 读取会话列表快照；轮询在两代宿主上均能定位当前会话。
 - 右侧栏引导页的鱼排入口补上条目 id（0.1.7 起引导条目按 id 标识）。

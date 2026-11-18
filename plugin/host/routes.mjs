@@ -544,9 +544,8 @@ export function createApiHandler({ resolveCwd, log = () => {}, getStores = async
           // 把同一份色表（hljs-map.json）生成 CSS 一起带下去，客户端注入 srcdoc。
           // 发布产物不吃它（走 inlineCodeStyles 内联），golden 不受影响。
           hljsCss: hljsPreviewCss(),
-          // 「脚注 / Mac 代码框」这两个开关能不能点，由**渲染结果**说话：
-          // 以前面板拿正则猜正文（只认带 `//` 的链接、只认 ``` 围栏），
-          // 于是 `github.com/x/y` 生成了「参考资料」而开关是灰的、缩进式代码块也漏。
+          // 「脚注 / Mac 代码框」的可用状态直接取渲染结果：
+          // linkCount 覆盖 linkify 生成的裸域名链接，hasCode 覆盖缩进式代码块。
           linkCount: out.linkCount,
           hasCode: out.hasCode,
           // 预览跟着本地正文走，所以块/占位/图片/批注锚点也一起回带——

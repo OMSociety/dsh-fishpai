@@ -1,14 +1,12 @@
 /**
  * 图标：鱼排自己的鱼形标 + 主题/控件用的内联几何。
  *
- * 主题图标**不再** require 宿主的 `@deepseek-ai/dsh-client-ui-primitives`：rc2 官方在
- * `cordis-plugin-development/references/practices.md` 里明文禁止客户端 bundle 把 Harness
- * Client 包当模块加载（"They change without notice, a plain-JS plugin has no type check,
- * and a throwing component blanks your slot entry"），替代做法是把 primitive 的标记复制进插件。
- * 几何就在 `theme-icons.tsx`，全部走 `currentColor`，浅色/深色主题自动跟随。
- *
- * 于是 bundle 的 require 只剩 `react` / `react/jsx-runtime`（shell 的基线种子模块），
- * 宿主升级改名影响不到这里；代价是几何要自己维护（见 `NOTICE.md` 的许可与来源记录）。
+ * 主题图标几何内联于 `theme-icons.tsx`，全部走 `currentColor`，浅色/深色主题自动跟随。
+ * bundle 仅 require `react` / `react/jsx-runtime`（shell 的基线种子模块）。
+ * rc2 官方在 `cordis-plugin-development/references/practices.md` 里明文禁止客户端 bundle
+ * 把 Harness Client 包当模块加载（"They change without notice, a plain-JS plugin has no type check,
+ * and a throwing component blanks your slot entry"），因此本包直接维护 primitive 的图形标记。
+ * 几何的许可与来源记录见 `NOTICE.md`。
  */
 import * as React from 'react'
 import {

@@ -29,16 +29,10 @@ import type { Block, DocMeta, Note, Placeholder, ThemeInfo } from './api'
 type ViewMode = 'edit' | 'preview' | 'side'
 type Tab = 'notes' | 'todo' | 'blocks' | 'history' | 'learn' | 'snippets'
 
-const READING_CHARS_PER_MIN = 400
-
 function countWords(text: string): number {
   const cjk = (text.match(/[\u3400-\u9fff\u3040-\u30ff]/g) || []).length
   const latin = (text.match(/[A-Za-z0-9]+/g) || []).length
   return cjk + latin
-}
-
-function readingMinutes(text: string): number {
-  return Math.max(1, Math.round(countWords(text) / READING_CHARS_PER_MIN))
 }
 
 function fmtTime(at: number): string {
@@ -67,13 +61,9 @@ function kindLabel(kind: string | null | undefined, fallback = '块'): string {
 
 /**
  * 字体预设的中文名（宿主回的是 `sans` / `serif` / `mono`）。
- *
- * 这个控件必须存在：主题自带的 `font-family` **总会被**字体预设覆盖（上游站点行为，
- * `render()` 里就是拿预设去替换 wrapper 的 font-family），所以"想要衬线"只能从这里切——
- * 少了它，一套衬线主题在面板里永远显示成黑体，而用户找不到任何地方能改。
- *
- * 公众号编辑器只认黑体（iOS 设备上才是苹方），衬线/等宽只在「导出 HTML」里有效：
- * 粘进编辑器会退回黑体，但预览里看不出差别。靠 `FontPicker` 里的橙色小字标出来。
+ * 渲染器使用预设替换 wrapper 的 font-family，面板通过 FontPicker 选择字体。
+ * 公众号编辑器使用黑体（iOS 设备使用苹方）；衬线/等宽适用于「导出 HTML」，
+ * FontPicker 在对应选项旁标明适用范围。
  */
 const FONT_LABEL: Record<string, string> = { sans: '黑体', serif: '衬线', mono: '等宽' }
 
@@ -126,8 +116,8 @@ function download(name: string, html: string): void {
 /**
  * 从剪贴板/拖拽里挑出图片文件。
  *
- * 只认图片：普通文本粘贴、拖一段文字进来都照旧交给浏览器，绝不拦。
- * `items` 优先（截图就是从这里来的），老浏览器退回 `files`。
+ * 图片由面板接收，文本粘贴与拖拽交给浏览器。
+ * 优先读取 `items`（截图从这里进入），不可用时读取 `files`。
  */
 function imageFiles(data: DataTransfer | null): File[] {
   if (!data) return []
@@ -157,6 +147,7 @@ function Btn(props: {
   primary?: boolean
   disabled?: boolean
   title?: string
+  expanded?: boolean
   onClick?: () => void
   children: React.ReactNode
 }) {
@@ -167,6 +158,7 @@ function Btn(props: {
       data-on={props.on ? 'true' : undefined}
       disabled={props.disabled}
       title={props.title}
+      aria-expanded={props.expanded}
       onClick={props.onClick}
     >
       {props.children}
@@ -252,11 +244,8 @@ function ThemePicker(props: {
     closeMenu(true)
   }
   /**
-   * 打开后把焦点交给 listbox 自己，罗列项一律 `tabIndex={-1}`。
-   *
-   * 键盘处理必须挂在**容器**上：以前只挂在触发按钮上，一点开菜单再按 Tab，
-   * 焦点就落到某一项上，此后 ↑↓ 不动、Esc 也关不掉（只有点外部还能关）。
-   * 现在焦点进了容器，方向键/Esc 由容器统一接，Tab 直接走出去。
+   * 打开后把焦点交给 listbox，罗列项使用 `tabIndex={-1}`。
+   * 容器统一处理方向键与 Esc，Tab 可移出菜单。
    */
   React.useEffect(() => {
     if (open) menuRef.current?.focus()
@@ -586,9 +575,8 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
   }, [])
 
   // ── 「定位」────────────────────────────────────────────────
-  // 预览模式下面板里根本没有编辑器（`editorRef.current === null`），旧写法会让「定位」
-  // 静默失败——点了没反应正是最让人困惑的控件。现在：先记住落点、把视图切到含编辑器的那一档，
-  // 等编辑器真的挂上（mode 变化后的那一次渲染）再落选择。
+  // 预览模式没有编辑器；定位先记录落点并切到含编辑器的视图，
+  // 待编辑器挂载后设置选区。
   const [pendingJump, setPendingJump] = React.useState<{ start: number; end: number; line: number } | null>(null)
 
   const applyJump = React.useCallback(
@@ -665,7 +653,6 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
     setDrawerOpen(true)
   }
 
-  const openNotes = state.notes.filter((n) => !n.resolved)
   const currentTheme = state.themes.find((t) => t.key === state.meta.theme) || null
   // 只用来把"点了没反应"的开关置灰并说明原因。
   // 判据来自**宿主渲染结果**（linkCount / hasCode），不是在这里拿正则猜正文——
@@ -816,7 +803,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             onClick={() => store.actions.setMeta({ mobile: !state.meta.mobile })}
             title={
               mode === 'edit'
-                ? '现在是「编辑」视图，看不到预览；切到「预览」或「并排」才看得出手机宽度的效果'
+                ? '手机宽度效果可在「预览」或「并排」视图查看'
                 : '按手机宽度预览（375px）'
             }
           >
@@ -899,11 +886,17 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             </div>
           ) : null}
 
-          <FontPicker
-            fonts={state.fonts}
-            value={state.meta.font}
-            onPick={(font) => void store.actions.setMeta({ font })}
-          />
+          <span
+            title={currentTheme
+              ? `当前组合：${currentTheme.wechatSafe && state.meta.font === 'sans' ? '适合微信粘贴' : '导出 HTML 更稳'}`
+              : undefined}
+          >
+            <FontPicker
+              fonts={state.fonts}
+              value={state.meta.font}
+              onPick={(font) => void store.actions.setMeta({ font })}
+            />
+          </span>
 
           <select
             className="fp-select"
@@ -924,7 +917,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             title={
               docHasLinks
                 ? '正文外链转文末「参考资料」（微信正文不支持外链）'
-                : '正文里没有外链，这个开关现在不影响效果；它的作用是：把正文外链转成文末「参考资料」（微信正文不支持外链）'
+                : '「脚注」把正文外链转成文末「参考资料」；添加外链后即可预览效果（微信正文不支持外链）'
             }
             onClick={() => void store.actions.setMeta({ footnotes: !state.meta.footnotes })}
           >
@@ -936,7 +929,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             title={
               docHasCode
                 ? '代码块用 mac 标题栏形态（红黄绿圆点 + 语言标签）'
-                : '正文里没有代码块，这个开关现在不影响效果；它的作用是：给代码块加 mac 标题栏形态'
+                : '「Mac 代码框」为代码块添加 mac 标题栏；添加代码块后即可预览效果'
             }
             onClick={() => void store.actions.setMeta({ macCodeBlock: !state.meta.macCodeBlock })}
           >
@@ -1066,39 +1059,23 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
         onJump={jumpToLine}
         onJumpNote={jumpToNote}
         onRestore={(id, label) => void store.actions.restore(id, label)}
+        status={(
+          <>
+            <span>{countWords(state.markdown)} 字</span>
+            <span title={isPublishBusy(state.publish.phase) ? state.publish.message : undefined}>
+              {isPublishBusy(state.publish.phase) ? '发布中…' : state.saving ? '保存中…' : state.dirty ? '未保存' : '已保存'}
+            </span>
+            {manualImages.length ? (
+              <span
+                className="fp-warn"
+                title={`这些图不会被内嵌，粘进公众号后要在编辑器里手动上传：\n${manualImages.map((i) => i.src).join('\n')}`}
+              >
+                {manualImages.length} 张图需手动上传
+              </span>
+            ) : null}
+          </>
+        )}
       />
-
-      <div className="fp-status">
-        <span>{countWords(state.markdown)} 字</span>
-        <span>约 {readingMinutes(state.markdown)} 分钟</span>
-        <span>rev {state.revision}</span>
-        <span title={isPublishBusy(state.publish.phase) ? state.publish.message : undefined}>
-          {isPublishBusy(state.publish.phase) ? '发布中…' : state.saving ? '保存中…' : state.dirty ? '未保存' : '已保存'}
-        </span>
-        <span className="fp-spacer" />
-        {state.images.length ? (
-          <span
-            className={manualImages.length ? 'fp-warn' : undefined}
-            title={
-              manualImages.length
-                ? `这些图不会被内嵌，粘进公众号后要在编辑器里手动上传：\n${manualImages.map((i) => i.src).join('\n')}`
-                : '本地图会内嵌成 base64，复制到公众号时跟着一起过去，不用手动重传'
-            }
-          >
-            图片 {state.images.length}
-            {manualImages.length ? `（${manualImages.length} 需手动上传）` : ''}
-          </span>
-        ) : null}
-        {state.placeholders.length ? <span className="fp-warn">待补 {state.placeholders.length}</span> : null}
-        {openNotes.length ? <span>批注 {openNotes.length}</span> : null}
-        <span className="fp-muted" title={currentTheme ? currentTheme.desc : undefined}>
-          {state.meta.target === 'xiumi' ? '秀米组件管线' : state.themeName}
-          {/* 公众号编辑器只认黑体：选了衬线/等宽，主题再"适合微信"也会在编辑器里退回黑体 */}
-          {state.meta.target === 'wechat' && currentTheme
-            ? ` · ${currentTheme.wechatSafe && state.meta.font === 'sans' ? '适合微信' : '导出 HTML 更稳'}`
-            : ''}
-        </span>
-      </div>
 
       {state.toast ? (
         <div className="fp-toast" data-kind={state.toast.kind}>
@@ -1547,29 +1524,39 @@ function Drawer(props: {
   onJump: (line: number) => void
   onJumpNote: (note: Note) => void
   onRestore: (id: string, label: string) => void
+  status: React.ReactNode
 }) {
   const openNotes = props.notes.filter((n) => !n.resolved)
   return (
-    <div className="fp-drawer" data-open={props.open ? 'true' : 'false'}>
-      <div className="fp-drawer-tabs">
-        <Btn on={props.open && props.tab === 'notes'} onClick={() => props.onTab('notes')}>
+    <div
+      className="fp-drawer"
+      data-open={props.open ? 'true' : 'false'}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && props.open) props.onTab(props.tab)
+      }}
+    >
+      <div className="fp-drawer-bar">
+        <div className="fp-drawer-tabs" role="group" aria-label="文档辅助">
+        <Btn expanded={props.open && props.tab === 'notes'} on={props.open && props.tab === 'notes'} onClick={() => props.onTab('notes')}>
           批注 {openNotes.length || ''}
         </Btn>
-        <Btn on={props.open && props.tab === 'todo'} onClick={() => props.onTab('todo')}>
+        <Btn expanded={props.open && props.tab === 'todo'} on={props.open && props.tab === 'todo'} onClick={() => props.onTab('todo')}>
           待补 {props.placeholders.length || ''}
         </Btn>
-        <Btn on={props.open && props.tab === 'blocks'} onClick={() => props.onTab('blocks')}>
+        <Btn expanded={props.open && props.tab === 'blocks'} on={props.open && props.tab === 'blocks'} onClick={() => props.onTab('blocks')}>
           块 {props.blocks.length}
         </Btn>
-        <Btn on={props.open && props.tab === 'history'} onClick={() => props.onTab('history')}>
+        <Btn expanded={props.open && props.tab === 'history'} on={props.open && props.tab === 'history'} onClick={() => props.onTab('history')}>
           历史
         </Btn>
-        <Btn on={props.open && props.tab === 'learn'} onClick={() => props.onTab('learn')}>
+        <Btn expanded={props.open && props.tab === 'learn'} on={props.open && props.tab === 'learn'} onClick={() => props.onTab('learn')}>
           风格库
         </Btn>
-        <Btn on={props.open && props.tab === 'snippets'} onClick={() => props.onTab('snippets')}>
+        <Btn expanded={props.open && props.tab === 'snippets'} on={props.open && props.tab === 'snippets'} onClick={() => props.onTab('snippets')}>
           页头页尾
         </Btn>
+        </div>
+        <div className="fp-status">{props.status}</div>
       </div>
       {props.open ? (
       <div className="fp-drawer-body">

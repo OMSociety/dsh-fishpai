@@ -21,8 +21,7 @@
 
 它同时是一个**人在回路里的改稿台**——面板与模型看的是同一篇文档，谁改了什么一目了然。
 
-渲染内核与主题来自 [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT），
-本仓库把同一套管线重构为 DSH 插件。署名与许可链条见 [`NOTICE.md`](NOTICE.md)。
+快速模式的渲染内核与主题来自 [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT），专业模式由本仓库的秀米组件管线生成。署名与许可链条见 [`NOTICE.md`](NOTICE.md)。
 
 ## 核心特性
 
@@ -39,7 +38,7 @@
 | **写作风格学习** | 从定稿 / HTML / 公开网页反推九字段写作风格，经暂存预览与你确认后入库；附写作规范参考（风格卡、AI 味指纹、五维自评、文末收束） |
 | **页头页尾片段库** | 页头首图、可配置页尾锚点片段经预览确认后入库，渲染时按 `snippetId` 装配 |
 | **微信约束检查** | `fishpai_lint` 检查全内联、禁用标签 / 属性、position、CSS 变量、grid、文本包裹与正文对比度 |
-| **秀米渲染目标** | 独立秀米组件管线（6 HTML + 3 SVG + 8 `wc_*` 组件），`fishpai_render` 用 `target:'xiumi'` 出秀米页面 |
+| **秀米渲染目标** | 独立秀米组件管线：标题、列表、卡片、横幅与 8 个交互组件；`fishpai_render` 默认用 `target:'xiumi'` 生成专业页面 |
 | **草稿发布自动化** | 面板「发送到草稿箱」：异步打开浏览器，仅保存微信或秀米草稿（**只存草稿，绝不群发**）；登录态存用户级存储 |
 | **九个模型工具** | `fishpai_open` / `read` / `write` / `render` / `theme` / `learn` / `snippets` / `lint` / `publish`，配一份教模型怎么用的技能 |
 
@@ -47,16 +46,16 @@
 
 <table>
 <tr>
-<td width="64%" align="center"><img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/panel-preview.png" alt="鱼排编辑器面板：左侧源码、右侧实时预览" width="540"></td>
+<td width="64%" align="center"><img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/panel-preview.png" alt="鱼排编辑器专业模式：公众号预览、组件排版与文档辅助栏" width="540"></td>
 <td width="36%" align="center"><a href="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.jpg"><img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.jpg" alt="复制后粘进公众号编辑器的实际效果" width="235"></a></td>
 </tr>
 <tr>
-<td align="center">面板：左边写 Markdown，右边实时预览；命名主题、色板、字号、脚注开关都在顶部一行</td>
-<td align="center">粘贴进公众号后并发布后的实机截图</td>
+<td align="center">正式面板：专业模式默认展示公众号预览，文稿编辑、组件插入与文档辅助栏可按需展开</td>
+<td align="center">发布到公众号后的实机截图</td>
 </tr>
 </table>
 
-同一份 HTML 用「导出 HTML」存成文件、在浏览器里打开，看到的就是面板右侧那个样子。
+同一份 HTML 用「导出 HTML」存成文件、在浏览器里打开，看到的就是面板中的公众号页面。仓库内的 [正式面板预览](docs/preview/panel.html) 可离线打开，并支持 `#theme=light` / `#theme=dark` 切换主题。
 
 ## 安装方式
 
@@ -87,7 +86,7 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 | `fishpai_open` | 打开 / 新建文档，并在右侧栏弹出面板 | `path`（可省扩展名，自动补 `.md`）、`markdown`（新建时写正文）、`theme` |
 | `fishpai_read` | **改稿前必做**：读块级 diff、批注、占位、图片提醒与块 id | `doc_key`、`include` |
 | `fishpai_write` | 改稿。必须带 `base_revision`；优先按块改 | `doc_key`、`base_revision`、`mode`（`patch` / `replace`）、`patches[{block_id 或 block_index, op, markdown}]` |
-| `fishpai_render` | 导出可粘贴 / 归档的自包含 HTML（本地图片内嵌 base64） | `out_path`（可省扩展名）、`theme`、`theme_spec`（临时自定义主题，不落盘）、`target`（`'wechat'` 默认 / `'xiumi'` 秀米）、`snippetId`（装配页头页尾片段）、`publish`（`false` = 预览原样形态）、`embed_images` |
+| `fishpai_render` | 导出可粘贴 / 归档的自包含 HTML（本地图片内嵌 base64） | `out_path`（可省扩展名）、`theme`、`theme_spec`（临时自定义主题，不落盘）、`target`（`'xiumi'` 专业默认 / `'wechat'` 快速）、`snippetId`（装配页头页尾片段）、`publish`（`false` = 预览原样形态）、`embed_images` |
 | `fishpai_theme` | 用户级**「命名主题库」**（多套，`set` / `show` / `clear` / `list`）：模型在某套内置主题上只覆盖想改的槽位，存为 `custom:<id>` 命名主题 | `action`、`theme_id`、`theme_spec` |
 | `fishpai_learn` | 写作风格学习：反推九字段风格，暂存预览后确认入库 | `action`（`preview` / `commit` / `list` / `delete`）、`markdown` / `html` / `url` / `path`、`pending_id`、`confirm` |
 | `fishpai_snippets` | 页头页尾片段库：预览确认后入库，渲染时按名装配 | `action`、`name`、`headerHtml` / `footerHtml` / `footerImg`、`footerAnchors`、`pending_id`、`confirm` |
@@ -126,10 +125,11 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 ## 开发
 
 ```powershell
-npm install        # 只有 devDependencies（esbuild / typescript / @types/react / @types/react-dom / @deepseek-ai/cordis）
+npm install        # 安装运行与开发依赖
 npm test           # 全量回归：golden + 站点对照 + 块/diff/批注/补丁 + 宿主红线 + 微信兼容层 + 主题规格 + 主题图标内联核对 + bundle + 快捷键 + 挂载 + 客户端 store 时序 + 接口层（api）
 npm run typecheck  # 客户端 TSX 类型检查
 npm run build      # 重新打包 lib/client.js（改完客户端必须跑，并提交产物）
+npm run build:preview  # 用正式面板与 fixture 重建 README 预览，并在 Chrome 验收展开交互
 npm run check:build  # 确认 lib/ 无漂移
 ```
 
@@ -142,6 +142,8 @@ plugin/host/            宿主侧：工具契约、HTTP 路由、文档存储、
 plugin/vendor/          上游 themes.js + markdown-it 14.1.0 + highlight.js 11.9.0 + hljs-map.json
 client/                 客户端源码（TSX → esbuild 打成 lib/client.js）
 lib/client.js           客户端 bundle（入库；dsh plugin add 不做构建）
+scripts/preview/        正式 README 面板预览入口与确定性 fixture
+docs/preview/           自包含面板 HTML 与接口数据
 skills/fishpai/         鱼排技能：教模型怎么选主题、怎么按块改稿
 test/                   golden、站点对照、块/diff/批注/补丁、宿主红线、微信兼容层、主题规格、主题图标内联核对、bundle 形态、快捷键、真实 Cordis 挂载、客户端 store 时序、接口层（api）
 ```

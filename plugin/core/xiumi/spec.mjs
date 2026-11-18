@@ -1,15 +1,15 @@
 export const DEFAULT_SPEC = Object.freeze({
-  title_color: '#d33',
-  title_size: 22,
-  title_align: 'center',
-  body_color: '#333',
-  body_size: 15,
+  title_color: '#1f2329',
+  title_size: 24,
+  title_align: 'left',
+  body_color: '#3f4650',
+  body_size: 16,
   line_height: 1.8,
-  card_bg: '#f7f7f7',
-  card_radius: 12,
-  card_padding: 16,
-  accent: '#667eea',
-  accent2: '#764ba2',
+  card_bg: '#f5f6f8',
+  card_radius: 8,
+  card_padding: 14,
+  accent: '#3f63d7',
+  accent2: '#5b7cdb',
 })
 
 const COLOR_KEYS = new Set(['title_color', 'body_color', 'card_bg', 'accent', 'accent2'])

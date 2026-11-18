@@ -180,7 +180,7 @@ test('回车：CRLF 文本与 LF 行为一致（JS 的 `.` 不匹配 \\r，带�
   assert.equal(run('  - a\r\n', md.continueList('  - a\r\n', 5, 5)).text, '  - a\n  - \r\n', '嵌套层级跟着走')
   // 空条目照样退出
   assert.equal(run('- \r\n', md.continueList('- \r\n', 2, 2)).text, '\r\n')
-  // 不是列表行，CRLF 也不许误判（`.` 不匹配 `\r` 正是以前这里 diff 的来头）
+  // 不是列表行时返回 null；`.` 不匹配 `\r`，CRLF 的非列表行遵循同一规则
   assert.equal(md.continueList('普通段落\r\n', 4, 4), null)
   assert.equal(md.continueList('# 标题\r\n', 4, 4), null)
 })

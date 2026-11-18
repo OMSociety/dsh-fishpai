@@ -24,6 +24,7 @@ function inline(markdown, spec) {
     .replace(/<em>/g, '<em style="font-style:italic;">')
     .replace(/<code>/g, `<code style="padding:2px 4px;background-color:${spec.card_bg};border-radius:4px;font-size:0.9em;">`)
     .replace(/<a href="([^"]+)">/g, `<a href="$1" style="color:${spec.accent};text-decoration:underline;">`)
+    .replace(/<img\s/g, `<img style="display:block;max-width:100%;height:auto;margin:18px auto;border-radius:${spec.card_radius}px;" `)
 }
 
 const DIRECTIVES = new Set([
@@ -93,7 +94,7 @@ function markdownComponents(markdown, spec) {
         if (tokens[index].type === 'inline') items.push(inline(tokens[index].content, spec))
       }
       if (ordered) components.push({ type: 'number_steps', items })
-      else components.push({ type: 'card', html: items.map((item) => `<p style="margin:0 0 8px;">• ${item}</p>`).join('') })
+      else components.push({ type: 'bullet_list', items })
     } else if (token.type === 'fence' || token.type === 'code_block') {
       components.push({ type: 'card', html: `<pre style="margin:0;white-space:pre-wrap;word-break:break-word;"><code>${escapeHtml(token.content)}</code></pre>` })
     } else if (token.type === 'hr') components.push({ type: 'divider' })
@@ -167,7 +168,7 @@ function renderComponents(components, spec) {
 export function buildPage(components, options = {}) {
   const spec = normalizeSpec(options.spec || options)
   if (!Array.isArray(components)) throw new Error('秀米 components 必须是数组')
-  return `<section style="padding:10px; box-sizing:border-box;">${renderComponents(components, spec)}</section>`
+  return `<section style="max-width:677px;margin:0 auto;padding:24px 20px 32px;box-sizing:border-box;background-color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;letter-spacing:0.01em;">${renderComponents(components, spec)}</section>`
 }
 
 /**

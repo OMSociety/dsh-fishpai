@@ -325,7 +325,7 @@ function pushHistory(cwd, key, state, content, rev, by) {
 
 /**
  * 取回某一版历史内容。
- * @param {string|number} ref 历史条目 id（推荐）或 revision（兼容旧客户端）
+ * @param {string|number} ref 历史条目 id 或数值 revision
  */
 export function readHistoryEntry(cwd, key, ref) {
   const state = readState(cwd, key)
@@ -357,9 +357,6 @@ export function stash({ cwd, docPath, markdown, by = 'human', label }) {
 
 /**
  * 文件读不出来（被删、被改名、权限变了）：单独一个类型，路由层据此回 404 而不是 400。
- *
- * 以前这里回的是空串，于是 `/doc` 高高兴兴地回 200 + `markdown: ""`，面板把它当成
- * "这篇文档就是空的"——用户看到的是正文被清空，而不是"文件不在了"。
  */
 export class DocMissingError extends Error {
   constructor(abs, cause, what = '正文文件') {
@@ -371,7 +368,7 @@ export class DocMissingError extends Error {
   }
 }
 
-/** 读正文。读不出来**抛错**，绝不降级成空串（空串在面板上等于"文档被清空"）。 */
+/** 读正文。读取失败抛 DocMissingError；空串仅表示真实空文档。 */
 export function readDocText(abs, what) {
   try {
     return fs.readFileSync(abs, 'utf8')
@@ -566,7 +563,7 @@ const META_FIELDS = ['theme', 'color', 'font', 'fontSize', 'footnotes', 'macCode
  * 主题色只认 `#` + 3~8 位十六进制。
  *
  * 值里带一个引号就能闭合 `style="…"` 属性、把后面的字节变成任意属性（渲染层只对 wrapper
- * 那一个槽位做了引号中和）。不合法的值按老规矩**静默忽略**：面板的色板本来只会给合法值，
+ * 那一个槽位做了引号中和）。不合法的值**静默忽略**：面板的色板只会给合法值，
  * 走到这里说明请求是手写的，为它让整次「保存设置」失败得不偿失。
  */
 export function isThemeColor(value) {
@@ -684,9 +681,8 @@ export function addNote({ cwd, docPath, note }) {
   const key = docKey(abs)
   const state = readState(cwd, key)
   if (!state) return null
-  // 身份字段**钉死在最外层**：`...note` 来自请求体，调用方能塞 `{id:'dup'}` 覆盖掉
-  // 生成的主键、或把自己标成 `author:'ai'` / 直接 `resolved:true`。`updateNote` 早就是这么
-  // 钉的（`id: n.id`），`addNote` 以前没对齐——同一份数据两个入口两种信任度，是漏洞不是风格。
+  // 身份字段**钉死在最外层**：`...note` 来自请求体，不能覆盖宿主生成的 id、author、at
+  // 或 resolved。addNote 与 updateNote 对身份字段采用同一信任边界。
   const entry = {
     ...note,
     id: randomUUID().slice(0, 8),
@@ -707,11 +703,9 @@ export function updateNote({ cwd, docPath, id, patch }) {
   let found = null
   const notes = state.notes.map((n) => {
     if (n.id !== id) return n
-    // 身份字段**与 addNote 同一套信任度**：`patch` 来自请求体，调用方能借 `action=update`
-    // 把一条人写的批注改成 `author:'ai'` / `at:1`——addNote 钉了、这里没钉，就等于换个入口
-    // 绕过去（实测可达：`{action:'update', patch:{author:'ai', at:1}}` 回 200 且落盘）。
-    // `resolved` 必须允许改，那是 updateNote 的本职（面板「标记已解决」就靠它）；
-    // 正文类字段（text / quote / blockId / blockIndex）也照旧放行。
+    // 身份字段与 addNote 采用同一信任边界：请求体不能改写 id、author、at。
+    // `resolved` 允许修改（面板「标记已解决」）；正文类字段
+    // text / quote / blockId / blockIndex 也由 updateNote 更新。
     found = { ...n, ...patch, id: n.id, author: n.author, at: n.at }
     return found
   })

@@ -5,14 +5,11 @@
  * 但为交互排版留了一条窄缝——SVG 的 SMIL 动画：
  *   `<animate>` / `<animateTransform>` / `<set>` / `<animateMotion>`，
  *   配 `begin="click"` / `begin="touchstart"` 做点击/触摸触发。
- * 秀米、135 编辑器的「点击展开」「滑动切换」「探照灯」都走这条路，
- * 普通账号发布后真实可跑（不需要特殊权限）。
- *
- * 本文件每个组件都必须守住微信粘贴约束（见 wechat-lint.mjs）：
- *   - 不用 `id` / `class` 属性（微信会剥 `id`，靠 id 联动必然失效）；
- *   - 不用 CSS 动画/过渡（一律改用 SMIL）；
+ * 组件遵循微信粘贴约束（见 wechat-lint.mjs）：
+ *   - SVG 使用内联表现属性与纯 SMIL；
  *   - 内容层文字/图片走内联样式 HTML，动画层走纯 SVG，两层分离；
- *   - SMIL 交互不依赖任何脚本，纯声明式，粘贴进编辑器后仍有效。
+ *   - 声明式交互由 `begin` 触发，不依赖脚本或外部样式。
+ * 微信草稿与移动端行为需在目标账号上实测。
  *
  * 每个组件导出：渲染函数（返回 HTML 字符串）+ 在 INTERACTIVE_COMPONENTS 注册。
  * 与 components.mjs 的静态组件并列，由 index.mjs 合并进 _WECHAT_ALIAS。
@@ -32,46 +29,47 @@ function safeInline(value) {
 
 const section = (style, content) => `<section style="${style}">${content}</section>`
 
+function svgTextLabel(value, fallback, max = 20) {
+  const full = String(value || '').trim().replace(/\s+/g, ' ') || fallback
+  const chars = [...full]
+  return { full, visible: chars.length > max ? `${chars.slice(0, max - 1).join('')}…` : full }
+}
+
 /** 内容层：把多行 markdown-ish 文本包成内联段落（不支持嵌套指令，由 index 预渲染）。 */
 function contentBlock(html, spec) {
   return `<section style="color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};">${safeInline(html)}</section>`
 }
 
-/* ── 1. 点击展开（expand）────────────────────────────────────────
- * 外层一个 SVG 触发区（透明 rect + 「点击展开」提示），begin="click" 触发
- * 自身的淡出 + 高度收起；下面内容层常驻，触发区收起后内容露出。
- * 实现：触发区是一个固定高度的 SVG，点击后 <animate> 把 opacity→0、
- * 外层容器用 SMIL 控制 display。微信里「展开」的通行做法是触发区淡出即可。
+/* 零高正文先于触发 SVG；外层按 SVG 高度裁切，点击后由 height 动画撑开文档流。
+ * 正文使用普通内联 HTML，动画不依赖 id、脚本或跨元素引用。
  */
-export function wcExpand({ cover = '', coverText = '', body = '' }, spec = DEFAULT_SPEC) {
-  // 触发区 SVG 的 <text> 显示封面提示纯文本；未提供时兜底「点击展开」。
-  const label = coverText.trim() || '点击展开'
-  return section('margin:0 0 16px;',
-    // 触发区：一个带渐变底的 SVG，点击后淡出（opacity→0），露出下方内容。
-    `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 600 80" style="display:block;cursor:pointer;" role="img" aria-label="${escapeHtml(label)}">`
-    + `<rect width="600" height="80" rx="${spec.card_radius}" fill="${spec.accent}"/>`
-    + `<text x="300" y="48" text-anchor="middle" fill="#ffffff" font-size="${spec.title_size}" font-weight="700">${escapeHtml(label)}</text>`
-    + `<animate attributeName="opacity" from="1" to="0" dur="0.4s" begin="click" fill="freeze"/>`
+function expandable({ coverText, fallback, body, coverHeight }, spec) {
+  const label = svgTextLabel(coverText, fallback)
+  const text = String(body).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  const charsPerLine = Math.max(12, Math.floor(540 / spec.body_size))
+  const lines = Math.max(1, Math.ceil([...text].length / charsPerLine))
+  const blocks = (String(body).match(/<(?:p|h[1-6]|section|table)\b/g) || []).length
+  const contentHeight = Math.min(1200, Math.max(72, Math.ceil(lines * spec.body_size * spec.line_height + blocks * 10 + 32)))
+  const totalHeight = coverHeight + 8 + contentHeight
+  return section('margin:0 0 20px;overflow:hidden;line-height:0;',
+    `<section style="height:0;min-height:0;overflow:visible;display:flow-root;">`
+    + `<section style="margin-top:${coverHeight + 8}px;padding:16px;box-sizing:border-box;background-color:${spec.card_bg};border-radius:${spec.card_radius}px;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};">${safeInline(body)}</section>`
+    + `</section>`
+    + `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="${coverHeight}" style="display:block;cursor:pointer;" role="button" aria-label="${escapeHtml(label.full)}">`
+    + `<rect x="0" y="0" width="100%" height="${coverHeight}" rx="${spec.card_radius}" fill="${spec.card_bg}"/>`
+    + `<text x="16" y="${Math.round(coverHeight / 2 + 5)}" fill="${spec.title_color}" font-size="15" font-weight="600">${escapeHtml(label.visible)}</text>`
+    + `<text x="96%" y="${Math.round(coverHeight / 2 + 7)}" text-anchor="end" fill="${spec.accent}" font-size="24" font-weight="400">＋</text>`
+    + `<animate attributeName="height" from="${coverHeight}" to="${totalHeight}" dur="0.4s" begin="click" fill="freeze"/>`
     + `</svg>`
-    // 内容层：常驻在触发区下方，触发区淡出后自然露出。
-    + section(`margin-top:8px;padding:${spec.card_padding}px;background-color:${spec.card_bg};border-radius:${spec.card_radius}px;box-sizing:border-box;`, contentBlock(body, spec))
   )
 }
 
-/* ── 2. 点击换图展开（swap）──────────────────────────────────────
- * 触发区是封面（首屏内容），点击后封面淡出、下方内容展开。
- * 与 expand 的差别：封面是用户给的图/文，不是固定「点击展开」条。
- */
-export function wcSwap({ cover = '', coverText = '', body = '' }, spec = DEFAULT_SPEC) {
-  const label = coverText.trim() || '点击查看更多'
-  return section('margin:0 0 16px;',
-    `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 600 200" style="display:block;cursor:pointer;" role="img" aria-label="${escapeHtml(label)}">`
-    + `<rect width="600" height="200" rx="${spec.card_radius}" fill="${spec.card_bg}"/>`
-    + `<text x="300" y="108" text-anchor="middle" fill="${spec.accent}" font-size="${spec.title_size}" font-weight="700">${escapeHtml(label)}</text>`
-    + `<animate attributeName="opacity" from="1" to="0" dur="0.4s" begin="click" fill="freeze"/>`
-    + `</svg>`
-    + section(`margin-top:8px;padding:${spec.card_padding}px;background-color:${spec.card_bg};border-radius:${spec.card_radius}px;box-sizing:border-box;`, contentBlock(body, spec))
-  )
+export function wcExpand({ coverText = '', body = '' }, spec = DEFAULT_SPEC) {
+  return expandable({ coverText, fallback: '点击展开', body, coverHeight: 56 }, spec)
+}
+
+export function wcSwap({ coverText = '', body = '' }, spec = DEFAULT_SPEC) {
+  return expandable({ coverText, fallback: '点击查看更多', body, coverHeight: 88 }, spec)
 }
 
 /* ── 3. 滑动切换图集（swiper）────────────────────────────────────
@@ -86,7 +84,7 @@ export function wcSwiper({ images = [] }, spec = DEFAULT_SPEC) {
   const slides = list.map((src, i) => {
     const inner = src
       ? `<image href="${escapeHtml(src)}" x="${i * width}" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/>`
-      : `<rect x="${i * width}" y="0" width="${width}" height="${height}" fill="${i % 2 ? spec.accent2 : spec.accent}"/><text x="${i * width + width / 2}" y="${height / 2}" text-anchor="middle" fill="#ffffff" font-size="40" font-weight="700">${i + 1}</text>`
+      : `<rect x="${i * width}" y="0" width="${width}" height="${height}" fill="${spec.card_bg}"/><text x="${i * width + width / 2}" y="${height / 2}" text-anchor="middle" fill="${spec.body_color}" font-size="18" font-weight="500">待补图片 ${i + 1}</text>`
     return inner
   }).join('')
   return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${width} ${height}" style="display:block;cursor:pointer;margin:0 0 16px;" role="img" aria-label="滑动切换图集">`
@@ -107,7 +105,7 @@ export function wcSpotlight({ body = '' }, spec = DEFAULT_SPEC) {
     + `</circle>`
     + `<text x="300" y="90" text-anchor="middle" fill="#ffffff" font-size="${spec.body_size}" font-weight="700">${escapeHtml('点击照亮')}</text>`
     + `</svg>`
-    + section(`margin-top:8px;padding:${spec.card_padding}px;background-color:${spec.card_bg};border-radius:${spec.card_radius}px;box-sizing:border-box;`, contentBlock(body, spec))
+    + section(`margin-top:8px;padding:2px 0 2px 14px;border-left:2px solid ${spec.accent};box-sizing:border-box;`, contentBlock(body, spec))
   )
 }
 
@@ -123,7 +121,7 @@ export function wcDanmaku({ lines = [] }, spec = DEFAULT_SPEC) {
   const rows = items.map((text, i) => {
     const y = 30 + i * 40
     const dur = 6 + i
-    return `<text x="${width}" y="${y}" fill="${i % 2 ? spec.accent2 : spec.accent}" font-size="${spec.body_size}" font-weight="700">${escapeHtml(text)}`
+    return `<text x="${width}" y="${y}" fill="${i % 2 ? spec.accent2 : spec.accent}" font-size="${spec.body_size}" font-weight="500">${escapeHtml(text)}`
       + `<animateTransform attributeName="transform" type="translate" from="0 0" to="-${width + 200} 0" dur="${dur}s" begin="0s" repeatCount="indefinite"/>`
       + `</text>`
   }).join('')
@@ -132,12 +130,13 @@ export function wcDanmaku({ lines = [] }, spec = DEFAULT_SPEC) {
 
 /* ── 6. 进度条（progress）────────────────────────────────────────
  * 纯静态装饰（无交互）：一条填充到指定百分比的条。
- * 用内联 HTML（不用 SVG），避免不必要的 SMIL。
+ * 进度条使用内联 HTML 呈现轨道、标签与数值。
  */
 export function wcProgress({ percent = 50, label = '' }, spec = DEFAULT_SPEC) {
   const value = Math.max(0, Math.min(100, Number(percent) || 0))
-  return section(`margin:0 0 16px;background-color:${spec.card_bg};border-radius:${spec.card_radius}px;height:18px;overflow:hidden;box-sizing:border-box;`,
-    `<section style="width:${value}%;height:18px;line-height:18px;text-align:center;background:linear-gradient(90deg, ${spec.accent} 0%, ${spec.accent2} 100%);color:#ffffff;font-size:12px;font-weight:700;">${escapeHtml(label || `${value}%`)}</section>`
+  return section('margin:0 0 18px;',
+    `<section style="display:flex;justify-content:space-between;margin:0 0 6px;color:${spec.body_color};font-size:13px;line-height:1.5;"><span>${escapeHtml(label || '当前进度')}</span><span style="color:${spec.accent};font-weight:600;">${value}%</span></section>`
+    + `<section style="background-color:${spec.card_bg};border-radius:3px;height:6px;overflow:hidden;box-sizing:border-box;"><section style="width:${value}%;height:6px;background-color:${spec.accent};border-radius:3px;"></section></section>`
   )
 }
 
@@ -148,8 +147,8 @@ export function wcTimeline({ items = [] }, spec = DEFAULT_SPEC) {
   const rows = items.map((item) => {
     const text = typeof item === 'string' ? item : item.text || ''
     return section('display:flex;align-items:flex-start;margin:0 0 14px;',
-      `<span style="flex:0 0 14px;width:14px;height:14px;margin-top:5px;border-radius:50%;background-color:${spec.accent};"></span>`
-      + `<span style="flex:1;margin-left:12px;padding-left:12px;border-left:2px solid ${spec.accent};color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};">${safeInline(text)}</span>`
+      `<span style="flex:0 0 8px;width:8px;height:8px;margin-top:9px;border-radius:50%;background-color:${spec.accent};"></span>`
+      + `<span style="flex:1;margin-left:10px;padding-left:12px;border-left:1px solid ${spec.card_bg};color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};">${safeInline(text)}</span>`
     )
   }).join('')
   return section('margin:0 0 16px;', rows)
@@ -159,11 +158,11 @@ export function wcTimeline({ items = [] }, spec = DEFAULT_SPEC) {
  * 左右两栏对照（用 table 布局，微信对 flex 支持不稳）。
  */
 export function wcCompare({ left = '', right = '', leftTitle = '', rightTitle = '' }, spec = DEFAULT_SPEC) {
-  const head = (text, color) => `<p style="margin:0 0 8px;color:${color};font-size:${spec.body_size}px;font-weight:700;text-align:center;">${escapeHtml(text)}</p>`
-  const cell = `width:50%;vertical-align:top;box-sizing:border-box;padding:${spec.card_padding}px;font-size:${spec.body_size}px;line-height:${spec.line_height};`
-  return `<table style="width:100%;border-collapse:separate;border-spacing:8px 0;margin:0 0 16px;table-layout:fixed;" role="presentation"><tbody><tr>`
-    + `<td style="${cell}background-color:${spec.card_bg};border-radius:${spec.card_radius}px;color:${spec.body_color};">${leftTitle ? head(leftTitle, spec.accent) : ''}${contentBlock(left, spec)}</td>`
-    + `<td style="${cell}background-color:${spec.card_bg};border-radius:${spec.card_radius}px;color:${spec.body_color};">${rightTitle ? head(rightTitle, spec.accent2) : ''}${contentBlock(right, spec)}</td>`
+  const head = (text) => `<p style="margin:0 0 8px;color:${spec.title_color};font-size:${spec.body_size}px;font-weight:700;">${escapeHtml(text)}</p>`
+  const cell = `width:50%;vertical-align:top;box-sizing:border-box;padding:${spec.card_padding}px;font-size:${spec.body_size}px;line-height:${spec.line_height};overflow-wrap:break-word;`
+  return `<table style="width:100%;border-collapse:collapse;margin:0 0 18px;table-layout:fixed;" role="presentation"><tbody><tr>`
+    + `<td style="${cell}border-right:1px solid ${spec.card_bg};color:${spec.body_color};">${leftTitle ? head(leftTitle) : ''}${contentBlock(left, spec)}</td>`
+    + `<td style="${cell}color:${spec.body_color};">${rightTitle ? head(rightTitle) : ''}${contentBlock(right, spec)}</td>`
     + `</tr></tbody></table>`
 }
 
