@@ -51,13 +51,17 @@ export const CSS = `
 .fp-more>summary{list-style:none;display:inline-flex;align-items:center;cursor:pointer;user-select:none}
 .fp-more>summary::-webkit-details-marker{display:none}
 .fp-more[open]>summary{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l1)}
+.fp-more-menu,.fp-publish-popover{
+  --dsw-elevation-stroke-color:var(--dsw-alias-border-l1);
+  border:0;border-radius:var(--dsw-radius-lg);
+  background:var(--dsw-specific-menu);backdrop-filter:var(--dsw-menu-backdrop-filter);
+  box-shadow:var(--dsw-elevation-prominent);
+}
 .fp-more-menu{
   position:absolute;top:calc(100% + 6px);right:0;z-index:46;min-width:160px;padding:6px;
-  display:flex;flex-direction:column;gap:3px;font:inherit;color:var(--dsw-alias-label-primary);
-  border:1px solid var(--dsw-alias-border-l2);border-radius:10px;
-  background:var(--dsw-alias-bg-overlay);box-shadow:var(--dsw-shadow-lv3,0 4px 14px rgba(0,0,0,.28));
+  display:flex;flex-direction:column;gap:2px;font:inherit;color:var(--dsw-alias-label-primary);
 }
-.fp-more-menu .fp-menu-row{min-height:30px;padding:6px 9px;border-radius:6px;white-space:nowrap}
+.fp-more-menu .fp-menu-row{min-height:28px;padding:4px 8px;border-radius:var(--dsw-radius-sm);white-space:nowrap}
 .fp-more-menu .fp-menu-row:hover{background:var(--dsw-alias-bg-layer-2)}
 .fp-more-menu .fp-menu-row:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
 /* 面板窄的时候收紧一点：让主操作组尽量留在第一行 */
@@ -321,8 +325,7 @@ export const CSS = `
 .fp-publish-caret{border-left:1px solid var(--dsw-alias-border-l2)!important;border-radius:0 5px 5px 0!important;padding-left:4px!important;padding-right:4px!important}
 .fp-publish-popover{
   position:absolute;top:calc(100% + 6px);right:0;z-index:45;width:292px;max-width:calc(100vw - 24px);
-  display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:10px;
-  border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-overlay);box-shadow:var(--dsw-shadow-lv3);
+  display:flex;flex-direction:column;gap:10px;padding:12px;
   color:var(--dsw-alias-label-primary);
 }
 .fp-publish-targets{

@@ -92,7 +92,7 @@ export function PublishControls({ store, narrow }: { store: FishpaiStore; narrow
         </button>
       </div>
       {open && (
-        <div className="fp-publish-popover" role="dialog" aria-label="发送到草稿箱">
+        <div className="fp-publish-popover" data-menu-material role="dialog" aria-label="发送到草稿箱">
           <div className="fp-publish-targets" role="group" aria-label="草稿箱平台">
             <button
               type="button"

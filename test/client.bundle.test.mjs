@@ -487,11 +487,37 @@ test('空面板的载入、失败与空文档状态提供对应操作', () => {
   assert.ok(source.includes('fp-sweep'), '载入中的进度条动画')
 })
 
-test('更多菜单使用统一浮层、行距与键盘焦点样式', () => {
+test('更多菜单使用 DSH 原生材质、行距与键盘焦点样式', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
-  for (const rule of ['.fp-more[open]>summary', 'min-width:160px', '.fp-more-menu .fp-menu-row:hover', '.fp-more-menu .fp-menu-row:focus-visible']) {
+  const panel = fs.readFileSync(path.join(ROOT, 'client', 'panel.tsx'), 'utf8')
+  for (const rule of [
+    '.fp-more[open]>summary',
+    'min-width:160px',
+    'background:var(--dsw-specific-menu)',
+    'backdrop-filter:var(--dsw-menu-backdrop-filter)',
+    'box-shadow:var(--dsw-elevation-prominent)',
+    '.fp-more-menu .fp-menu-row:hover',
+    '.fp-more-menu .fp-menu-row:focus-visible',
+  ]) {
     assert.ok(source.includes(rule), `更多菜单样式缺失：${rule}`)
   }
+  assert.ok(panel.includes('<div className="fp-more-menu" data-menu-material>'), '更多菜单接入 DSH 菜单材质上下文')
+})
+
+test('发布弹层与更多菜单共用 DSH 原生菜单材质', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  const publish = fs.readFileSync(path.join(ROOT, 'client', 'publish.tsx'), 'utf8')
+  const surface = source.match(/\.fp-more-menu,\.fp-publish-popover\{([^}]+)\}/)?.[1] || ''
+  for (const rule of [
+    '--dsw-elevation-stroke-color:var(--dsw-alias-border-l1)',
+    'border:0;border-radius:var(--dsw-radius-lg)',
+    'background:var(--dsw-specific-menu)',
+    'backdrop-filter:var(--dsw-menu-backdrop-filter)',
+    'box-shadow:var(--dsw-elevation-prominent)',
+  ]) {
+    assert.ok(surface.includes(rule), `发布弹层材质缺失：${rule}`)
+  }
+  assert.ok(publish.includes('<div className="fp-publish-popover" data-menu-material role="dialog"'), '发布弹层接入 DSH 菜单材质上下文')
 })
 
 test('快捷键提示分系统：两套文案都在产物里，而键盘处理始终 meta || ctrl', () => {

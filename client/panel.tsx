@@ -827,7 +827,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             <PublishControls store={store} narrow={narrow} />
             <details className="fp-more">
               <summary className="fp-btn" title="更多操作">更多</summary>
-              <div className="fp-more-menu">
+              <div className="fp-more-menu" data-menu-material>
                 <button
                   type="button"
                   className="fp-menu-row"

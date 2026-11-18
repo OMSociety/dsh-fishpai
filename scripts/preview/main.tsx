@@ -105,18 +105,28 @@ function HostTabStrip() {
 
 const hostTheme = document.createElement('style')
 hostTheme.textContent = `
-  :root { --dsw-radius-sm: 8px; }
+  :root {
+    --dsw-radius-sm: 8px;
+    --dsw-radius-lg: 16px;
+    --dsw-menu-backdrop-filter: blur(40px) saturate(150%);
+  }
+  body, body * {
+    --dsw-elevation-stroke: 0 0 0 .5px var(--dsw-elevation-stroke-color);
+    --dsw-elevation-prominent: var(--dsw-elevation-stroke), 0 3px 8px 0 rgba(0,0,0,.04), 0 0 20px 0 rgba(0,0,0,.05);
+  }
   body[data-dsh-theme='light'] {
     color-scheme: light;
     --dsw-alias-bg-base: #ffffff;
     --dsw-alias-bg-layer-1: #ffffff;
     --dsw-alias-bg-layer-2: #f4f5f7;
     --dsw-alias-bg-overlay: #ffffff;
+    --dsw-specific-menu: rgba(255,255,255,.70);
     --dsw-alias-label-primary: rgb(15,17,21);
     --dsw-alias-label-secondary: rgb(97,102,107);
     --dsw-alias-brand-primary: #3f63d7;
     --dsw-alias-border-l1: rgba(0,0,0,.08);
     --dsw-alias-border-l2: rgba(0,0,0,.12);
+    --dsw-alias-border-l3: rgba(0,0,0,.12);
     --dsw-alias-state-warn-primary: #b45309;
     --dsw-alias-state-error-primary: #dc2626;
     --dsw-alias-markdown-tag: #eef0f3;
@@ -128,17 +138,22 @@ hostTheme.textContent = `
     --dsw-alias-bg-base: rgb(21,21,23);
     --dsw-alias-bg-layer-1: rgb(35,35,36);
     --dsw-alias-bg-layer-2: rgb(44,44,46);
-    --dsw-alias-bg-overlay: rgb(35,35,36);
+    --dsw-alias-bg-overlay: rgb(97,102,107);
+    --dsw-specific-menu: rgba(48,49,54,.64);
     --dsw-alias-label-primary: rgb(249,250,251);
     --dsw-alias-label-secondary: rgb(190,194,199);
     --dsw-alias-brand-primary: #8aa4f7;
     --dsw-alias-border-l1: rgba(255,255,255,.08);
     --dsw-alias-border-l2: rgba(255,255,255,.14);
+    --dsw-alias-border-l3: rgba(255,255,255,.16);
     --dsw-alias-state-warn-primary: #fbbf24;
     --dsw-alias-state-error-primary: #f87171;
     --dsw-alias-markdown-tag: rgb(44,44,46);
     --dsw-shadow-lv2: 0 5px 18px rgba(0,0,0,.36);
     --dsw-shadow-lv3: 0 8px 24px rgba(0,0,0,.42);
+  }
+  body[data-dsh-theme='dark'] [data-menu-material] {
+    --dsw-elevation-stroke-color: var(--dsw-alias-border-l3);
   }
   html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
   body {
