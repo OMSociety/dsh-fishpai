@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 新增专业组件手册 `skills/fishpai/references/components.md`，含 8 个 SMIL 交互组件（点击展开 `expand`、点击换图 `swap`、滑动图集 `swiper`、探照灯 `spotlight`、弹幕 `danmaku`、进度条 `progress`、时间线 `timeline`、对比卡 `compare`）与静态版式组件；`fishpai_lint` 补 CSS 动画禁令与 SMIL 循环校验。
 - 新增 `POST /auth`：查询/清除指定平台的登录态（只回 `loggedIn`/`savedAt`，Cookie 绝不回流面板）；面板发布流程内提供登录态管理。
 - 新增 `fishpai_publish`、`POST /publish` 与 `GET /publish/status`：异步打开浏览器，仅保存微信或秀米草稿；登录态存 storageDomain auth 表。
+- 专业管线新增受控 `:::raw` 区块，可原样承载已确认的 HTML / SVG 结构，并拒绝脚本、事件属性与主动内容。
+- 微信草稿通过 `operate_appmsg` 直存原始 HTML，保留秀米 / SVG 结构；首次保存建立草稿并捕获会话字段，`data_seq` 冲突时按服务端返回值重试一次。
 
 ### 变更
 
@@ -44,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the component reference `skills/fishpai/references/components.md` with 8 SMIL interactive components plus static layout components; `fishpai_lint` now flags CSS animations and risky SMIL loops.
 - Added `POST /auth` to query or clear a platform's login state (returns only `loggedIn`/`savedAt`, never cookies), with login management in the panel publish flow.
 - Added `fishpai_publish`, `POST /publish`, and `GET /publish/status`: asynchronous browser jobs save WeChat or Xiumi drafts only, with login state confined to the storageDomain auth table.
+- Added a controlled `:::raw` block to the professional pipeline for preserving verified HTML / SVG structures while rejecting scripts, event handlers, and active content.
+- WeChat drafts now save raw HTML through `operate_appmsg`, preserving Xiumi / SVG structures; the initial save creates the draft and captures session fields, with one retry using the server-returned `data_seq` on conflicts.
 
 ### Changed
 

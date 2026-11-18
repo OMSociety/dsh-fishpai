@@ -19,7 +19,7 @@ test('秀米：规格十一键与静态组件、交互组件注册表', () => {
   assert.deepEqual(Object.keys(DEFAULT_SPEC).sort(), ['title_color','title_size','title_align','body_color','body_size','line_height','card_bg','card_radius','card_padding','accent','accent2'].sort())
   assert.deepEqual(Object.keys(HTML_COMPONENTS), ['heading','paragraph','card','two_columns','quote','divider'])
   assert.deepEqual(Object.keys(SVG_COMPONENTS), ['svg_gradient_banner','svg_wave_divider','svg_number_icons'])
-  assert.deepEqual(Object.keys(WECHAT_COMPONENTS), ['wc_heading','wc_paragraph','wc_card','wc_bullet_list','wc_gradient_banner','wc_wave_divider','wc_number_steps','wc_quote','wc_two_columns'])
+  assert.deepEqual(Object.keys(WECHAT_COMPONENTS), ['wc_heading','wc_paragraph','wc_card','wc_bullet_list','wc_gradient_banner','wc_wave_divider','wc_number_steps','wc_quote','wc_two_columns','wc_raw'])
 })
 test('秀米：Markdown 与指令经 wc 别名组成页面', () => {
   const components = componentsFromMarkdown('# 标题\n\n正文\n\n:::card\n卡片\n:::\n\n:::gradient_banner\n渐变\n:::')
@@ -34,6 +34,14 @@ test('秀米：自定义规格与未知组件边界', () => {
   assert.throws(() => buildPage([{ type: '未知', text: 'x' }]), /未知组件/)
   assert.throws(() => componentsFromMarkdown(':::wat\nx\n:::'), /未知指令/)
   assert.throws(() => componentsFromMarkdown(':::card\nx'), /未闭合/)
+})
+test('秀米：raw 保留 HTML/SVG 并拒绝主动内容', () => {
+  const source = '<section data-p="1">原文<svg><foreignObject><div xmlns="http://www.w3.org/1999/xhtml">叠字</div></foreignObject></svg></section>'
+  const html = renderXiumi(`:::raw\n${source}\n:::`).html
+  assert.match(html, /data-p="1">原文<svg><foreignObject>/)
+  assert.throws(() => renderXiumi(':::raw\n<script>alert(1)</script>\n:::'), /raw 不允许/)
+  assert.throws(() => renderXiumi(':::raw\n<section onclick="alert(1)">x</section>\n:::'), /raw 不允许/)
+  assert.throws(() => renderXiumi(':::raw\n<a href="javascript:alert(1)">x</a>\n:::'), /raw 不允许/)
 })
 test('fishpai_render target=xiumi 走独立目标，微信默认路径不变', async (t) => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'fishpai-xiumi-'))

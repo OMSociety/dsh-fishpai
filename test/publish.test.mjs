@@ -163,16 +163,30 @@ test('秀米只填写内容并点击可见保存按钮', async () => {
   assert.equal(result.draftSaved, true)
 })
 
-test('微信从首页文章菜单开新标签，注入正文后等待 appmsgid', async () => {
+test('微信首次保存建立草稿，随后直存原始 HTML 并按新 data_seq 重试', async () => {
   let menuClicked = 0
   let insertedHtml = ''
+  const directBodies = []
+  const saveRequest = {
+    postData: () => 'data_seq=1&fingerprint=fp&title0=old',
+    url: () => 'https://mp.weixin.qq.com/cgi-bin/operate_appmsg?t=ajax-response&sub=update&type=77&token=old&lang=zh_CN',
+    response: async () => ({ json: async () => ({ data_seq: '2' }) }),
+  }
   const editor = {
     async waitForLoadState() {}, async waitForTimeout() {}, async waitForSelector() {},
+    async waitForRequest() { return saveRequest },
     locator(selector) {
       return { async evaluate(fn, value) { if (String(fn).includes('execCommand')) { insertedHtml = value; return true } } }
     },
-    async evaluate() { return { appmsgid: '12345', loading: false, disabled: false } },
-    url: () => 'https://mp.weixin.qq.com/cgi-bin/appmsg?appmsgid=12345',
+    async evaluate(fn, arg) {
+      if (String(fn).includes('fetch(')) {
+        directBodies.push(arg.body)
+        if (directBodies.length === 1) return { status: 200, data: { base_resp: { ret: 0 }, msg: '当前草稿非最新内容，请重新进入页面', data_seq: '9' } }
+        return { status: 200, data: { base_resp: { ret: 0 }, msg: '', data_seq: '10' } }
+      }
+      return { appmsgid: '12345', loading: false, disabled: false }
+    },
+    url: () => 'https://mp.weixin.qq.com/cgi-bin/appmsg?appmsgid=12345&token=current',
   }
   const title = { innerText: async () => '文章' }
   const item = { locator: () => title, click: async () => { menuClicked += 1 } }
@@ -182,10 +196,23 @@ test('微信从首页文章菜单开新标签，注入正文后等待 appmsgid',
     waitForTimeout: async () => {}, locator: (selector) => { assert.match(selector, /new-creation__menu/); return items },
   }
   const context = { waitForEvent: async (name) => { assert.equal(name, 'page'); return editor } }
-  const result = await saveWechatDraft({ context, page: home, title: '标题', html: '<p>正文</p>', loadDelay: 0 })
+  const result = await saveWechatDraft({ context, page: home, title: '标题', author: '作者', html: '<section><svg></svg></section>', loadDelay: 0 })
   assert.equal(menuClicked, 1)
-  assert.equal(insertedHtml, '<p>正文</p>')
+  assert.equal(insertedHtml, '<section><svg></svg></section>')
   assert.equal(result.appmsgid, '12345')
+  assert.equal(result.saveMode, 'direct')
+  assert.equal(directBodies.length, 2)
+  const first = new URLSearchParams(directBodies[0])
+  const retry = new URLSearchParams(directBodies[1])
+  assert.equal(first.get('data_seq'), '2')
+  assert.equal(retry.get('data_seq'), '9')
+  for (const fields of [first, retry]) {
+    assert.equal(fields.get('content0'), '<section><svg></svg></section>')
+    assert.equal(fields.get('title0'), '标题')
+    assert.equal(fields.get('author0'), '作者')
+    assert.equal(fields.get('AppMsgId'), '12345')
+    assert.equal(fields.get('token'), 'current')
+  }
 })
 
 test('工具与 HTTP 路由使用同一个异步 job id 契约', async (t) => {

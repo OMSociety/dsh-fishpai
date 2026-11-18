@@ -28,7 +28,7 @@ function inline(markdown, spec) {
 }
 
 const DIRECTIVES = new Set([
-  'card', 'two_columns', 'quote', 'gradient_banner', 'wave_divider', 'number_steps',
+  'card', 'two_columns', 'quote', 'gradient_banner', 'wave_divider', 'number_steps', 'raw',
   // 交互组件（SMIL）：专业模式专属。
   ...Object.keys(INTERACTIVE_DIRECTIVES),
 ])
@@ -103,6 +103,7 @@ function markdownComponents(markdown, spec) {
 }
 
 function directiveComponent(part, spec) {
+  if (part.directive === 'raw') return { type: 'raw', html: part.body }
   if (part.directive === 'wave_divider') return { type: 'wave_divider' }
   if (part.directive === 'gradient_banner') return { type: 'gradient_banner', text: part.body.trim() }
   if (part.directive === 'number_steps') {

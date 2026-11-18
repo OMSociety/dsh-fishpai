@@ -105,7 +105,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 14. **页头页尾片段是预览确认后的用户资产**：`POST /snippets` 与 `fishpai_snippets` 走 preview→commit；页头取正文首个 mmbiz 图，页尾锚点关键词必须由用户显式配置。渲染通过 `snippetId` 在 render 前拼 Markdown，不改源文档；片段存 storageDomain snippets 表。
 15. **微信 lint 必须标明证据边界**：`fishpai_lint` 与 `POST /lint` 检查全内联、禁 position/class/id/div/CSS 变量/grid、文本节点包裹与正文 4.5:1 对比度。既有规则观察来自草稿 API 路径；用于鱼排粘贴路径时一律标为推论，不冒充粘贴实测。
 16. **秀米是独立渲染目标**：组件与 Markdown 映射只放 `plugin/core/xiumi/`，接入点是 `fishpai_render.target` 与 `POST /render.target`；微信 `render()` 不加 target。静态组件与 8 个交互组件分别由 components.mjs、interactive.mjs 注册，DEFAULT_SPEC 的 11 个键按模块常量校验；未知组件必须报错。展开组件使用零高正文与 SVG 高度动画，不依赖 foreignObject；微信草稿与移动端行为需在目标账号上实测。
-17. **发布自动化只保存草稿**：`fishpai_publish` 立即返回内存 job id，`GET /publish/status` 轮询 queued/running/need-login/done/failed。浏览器解析顺序为 Chrome → Windows Edge → 用户插件数据区 Chromium（下载约 170 MB，任务消息当场告知）；登录态仅在平台登录标记确认后写 storageDomain auth 表，绝不进工作目录或日志。微信必须从 HOME_URL 的「文章」菜单开新标签，不直接跳编辑器深链；任何注入或保存结果不确定都必须失败并提示人工检查，不群发、不绕风控。
+17. **发布自动化只保存草稿**：`fishpai_publish` 立即返回内存 job id，`GET /publish/status` 轮询 queued/running/need-login/done/failed。浏览器解析顺序为 Chrome → Windows Edge → 用户插件数据区 Chromium（下载约 170 MB，任务消息当场告知）；登录态仅在平台登录标记确认后写 storageDomain auth 表，绝不进工作目录或日志。微信必须从 HOME_URL 的「文章」菜单开新标签，不直接跳编辑器深链；首次正常保存用于建立草稿并捕获会话字段，随后通过 `operate_appmsg` 直存原始 HTML，`data_seq` 冲突按服务端返回值重试一次，避免 ProseMirror 清洗 SVG。任何注入或保存结果不确定都必须失败并提示人工检查，不群发、不绕风控。
 18. **预览与发布是两条渲染路径，预览的样式问题不许改渲染内核**。`publish` 模式才开三处兼容层；`preview`（`annotate: true`）不开，也不做 hljs 内联。预览 iframe 是沙箱 srcdoc、没有外部样式表：预览缺的样式只能由宿主生成 CSS 随响应下发（范例：`hljsPreviewCss()` → `hljsCss` → 客户端 `buildSrcdoc`），不能改 `render.mjs`（golden 守的是 publish + 默认路径，改内核同时污染两条路）。判据：**预览有差异、发布产物正常 = 补在预览侧，不是内核 bug**。
 
 ## 禁止操作

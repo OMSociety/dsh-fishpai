@@ -106,7 +106,15 @@ export function wcTwoColumns(props, spec) {
   return twoColumns(props, spec)
 }
 
+export function wcRaw({ html = '' }) {
+  const source = String(html ?? '')
+  if (/<\s*\/?\s*(?:script|style|iframe|object|embed|link|meta|base|form)\b/i.test(source)) throw new Error('raw 不允许脚本、样式表、表单或嵌入文档标签')
+  if (/\s+on[a-z-]+\s*=|\s+srcdoc\s*=/i.test(source)) throw new Error('raw 不允许事件处理器或 srcdoc')
+  if (/(?:href|src|xlink:href|action|formaction|poster)\s*=\s*(?:"|'|)?\s*(?:javascript:|data:text\/html)/i.test(source)) throw new Error('raw 不允许可执行 URL')
+  return source
+}
+
 export const HTML_COMPONENTS = Object.freeze({ heading, paragraph, card, two_columns: twoColumns, quote, divider })
 export const SVG_COMPONENTS = Object.freeze({ svg_gradient_banner: svgGradientBanner, svg_wave_divider: svgWaveDivider, svg_number_icons: svgNumberIcons })
-export const WECHAT_COMPONENTS = Object.freeze({ wc_heading: wcHeading, wc_paragraph: wcParagraph, wc_card: wcCard, wc_bullet_list: wcBulletList, wc_gradient_banner: wcGradientBanner, wc_wave_divider: wcWaveDivider, wc_number_steps: wcNumberSteps, wc_quote: wcQuote, wc_two_columns: wcTwoColumns })
-export const _WECHAT_ALIAS = Object.freeze({ heading: 'wc_heading', paragraph: 'wc_paragraph', card: 'wc_card', bullet_list: 'wc_bullet_list', two_columns: 'wc_two_columns', quote: 'wc_quote', divider: 'wc_wave_divider', gradient_banner: 'wc_gradient_banner', wave_divider: 'wc_wave_divider', number_steps: 'wc_number_steps', svg_gradient_banner: 'wc_gradient_banner', svg_wave_divider: 'wc_wave_divider', svg_number_icons: 'wc_number_steps', ...Object.fromEntries(Object.keys(WECHAT_COMPONENTS).map((key) => [key, key])) })
+export const WECHAT_COMPONENTS = Object.freeze({ wc_heading: wcHeading, wc_paragraph: wcParagraph, wc_card: wcCard, wc_bullet_list: wcBulletList, wc_gradient_banner: wcGradientBanner, wc_wave_divider: wcWaveDivider, wc_number_steps: wcNumberSteps, wc_quote: wcQuote, wc_two_columns: wcTwoColumns, wc_raw: wcRaw })
+export const _WECHAT_ALIAS = Object.freeze({ heading: 'wc_heading', paragraph: 'wc_paragraph', card: 'wc_card', bullet_list: 'wc_bullet_list', two_columns: 'wc_two_columns', quote: 'wc_quote', divider: 'wc_wave_divider', gradient_banner: 'wc_gradient_banner', wave_divider: 'wc_wave_divider', number_steps: 'wc_number_steps', raw: 'wc_raw', svg_gradient_banner: 'wc_gradient_banner', svg_wave_divider: 'wc_wave_divider', svg_number_icons: 'wc_number_steps', ...Object.fromEntries(Object.keys(WECHAT_COMPONENTS).map((key) => [key, key])) })
