@@ -260,7 +260,8 @@ export function apply(ctx: any): void {
         lastTheme = themeKey
         // 不仅看 revision：模型可能换了一篇文档（fishpai_open 另一篇），此时 key 会变
         const store = stores.get(sessionId)
-        if (store && switched && !firstPoll && activeKey) void store.actions.onActiveDoc(activeKey, revision, themeKey)
+        const needsRecovery = store?.getSnapshot().status === 'error' && !store.getSnapshot().docKey
+        if (store && switched && activeKey && (!firstPoll || needsRecovery)) void store.actions.onActiveDoc(activeKey, revision, themeKey)
       } catch (error) {
         // 宿主刚起来时路由可能还没注册：每个"未就绪期"只报一次，别每 3 秒刷屏
         if (!warned) {

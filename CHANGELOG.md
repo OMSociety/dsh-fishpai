@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 修复
 
-- 工具栏复制动作与相邻操作共用表面、边框和焦点样式；发布弹层统一平台分组、输入框与留白层级。
+- 会话工作目录在启动阶段尚未就绪时，面板在首次成功轮询后自动恢复文档初始化。
 
 ### Added
 
@@ -68,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The toolbar copy action shares surface, border, and focus styling with neighboring controls; the publish popover aligns platform grouping, inputs, and spacing.
+- When the session working directory is not ready during startup, the panel automatically resumes document initialization after the first successful poll.
 
 ## [1.2.1] - 2026-11-02
 

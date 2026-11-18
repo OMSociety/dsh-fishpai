@@ -135,7 +135,7 @@ function loadBundle(options = {}) {
   const stub = (spec) => {
     if (spec === 'react/jsx-runtime') return { jsx: () => null, jsxs: () => null, Fragment: Symbol('f') }
     return {
-      createElement: () => null,
+      createElement: options.createElement || (() => null),
       useSyncExternalStore: (_sub, get) => get(),
       useMemo: (fn) => fn(),
       useEffect: () => {},
@@ -486,6 +486,13 @@ test('空面板的载入、失败与空文档状态提供对应操作', () => {
   assert.ok(source.includes('fp-sweep'), '载入中的进度条动画')
 })
 
+test('更多菜单使用统一浮层、行距与键盘焦点样式', () => {
+  const source = fs.readFileSync(BUNDLE, 'utf8')
+  for (const rule of ['.fp-more[open]>summary', 'min-width:160px', '.fp-more-menu .fp-menu-row:hover', '.fp-more-menu .fp-menu-row:focus-visible']) {
+    assert.ok(source.includes(rule), `更多菜单样式缺失：${rule}`)
+  }
+})
+
 test('快捷键提示分系统：两套文案都在产物里，而键盘处理始终 meta || ctrl', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   assert.ok(source.includes('"⌘"') && source.includes('"Ctrl"'), '修饰键提示应有 Mac / 非 Mac 两支')
@@ -593,6 +600,53 @@ test('官方席位：注册 tab 类型与两个槽位，openRequest 到达时自
   const tabOpened = harness.fetchCalls.find((c) => String(c.url).includes('/tab-opened'))
   assert.ok(tabOpened, '应回调 /tab-opened 清掉打开请求')
   assert.match(String(tabOpened.init.body), /"docKey":"k1"/)
+})
+
+test('启动时工作目录尚未就绪：首次成功轮询自动恢复面板初始化', async () => {
+  let stateCalls = 0
+  const harness = loadBundle({
+    createElement: (type, props, ...children) => ({ type, props: { ...(props || {}), children } }),
+    fetchImpl: (url) => {
+      const target = String(url)
+      if (target.startsWith('/fishpai/api/state')) {
+        stateCalls += 1
+        if (stateCalls <= 2) throw new Error('无法解析会话工作目录：s1')
+        return {
+          ok: true,
+          docs: [{ key: 'k1', path: 'k1.md', title: '启动恢复' }],
+          active: { key: 'k1', path: 'k1.md', title: '启动恢复', revision: 1 },
+        }
+      }
+      if (target.startsWith('/fishpai/api/themes')) return { ok: true, themes: [], presets: [], sizes: [], fonts: [] }
+      if (target.startsWith('/fishpai/api/doc')) {
+        return {
+          ok: true,
+          doc: { key: 'k1', path: 'k1.md', title: '启动恢复', markdown: '恢复后的正文', revision: 1 },
+          meta: { target: 'xiumi' },
+          blocks: [], notes: [], placeholders: [], images: [], history: [],
+        }
+      }
+      if (target.startsWith('/fishpai/api/render')) return { ok: true, html: '<p>恢复后的正文</p>', linkCount: 0, hasCode: false }
+      return { ok: true }
+    },
+  })
+  harness.apply()
+  await flush()
+  const host = harness.registeredSlots.find((s) => s.descriptor.name === 'sidebar.right.pane.tab')
+  assert.ok(host, '面板槽位已注册')
+  const panel = host.component({ sessionId: 's1' })
+  const store = panel.props.store
+  await store.actions.init()
+  assert.equal(store.getSnapshot().status, 'error')
+  assert.match(String(store.getSnapshot().error), /无法解析会话工作目录/)
+
+  harness.timers[0]()
+  await flush(8)
+
+  assert.equal(store.getSnapshot().status, 'ready')
+  assert.equal(store.getSnapshot().docKey, 'k1')
+  assert.equal(store.getSnapshot().markdown, '恢复后的正文')
+  assert.equal(store.getSnapshot().error, null)
 })
 
 test('0.1.7 形态的服务面（列表快照不带 current）：轮询从右侧栏挂载态拿当前会话', async () => {
