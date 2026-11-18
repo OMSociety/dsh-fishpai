@@ -388,11 +388,12 @@ test('专业模式默认预览，文稿与预览标题保持作者视角', () =>
   }
 })
 
-test('发布登录态按当前平台查询与清除，状态与后端证据一致', () => {
+test('发布登录态按当前平台查询与登录/清除，状态与后端证据一致', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
-  for (const copy of ['正在检查登录态', '已登录', '未登录', '保存于', '清除登录态', '清除后重新发布']) {
+  for (const copy of ['正在检查登录态', '已登录', '未登录', '保存于', '清除登录态', '登录', '清除后重新发布']) {
     assert.ok(source.includes(copy), `登录态管理文案缺失：${copy}`)
   }
+  assert.ok(source.includes('auth.status?.loggedIn'), '登录/清除按钮要按登录态分支')
   assert.ok(source.includes('authStatus') && source.includes('clearAuth'), 'store 要接查询与清除两个 API')
   assert.ok(source.includes('/auth'), '登录态请求要走 /auth')
   assert.ok(!source.includes('已过期'), 'Cookie 有效期由发布流程的登录错误确认')

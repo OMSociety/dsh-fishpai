@@ -118,11 +118,11 @@ export function PublishControls({ store, narrow }: { store: FishpaiStore; narrow
             <button
               type="button"
               className="fp-btn"
-              title="清除后重新发布即可重新登录"
+              title={auth.status?.loggedIn ? '清除后重新发布即可重新登录' : '打开浏览器登录目标平台，登录成功后继续保存草稿'}
               disabled={busy || auth.loading || auth.clearing}
-              onClick={() => void store.actions.clearAuth(publish.target)}
+              onClick={() => (auth.status?.loggedIn ? void store.actions.clearAuth(publish.target) : void submit())}
             >
-              {auth.clearing ? '正在清除…' : '清除登录态'}
+              {auth.clearing ? '正在清除…' : auth.status?.loggedIn ? '清除登录态' : '登录'}
             </button>
           </div>
           {auth.error ? <div className="fp-publish-error">{auth.error}</div> : null}
