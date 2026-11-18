@@ -21,7 +21,7 @@
 
 它同时是一个**人在回路里的改稿台**——面板与模型看的是同一篇文档，谁改了什么一目了然。
 
-快速模式的渲染内核与主题来自 [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT），专业模式由本仓库的秀米组件管线生成。署名与许可链条见 [`NOTICE.md`](NOTICE.md)。
+快速模式使用本仓库维护的渲染内核与主题，初始设计源自 [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT）；专业模式由本仓库的秀米组件管线生成。署名与许可链条见 [`NOTICE.md`](NOTICE.md)。
 
 ## 核心特性
 
@@ -139,7 +139,7 @@ npm run check:build  # 确认 lib/ 无漂移
 plugin/index.mjs        宿主入口：注册工具 + /fishpai/api 路由 + fishpai 技能
 plugin/core/            渲染内核（ESM，零依赖）：runtime / markdown / render / diff / notes / patch / theme-info / theme-spec / learn / snippets / wechat-lint / xiumi/
 plugin/host/            宿主侧：工具契约、HTTP 路由、文档存储、图片、命名主题、storageDomain 封装、发布自动化（publish/）
-plugin/vendor/          上游 themes.js + markdown-it 14.1.0 + highlight.js 11.9.0 + hljs-map.json
+plugin/vendor/          内置主题 themes.js + markdown-it 14.1.0 + highlight.js 11.9.0 + hljs-map.json
 client/                 客户端源码（TSX → esbuild 打成 lib/client.js）
 lib/client.js           客户端 bundle（入库；dsh plugin add 不做构建）
 scripts/preview/        正式 README 面板预览入口与确定性 fixture
@@ -162,10 +162,10 @@ npx tsx src/index.ts <导出的 article.html> --json    # isValid: true 即通�
 - 如果这个插件对你有帮助，欢迎点亮 Star，有问题和建议请提交 [Issue](https://github.com/OMSociety/dsh-fishpai/issues) 或 [Pull Request](https://github.com/OMSociety/dsh-fishpai/pulls)；动手前请读 [`CONTRIBUTING.md`](CONTRIBUTING.md)，安全相关问题走 [`SECURITY.md`](SECURITY.md) 的私密渠道。
 - 想改主题或加一套自己的：主题定义集中在 `plugin/vendor/themes.js`，加完跑 `npm run test:golden:regen` 重生成 golden
 
-- [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT）：渲染管线、主题、以及"复制到公众号"的整套行为都来自这里
+- [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT）：快速渲染管线、主题与复制行为的衍生来源
 - [markdown-it](https://github.com/markdown-it/markdown-it)（MIT）与 [highlight.js](https://github.com/highlightjs/highlight.js)（BSD-3-Clause）：随包内嵌的 vendor 资产
 - [DeepSeek Harness](https://github.com/deepseek-ai/dsh)：插件、右侧栏与技能的宿主
 
 ## 许可证与作者
 
-[MIT](LICENSE)。上游 `mopai-markdown` © 2026 [@ye4wzp](https://github.com/ye4wzp)；本仓库新增部分 © 2026 [@OMSociety](https://github.com/OMSociety)。
+[MIT](LICENSE)。来源项目 `mopai-markdown` © 2026 [@ye4wzp](https://github.com/ye4wzp)；本仓库新增部分 © 2026 [@OMSociety](https://github.com/OMSociety)。

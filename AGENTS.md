@@ -6,7 +6,7 @@
 
 - 一句话定位：DSH 插件——把 Markdown 排成可直接粘进微信公众号编辑器的内联样式 HTML；宿主侧（Node ESM）与客户端侧（浏览器 TSX）在同一个包里，面板长在 DSH 右侧栏，人与模型协同改稿。
 - 技术栈：Node ≥20（CI 用 22）/ React 18 + TSX（esbuild 打包）/ npm；`playwright-core` 是宿主发布链依赖，`@deepseek-ai/dsh-storage-domain` 是 optional peer（宿主提供用户级存储时启用）；不写 `engines.dsh`。
-- 上游：fork 自 `ye4wzp/mopai-markdown`（MIT），fork 点 `c91487a`（2026-08-19），此后独立演进；`plugin/vendor/themes.js` 源自上游 `js/themes.js`，署名与比对锚点见 [NOTICE.md](./NOTICE.md)。
+- 衍生来源：快速渲染管线与主题数据源自 `ye4wzp/mopai-markdown`（MIT），衍生起点为 `c91487a`（2026-08-19）；当前行为以本仓库代码、测试与自产 snapshot 为准，署名与出处见 [NOTICE.md](./NOTICE.md)。
 - 文档索引：
   - 功能与安装：[README.md](./README.md)
   - 协作流程与 PR 硬要求：[CONTRIBUTING.md](./CONTRIBUTING.md)
@@ -88,7 +88,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 1. **渲染字节级一致**。`plugin/core/render.mjs` 在 `annotate`／`imageResolver`／`wrapText`／`wechatBackground` 全关时，输出必须与当前核心自产的 `test/golden/**` 逐字节相同。`test/site-parity.test.mjs` 是外部样本软参考，只有设置 `FISHPAI_SITE_PARITY=1` 才运行一致性断言。**允许的三处偏离只走 publish（复制/导出）路径、由调用方显式开启、且都是纯叠加/纯规范化**：
    - `wrapText`（`test/wechat-structure.test.mjs` 守着）：文字包 `<span>` 防微信行高误报；给以**行内元素**开头的 `<li>` 前补一个真 U+00A0 字符（不能写 `&nbsp;` 实体，「整条 li 包 span」实测无效）；以块级元素开头的条目（松散列表）**不补**。
    - `wechatBackground`：`background:` 简写拆成 `background-color:`／`background-image:`（微信按属性名过滤，简写整条丢）。
-   - `promoteFontSize`：选定字号从 wrapper 推进 p / li / blockquote（微信会剥 wrapper 样式）；h1–h3、表格、文末「参考资料」节**不动**——表格字号不跟正文走是上游行为，跟着改才是 bug。
+   - `promoteFontSize`：选定字号从 wrapper 推进 p / li / blockquote（微信会剥 wrapper 样式）；h1–h3、表格、文末「参考资料」节**不动**——表格字号不跟正文走是快速管线既定行为，跟着改才是 bug。
    三条都不许改成默认开启。另有一条**平台限制**（无开关）：公众号编辑器只认黑体，衬线/等宽栈粘进去会退回；所以 `FontPicker` 把衬线/等宽单列一组并标「仅用于导出 HTML」——不许「修」字体栈，也不许拆标注。
 2. **Markdown 管线的 8 个兼容性约束不许随手改**（完整列表见 `plugin/core/markdown.mjs` 文件头）：紧凑列表内段落 token 的 `hidden=true` 必须跳过；mac 结构嵌在 `pre>code` **内部**；默认 `sans`/`16px` 总会覆盖主题自带字体字号；等。改动必须先更新行为测试与自产 snapshot，并说明预期差异。
 3. **不引入 GPL / 无证 / MPL 依赖**。具体禁的是 `Wechatsync` 系（GPL-3.0 / 无证）与 `DOMPurify`（MPL）。
@@ -138,7 +138,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 | `plugin/core/render.mjs` | 47KB 主流程，默认路径与 golden 字节级绑定 | 先 `npm test`；动过就全量回归 |
 | `plugin/core/patch.mjs` | CRLF、同块多补丁与列表分隔空行会改变补丁落点 | `node --test test/core.test.mjs test/host.test.mjs` |
 | `plugin/host/routes.mjs` | 浏览器与文件系统之间唯一的门；同源守卫挡 DNS rebinding（Host 必须是环路字面量） | `node --test test/security.test.mjs` |
-| `plugin/vendor/themes.js` | 上游数据，删 / 改主题 = golden 全变 | `npm run test:golden:regen` 并在 PR 说明原因 |
+| `plugin/vendor/themes.js` | 内置主题数据，删 / 改主题 = golden 全变 | `npm run test:golden:regen` 并在 PR 说明原因 |
 | `client/theme-icons.tsx` | 几何复制自宿主 rc2 图标包；测试只守结构、守不住几何内容 | 与 rc2 原版逐字比对后再 `npm run build` |
 | `scripts/regen-golden.mjs` | 自产 snapshot 的唯一生成器，决定 fixture、主题与渲染参数覆盖 | 改后先跑 `--check`，再显式重生成并审阅差异 |
 

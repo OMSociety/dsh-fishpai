@@ -345,10 +345,15 @@ test('专业模式收起快速控件，面板与编辑器跟随 DSH 主背景', 
   )
   assert.ok(panel.includes('const [drawerOpen, setDrawerOpen] = React.useState(false)'), '辅助抽屉默认收起')
   assert.ok(panel.includes('{props.open ? ('), '抽屉 body 只在展开时挂载')
-  assert.equal(styles.match(/background:var\(--dsw-alias-bg-base\)/g)?.length, 3, '根、编辑器与预览 gutter 共用 DSH 主背景')
+  for (const selector of ['.fp-root{', '.fp-editor{', '.fp-preview-wrap{']) {
+    const start = styles.indexOf(selector)
+    assert.ok(start >= 0, `缺少表面选择器：${selector}`)
+    const block = styles.slice(start, styles.indexOf('}', start))
+    assert.match(block, /background:var\(--dsw-alias-bg-base\)/, `${selector} 使用 DSH 主背景`)
+  }
   assert.ok(styles.includes('overflow-x:auto;scrollbar-width:none'), '辅助页签支持窄栏横向滚动')
   assert.ok(panel.includes('aria-label="文档辅助"'), '辅助页签提供分组语义')
-  assert.ok(styles.includes('.fp-btn:focus{outline:none}') && styles.includes('.fp-btn:focus-visible{'), '按钮焦点由控件底色与描边承载')
+  assert.ok(styles.includes('.fp-btn:focus{outline:none}') && styles.includes('.fp-btn:focus-visible{'), '按钮焦点使用独立轮廓')
   assert.ok(styles.includes('.fp-drawer-bar{'), '辅助页签与状态合并为一行')
   assert.ok(panel.includes('<div className="fp-status">{props.status}</div>'), '状态信息嵌入底部辅助栏')
   for (const token of [

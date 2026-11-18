@@ -469,7 +469,7 @@ export function registerTools(ctx, deps) {
         embed_images: { type: 'boolean', description: '是否把本地图片内嵌成 base64，默认 true' },
         publish: { type: 'boolean', description: 'true（默认）=「复制到公众号」形态；false = 预览原样 HTML' },
         snippetId: { type: 'string', description: '已确认的页头页尾片段名；渲染前拼入 Markdown，不改源文件' },
-        target: { type: 'string', enum: ['wechat', 'xiumi'], description: '渲染目标；省略则跟随文档的专业/快速模式（默认专业 xiumi），wechat 走墨排快速管线' },
+        target: { type: 'string', enum: ['wechat', 'xiumi'], description: '渲染目标；省略则跟随文档的专业/快速模式（默认专业 xiumi），wechat 走内置主题快速管线' },
         xiumi_spec: { type: 'object', additionalProperties: true, description: 'target=xiumi 时的 DEFAULT_SPEC 增量覆盖' },
       },
       required: [],

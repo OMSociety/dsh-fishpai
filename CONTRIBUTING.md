@@ -2,7 +2,7 @@
 
 鱼排（FishPai）是 DSH 插件：宿主侧（Node）与客户端侧（浏览器）两半在同一个包里。
 改动前请先读 [`AGENTS.md`](AGENTS.md)——其中的硬约束必须遵守，尤其是渲染字节级一致、
-上游 8 个坑不许"修好"、以及"绝不静默覆盖人的手改"。
+Markdown 管线的 8 个兼容性约束不许"修好"、以及"绝不静默覆盖人的手改"。
 
 ## 本地跑起来
 
@@ -24,7 +24,7 @@ CI（`.github/workflows/ci.yml`）跑的是 `npm ci` 加三条核对：`npm test
 2. **改过 `client/` 就必须提交重新构建的 `lib/client.js`**：`dsh plugin add` 不做构建，
    产物不同步 = 用户装到的还是旧界面。
 3. **不要为了让测试变绿去动 `test/golden/**`**。golden 只能用 `npm run test:golden:regen`
-   重生成，而且要在 PR 里说清"上游行为为什么变了"（硬约束 1）。
+   重生成，而且要在 PR 里说清"渲染行为为什么变了"（硬约束 1）。
 4. **新增依赖前先看许可**（硬约束 3）：GPL、无证、MPL 一律不进。
 5. **宿主工具用 raw JSON-Schema 注册**，不要 `import { defineTool }`（见 `AGENTS.md` 架构边界）。
 6. **版本号与 CHANGELOG 属于同一次发布**：PR 里不要顺手改 `package.json` 的 `version`，
@@ -32,7 +32,7 @@ CI（`.github/workflows/ci.yml`）跑的是 `npm ci` 加三条核对：`npm test
 
 ## 改渲染内核时
 
-`plugin/core/` 是纯函数、零依赖，`plugin/vendor/` 是数据（上游主题定义与两个压缩库）。
+`plugin/core/` 是纯函数、零依赖，`plugin/vendor/` 是数据（内置主题定义与两个压缩库）。
 "预览看起来不对"绝大多数不是内核 bug——预览与发布是两条渲染路径，
 判据见 `AGENTS.md` 硬约束 18。
 

@@ -173,7 +173,7 @@ export function buildPage(components, options = {}) {
 }
 
 /**
- * 微信粘贴路径的文本包裹兼容层（对齐墨排 render() 的 wrapText 语义）。
+ * 微信粘贴路径的文本包裹兼容层（对齐快速管线 render() 的 wrapText 语义）。
  *
  * 粘贴清洗要求 HTML 文本容器（p / h1-h6 / section / li / blockquote / td / th）里的
  * 文字必须放在 span 等行内元素中，裸文本节点会被降级。秀米管线的组件直接产出

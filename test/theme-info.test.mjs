@@ -4,7 +4,7 @@
  * 分两层：
  *   1. `classifyTheme` 对**合成主题**的规则边界（未来改规则时先在这里说明白）
  *   2. 真实 `themes.js` 语料的断言——它把"当前主题里谁有主题色、谁有微信风险"
- *      钉成事实；上游改主题时这里会红，提醒复核，而不是让 UI 悄悄变错
+ *      钉成事实；主题数据变化时这里会红，提醒复核，而不是让 UI 悄悄变错
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -52,7 +52,7 @@ test('真实语料：只有「默认公众号」用主题色', () => {
   assert.deepEqual(
     catalog.filter((t) => t.usesAccent).map((t) => t.key),
     ['default'],
-    '主题色只对默认公众号有效；若上游给别的主题加了 {{PRIMARY}}，这里会红',
+    '主题色只对默认公众号有效；若主题数据给别的主题加了 {{PRIMARY}}，这里会红',
   )
 })
 

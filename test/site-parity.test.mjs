@@ -1,9 +1,8 @@
 /**
- * 与墨排站点的一致性：把「点站点『复制到公众号』后剪贴板里的真实 HTML」当成金标准。
+ * 外部样本软参考：核对快速管线与一份已保存的站点剪贴板样本。
  *
- * `test/golden/site-clip.default.html` 是从墨排线上站点抓下来的真实剪贴板内容
- * （fixture = stress_real_img.md，主题 = default）。对比前做规范化——与
- * `.mopai-recon/offline_compare.py` 的 `canon()` 同一套规则：属性顺序、style 分隔、
+ * `test/golden/site-clip.default.html` 是已保存的真实剪贴板内容
+ * （fixture = stress_real_img.md，主题 = default）。对比前做规范化——属性顺序、style 分隔、
  * 空白折叠、data-* 剥离。规范化之后应当逐字符相同。
  *
  * 这份样本与对应 fixture 里的示例文案，是把真实姓名替换成假名之后的版本
@@ -20,7 +19,7 @@ import { render } from '../plugin/core/render.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
-/** `.mopai-recon/offline_compare.py::canon` 的等价移植。 */
+/** 外部样本对照使用的 HTML 规范化。 */
 export function canon(html) {
   let h = String(html).replace(/\sdata-[a-z-]+="[^"]*"/g, '')
   h = h.replace(/&quot;/g, '"').replace(/&#39;/g, "'")

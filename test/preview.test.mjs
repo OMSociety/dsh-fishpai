@@ -24,6 +24,18 @@ test('README 预览运行正式面板、store 与样式，并验收展开交互'
   assert.match(build, /after\.height <= before\.height/)
 })
 
+test('独立操作与相邻按钮共用表面，键盘焦点使用独立轮廓', () => {
+  const panel = read('client/panel.tsx')
+  assert.match(panel, /<Btn primary title=\{`复制后直接粘进公众号编辑器/)
+  const css = read('client/styles.ts')
+  const primary = css.match(/\.fp-btn-primary\{([^}]+)\}/)?.[1] || ''
+  assert.match(primary, /background:var\(--dsw-alias-bg-layer-2\)/)
+  assert.match(primary, /border-color:var\(--dsw-alias-border-l2\)/)
+  const focus = css.match(/\.fp-btn:focus-visible\{([^}]+)\}/)?.[1] || ''
+  assert.match(focus, /outline:2px solid var\(--dsw-alias-brand-primary\)/)
+  assert.doesNotMatch(focus, /border-color:/)
+})
+
 test('README 预览产物自包含，PNG 尺寸可从文件头读取', () => {
   const html = read('docs/preview/panel.html')
   assert.match(html, /<div id="root"><\/div>/)

@@ -1,24 +1,24 @@
 # 起源与第三方许可（NOTICE）
 
-鱼排（FishPai，仓库 `OMSociety/dsh-fishpai`）是 [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)
-的 **fork**，在保持上游 MIT 许可与版权声明的前提下，重构为 DeepSeek Harness（DSH）插件。
+鱼排（FishPai，仓库 `OMSociety/dsh-fishpai`）是独立维护的 DeepSeek Harness（DSH）插件。
+其快速渲染管线与主题数据衍生自 [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)，并保留来源项目的 MIT 许可与版权声明。
 
-## 1. 上游
+## 1. 衍生来源
 
 | 项 | 内容 |
 |---|---|
-| 上游仓库 | https://github.com/ye4wzp/mopai-markdown |
-| 上游作者 | [@ye4wzp](https://github.com/ye4wzp) |
+| 来源仓库 | https://github.com/ye4wzp/mopai-markdown |
+| 来源作者 | [@ye4wzp](https://github.com/ye4wzp) |
 | 许可 | MIT |
-| 本仓库 fork 自 | 上游 `main` 的 `c91487abfc5848f5b78e9fcec3b62d58033c61dc`（2026-08-19）——即 fork 当时的 `main` 顶端；两者的共同祖先是 `a33b33d606032091f48e62386592daefc3f8f472`（2026-06-08），此后本仓库独立演进 |
+| 衍生起点 | 来源仓库 `main` 的 `c91487abfc5848f5b78e9fcec3b62d58033c61dc`（2026-08-19）；共同祖先为 `a33b33d606032091f48e62386592daefc3f8f472`（2026-06-08）。当前行为以本仓库代码、测试与自产 snapshot 为准 |
 
-鱼排直接复用了上游两项核心资产，均为 MIT：
+鱼排直接复用了来源项目的两项核心资产，均为 MIT：
 
-1. **主题定义** —— 上游 `js/themes.js` 复制为本仓库 `plugin/vendor/themes.js`，换行符归一为 LF；
-   当前主题集与各槽位声明以该文件为准。上游原版 `js/themes.js` 的 blob SHA 为
-   `dfa0ea47287fb16969aabe75163f9049c10c82e8`，需要逐字节比对时按此锚点取上游文件核对。
+1. **主题定义** —— 来源项目 `js/themes.js` 复制为本仓库 `plugin/vendor/themes.js`，换行符归一为 LF；
+   当前主题集与各槽位声明以该文件为准。来源版本 `js/themes.js` 的 blob SHA 为
+   `dfa0ea47287fb16969aabe75163f9049c10c82e8`，需要追溯出处时按此锚点核对。
 2. **渲染管线设计** —— 「先渲染 HTML，再给每个标签内联主题样式」「复制到公众号时把代码块内
-   span 的计算样式内联」「h4–h6 套 h3 样式」「外链转文末参考资料」等行为与验收标准。
+   span 的计算样式内联」「h4–h6 套 h3 样式」「外链转文末参考资料」等初始行为与验收标准。
 
 ## 2. 打包进本仓库的第三方代码与图形数据
 
@@ -26,7 +26,7 @@
 |---|---|---|---|
 | `plugin/vendor/markdown-it.min.js` | markdown-it 14.1.0 | MIT | © 2014 Vitaly Puzrin, Alex Kocharin |
 | `plugin/vendor/highlight.min.js` | highlight.js 11.9.0 (git f47103d4f1) | BSD-3-Clause | © 2006, Ivan Sagalaev |
-| `plugin/vendor/themes.js` | 上游主题数据（当前主题集见上） | MIT | © 2026 [@ye4wzp](https://github.com/ye4wzp) |
+| `plugin/vendor/themes.js` | 来源项目主题数据（当前主题集见上） | MIT | © 2026 [@ye4wzp](https://github.com/ye4wzp) |
 | `plugin/vendor/hljs-map.json` | — | MIT（本仓库整理） | 从真实浏览器导出的 highlight.js token 计算样式表 |
 | `client/theme-icons.tsx` | 图标几何复制自 `@deepseek-ai/dsh-client-ui-primitives` 0.2.0-rc.2 | MIT | © 2026 DeepSeek |
 
@@ -46,8 +46,8 @@ Copyright (c) 2026 DeepSeek
 `markdown-it` 与 `highlight.js` 的运行时代码随本插件一起分发。两者都是压缩产物，首部注释里
 只留了一行简短声明——MIT 要求"在软件的所有副本中保留版权声明与本许可声明"，BSD-3-Clause
 要求"以二进制形式再分发时在文档中复现版权声明、条件列表与免责声明"。两份完整条款因此
-附在本节末尾；`.min.js` 首部的原文如下（逐字，`undefined` 是上游构建脚本留下的占位符，
-版权人以上游 `LICENSE` 的 `Copyright (c) 2006, Ivan Sagalaev.` 为准）：
+附在本节末尾；`.min.js` 首部的原文如下（逐字，`undefined` 是来源项目构建脚本留下的占位符，
+版权人以 highlight.js 的 `LICENSE` 中 `Copyright (c) 2006, Ivan Sagalaev.` 为准）：
 
 ```
 /*! markdown-it 14.1.0 https://github.com/markdown-it/markdown-it @license MIT */

@@ -1,7 +1,7 @@
 /**
  * 渲染主流程：Markdown → 可直接粘贴进微信公众号编辑器的内联样式 HTML。
  *
- * 本文件是 `mopai/render.js` 的 ESM 实现，默认输出由 `test/golden/**` 自产 snapshot
+ * 本文件是快速渲染管线的 ESM 实现，默认输出由 `test/golden/**` 自产 snapshot
  * 做字节级回归。以下能力均由调用方显式启用，默认均为 false：
  *   - `annotate: true`        在每个顶层块前插一个不可见的 `<fp-block data-b="ID">` 锚点（只给预览用）
  *   - `imageResolver`         把图片 src 换成 data URI（宿主实现读文件；只给复制/导出用）
@@ -657,7 +657,7 @@ export function splitBackgroundsInHtml(html) {
  *
  * 把字号补到正文文字所在的 p / li / blockquote 上即可（引用框、表头底色实测都留得住）。
  * 纯叠加：① 没选字号时不加任何字节；② 已经自带字号的元素一律不动——h1–h3 有自己的
- * 字号、表格自己写了 14px（上游里表格字号本来就不跟着正文字号走，跟着改才是 bug）。
+ * 字号、表格自己写了 14px（来源项目里表格字号本来就不跟着正文字号走，跟着改才是 bug）。
  */
 const INHERITS_SIZE_TAGS = /^(?:p|li|blockquote)$/
 
@@ -907,7 +907,7 @@ export function render(markdownText, opts = {}) {
 }
 
 /**
- * 文档状态里存着的主题 key 可能已经不存在了（上游主题被移除、或状态是手改的）。
+ * 文档状态里存着的主题 key 可能已经不存在了（来源项目主题被移除、或状态是手改的）。
  * 这种时候退回默认主题——**不要让一篇好好的文档因为一个主题名字打不开**。
  * （`render()` 自己仍然对未知主题抛错：那是"调用方写错了"，必须当场说出来。）
  */

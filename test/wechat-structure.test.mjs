@@ -13,7 +13,7 @@
  * 那条规则就不再命中；这正是微信自己插入内容后的结构（`<span leaf="">`）。
  * **已知边界**：`wrapText` 改的是 markdown-it 的 `text` 规则，代码块走 `fence` 规则、包不到，
  * 而代码块天然多行，同一套"内容高度 ÷ 矩形数"照样算小——所以**带代码块的文章仍会被标出那一条**
- * （上游形态也一样；CHANGELOG 的「行高误报」条目写明了这条边界）。
+ * （快速管线形态也一样；CHANGELOG 的「行高误报」条目写明了这条边界）。
  * 本文件检查的就是这条**结构性充分条件**，所以它不依赖浏览器，也不需要联网。
  */
 import test from 'node:test'
@@ -154,7 +154,7 @@ test('列表项：块级元素开头的条目（松散列表）不补 nbsp', () 
 /**
  * `<pre>` / `<code>` 里**直接挂着的文字**（含空白）——这也是"代码块仍会被官方校验器标出"
  * 的原因：那里的文字走 markdown-it 的 `fence` 规则（不是 `text` 规则），`wrapText` 包不到，
- * 而代码块天然多行，于是同一套"内容高度 ÷ 矩形数"的算法照样算小（上游形态也一样，见 README）。
+ * 而代码块天然多行，于是同一套"内容高度 ÷ 矩形数"的算法照样算小（快速管线形态也一样，见 README）。
  */
 function bareCodeTexts(html) {
   const out = []
@@ -273,7 +273,7 @@ test('字号推进到文字所在的块级元素（p / li / 引用），且不�
   for (const tag of ['p', 'li', 'blockquote']) {
     assert.match(html, new RegExp('<' + tag + ' style="font-size: 18px; '), `${tag} 要补上选定的字号（wrapper 被剥掉后得自己撑住）`)
   }
-  // 自带字号的元素一律不动：标题、表格（表格字号不跟着正文走是上游行为，跟着改才是 bug）
+  // 自带字号的元素一律不动：标题、表格（表格字号不跟着正文走是快速管线行为，跟着改才是 bug）
   assert.match(html, /<h1 style="font-size: 22px/, '标题自己的字号不被覆盖')
   assert.match(html, /<table style="[^"]*font-size: 14px/, '表格自带字号保留')
   assert.doesNotMatch(html, /<td style="font-size: 18px/, '单元格不能跟着正文字号走')

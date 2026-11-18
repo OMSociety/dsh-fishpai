@@ -778,11 +778,11 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
     <div className="fp-root" data-narrow={narrow ? 'true' : 'false'} ref={rootRef}>
       <div className="fp-toolbar">
         <div className="fp-row">
-          <div className="fp-seg" role="group" aria-label="渲染模式" title="专业=秀米组件管线，支持交互动画；快速=墨排主题管线">
+          <div className="fp-seg" role="group" aria-label="渲染模式" title="专业=秀米组件管线，支持交互动画；快速=内置主题管线">
             <Btn on={state.meta.target === 'xiumi'} onClick={() => void store.actions.setMeta({ target: 'xiumi' })} title="专业：秀米组件管线，支持交互动画">
               专业
             </Btn>
-            <Btn on={state.meta.target === 'wechat'} onClick={() => void store.actions.setMeta({ target: 'wechat' })} title="快速：墨排主题管线">
+            <Btn on={state.meta.target === 'wechat'} onClick={() => void store.actions.setMeta({ target: 'wechat' })} title="快速：内置主题管线">
               快速
             </Btn>
           </div>
