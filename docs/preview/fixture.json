@@ -9,7 +9,7 @@
     "fontSize": "16px",
     "footnotes": true,
     "macCodeBlock": true,
-    "mobile": false,
+    "mobile": true,
     "target": "xiumi"
   },
   "themes": {
@@ -237,7 +237,7 @@
       "fontSize": "16px",
       "footnotes": true,
       "macCodeBlock": true,
-      "mobile": false,
+      "mobile": true,
       "target": "xiumi"
     },
     "blocks": [

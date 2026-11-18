@@ -79,7 +79,7 @@ export function createPreviewFixture() {
     fontSize: '16px',
     footnotes: true,
     macCodeBlock: true,
-    mobile: false,
+    mobile: true,
     target: 'xiumi',
   }
   const blocks = publicBlocks(markdown)

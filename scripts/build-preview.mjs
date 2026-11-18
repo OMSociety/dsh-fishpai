@@ -14,7 +14,7 @@ const FIXTURE = path.join(PREVIEW_DIR, 'fixture.json')
 const ENTRY = path.join(ROOT, 'scripts', 'preview', 'main.tsx')
 const OUT = path.join(PREVIEW_DIR, 'panel.html')
 const SCREENSHOT = path.join(ROOT, 'docs', 'panel-preview.png')
-const VIEWPORT = { width: 1080, height: 900 }
+const VIEWPORT = { width: 560, height: 1000 }
 const DEVICE_SCALE_FACTOR = 2
 
 function chromeExecutable() {

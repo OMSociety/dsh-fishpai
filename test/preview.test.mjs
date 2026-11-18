@@ -11,6 +11,7 @@ const read = (name) => readFileSync(path.join(ROOT, name), 'utf8')
 test('README 预览 fixture 与正式专业渲染保持一致', () => {
   const actual = JSON.parse(read('docs/preview/fixture.json'))
   assert.equal(JSON.stringify(actual), JSON.stringify(createPreviewFixture()))
+  assert.equal(actual.meta.mobile, true)
 })
 
 test('README 预览运行正式面板、store 与样式，并验收展开交互', () => {
@@ -30,5 +31,6 @@ test('README 预览产物自包含，PNG 尺寸可从文件头读取', () => {
   const png = readFileSync(path.join(ROOT, 'docs/panel-preview.png'))
   assert.equal(png.toString('ascii', 1, 4), 'PNG')
   assert.ok(png.readUInt32BE(16) >= 1080)
-  assert.ok(png.readUInt32BE(20) >= 900)
+  assert.ok(png.readUInt32BE(16) <= 1200)
+  assert.ok(png.readUInt32BE(20) > png.readUInt32BE(16))
 })
