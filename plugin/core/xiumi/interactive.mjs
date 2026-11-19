@@ -46,14 +46,15 @@ function contentBlock(html, spec) {
 function expandable({ coverText, fallback, body, coverHeight }, spec) {
   const label = svgTextLabel(coverText, fallback)
   const text = String(body).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-  const charsPerLine = Math.max(12, Math.floor(540 / spec.body_size))
+  const charsPerLine = Math.max(12, Math.floor(320 / (spec.body_size + spec.body_spacing)))
   const lines = Math.max(1, Math.ceil([...text].length / charsPerLine))
   const blocks = (String(body).match(/<(?:p|h[1-6]|section|table)\b/g) || []).length
-  const contentHeight = Math.min(1200, Math.max(72, Math.ceil(lines * spec.body_size * spec.line_height + blocks * 10 + 32)))
+  // 为移动画布估算行数，并把每个块的后间距与容器上下留白计入展开高度。
+  const contentHeight = Math.min(1200, Math.max(86, Math.ceil(lines * spec.body_size * spec.line_height + blocks * 14 + 30)))
   const totalHeight = coverHeight + contentHeight
   return section('margin:0 0 20px;overflow:hidden;line-height:0;',
     `<section style="height:0;min-height:0;overflow:visible;display:flow-root;">`
-    + `<section style="margin-top:${coverHeight}px;padding:16px 16px 2px;box-sizing:border-box;background-color:${spec.card_bg};border-top:1px solid ${spec.page_bg};border-radius:${spec.card_radius}px;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};">${safeInline(body)}</section>`
+    + `<section style="margin-top:${coverHeight}px;padding:16px 16px 14px;box-sizing:border-box;background-color:${spec.card_bg};border-top:1px solid ${spec.page_bg};border-radius:${spec.card_radius}px;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};">${safeInline(body)}</section>`
     + `</section>`
     + `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="${coverHeight}" style="display:block;cursor:pointer;" role="button" aria-label="${escapeHtml(label.full)}">`
     + `<rect x="0" y="0" width="100%" height="${coverHeight}" rx="${spec.card_radius}" fill="${spec.card_bg}"/>`

@@ -45,15 +45,16 @@ export const CSS = `
 .fp-toolbar{display:flex;flex-direction:column;gap:4px;padding:6px 8px;border-bottom:1px solid var(--dsw-alias-border-l2);flex:none}
 .fp-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0}
 .fp-row .fp-spacer{flex:1 1 auto}
-/* 刷新保持纯图标；导出与复制共用按钮高度，复制固定在末尾。 */
-.fp-actions{display:inline-flex;align-items:center;gap:4px;flex:none}
+/* 两组控件各自保持完整；空间不足时，交付动作组整体换到下一行。 */
+.fp-mode-controls,.fp-actions{display:inline-flex;align-items:center;gap:4px;flex:none;flex-wrap:nowrap;white-space:nowrap}
+.fp-actions{margin-left:auto}
 .fp-row .fp-btn-primary{min-height:26px}
 .fp-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;min-height:26px;padding:0;flex:none}
 /* 面板窄的时候收紧一点：让主操作组尽量留在第一行 */
 .fp-root[data-narrow="true"] .fp-toolbar{padding:6px 6px;gap:3px}
 .fp-root[data-narrow="true"] .fp-row{gap:3px}
+.fp-root[data-narrow="true"] .fp-mode-controls,.fp-root[data-narrow="true"] .fp-actions{gap:3px}
 .fp-root[data-narrow="true"] .fp-btn{padding:2px 5px}
-.fp-root[data-narrow="true"] .fp-actions{gap:3px}
 .fp-select{
   font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2);
   border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:2px 4px;max-width:11em;

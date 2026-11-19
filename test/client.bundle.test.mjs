@@ -506,7 +506,7 @@ test('空面板的载入、失败与空文档状态提供对应操作', () => {
   assert.ok(source.includes('fp-sweep'), '载入中的进度条动画')
 })
 
-test('工具行直出刷新图标与导出按钮，不使用更多菜单', () => {
+test('工具行按编辑控制与交付动作分组，空间不足时整组换行', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   const panel = fs.readFileSync(path.join(ROOT, 'client', 'panel.tsx'), 'utf8')
   for (const snippet of [
@@ -525,12 +525,17 @@ test('工具行直出刷新图标与导出按钮，不使用更多菜单', () =>
     assert.ok(!panel.includes(absent), `面板不应包含更多菜单：${absent}`)
     assert.ok(!source.includes(absent), `产物不应包含更多菜单：${absent}`)
   }
+  const modeGroupAt = panel.indexOf('className="fp-mode-controls"')
   const refreshAt = panel.indexOf('title="重新载入文档"')
+  const actionGroupAt = panel.indexOf('className="fp-actions"')
+  const noteAt = panel.indexOf('给光标所在段落写一条批注')
   const exportAt = panel.indexOf('<Btn primary title="导出 HTML"')
   const copyAt = panel.lastIndexOf('复制到剪贴板')
   const modesAt = panel.indexOf('aria-label="渲染模式"')
-  assert.ok(refreshAt >= 0 && refreshAt < modesAt, '刷新图标位于工具行最左侧')
-  assert.ok(refreshAt < exportAt && exportAt < copyAt, '工具行顺序为刷新 → 导出 → 复制')
+  const mobileAt = panel.indexOf('onClick={() => store.actions.setMeta({ mobile: !state.meta.mobile })}')
+  assert.ok(modeGroupAt >= 0 && modeGroupAt < modesAt && modesAt < mobileAt && mobileAt < refreshAt, '专业 → 手机 → 刷新属于同一控制组')
+  assert.ok(refreshAt < actionGroupAt && actionGroupAt < noteAt && noteAt < exportAt && exportAt < copyAt, '批注 → 导出 → 复制属于同一交付动作组')
+  assert.ok(source.includes('.fp-mode-controls,.fp-actions{') && source.includes('flex-wrap:nowrap'), '两组内部均禁止逐项换行')
   assert.ok(source.includes('.fp-row .fp-btn-primary{min-height:26px}'), '导出与复制共用按钮高度')
   assert.ok(source.includes('.fp-icon-btn{') && source.includes('width:26px;min-height:26px;padding:0'), '刷新保持方形纯图标按钮')
 })

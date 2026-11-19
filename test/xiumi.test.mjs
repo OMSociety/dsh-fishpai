@@ -55,6 +55,7 @@ test('秀米：自由画布与语义组件共享同一份规格', () => {
   assert.match(html, /width:90%/)
   assert.match(html, /<strong[^>]*>Markdown<\/strong>/)
   assert.match(html, /<strong style="color:#ffffff;font-weight:700;">重点日期<\/strong>/)
+  assert.match(html, /margin:18px 0;text-align:center/, '重点行上方与下方都保留独立间距')
   assert.match(html, /text-align:center/)
   assert.match(html, /文案<\/strong>/)
 })

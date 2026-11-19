@@ -113,7 +113,7 @@ export function wcChapterHeader({ index = '', title = '', subtitle = '' }, spec 
 export function wcHighlight({ html = '' }, spec = DEFAULT_SPEC) {
   // 反白里的 strong 也继承白色，不能被正文的标题色覆盖。
   const content = String(html).replaceAll(`color:${spec.title_color}`, 'color:#ffffff')
-  return section(`margin:0 0 18px;text-align:${spec.body_align};`, `<span style="display:inline-block;max-width:100%;box-sizing:border-box;padding:6px 12px;background-color:${spec.accent};color:#ffffff;font-size:${spec.body_size}px;line-height:1.5;font-weight:700;letter-spacing:${spec.body_spacing}px;">${content}</span>`)
+  return section(`margin:18px 0;text-align:${spec.body_align};`, `<span style="display:inline-block;max-width:100%;box-sizing:border-box;padding:6px 12px;background-color:${spec.accent};color:#ffffff;font-size:${spec.body_size}px;line-height:1.5;font-weight:700;letter-spacing:${spec.body_spacing}px;">${content}</span>`)
 }
 
 export function wcCredits({ items = [] }, spec = DEFAULT_SPEC) {

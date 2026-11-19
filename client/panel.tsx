@@ -778,66 +778,68 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
     <div className="fp-root" data-narrow={narrow ? 'true' : 'false'} ref={rootRef}>
       <div className="fp-toolbar">
         <div className="fp-row">
-          <button
-            type="button"
-            className="fp-btn fp-icon-btn"
-            title="重新载入文档"
-            aria-label="重新载入文档"
-            disabled={!active || state.refreshing}
-            onClick={() => void store.actions.reloadSafely()}
-          >
-            <RefreshGlyph />
-          </button>
-          <div className="fp-seg" role="group" aria-label="渲染模式" title="专业=秀米组件管线，支持交互动画；快速=内置主题管线">
-            <Btn on={state.meta.target === 'xiumi'} onClick={() => void store.actions.setMeta({ target: 'xiumi' })} title="专业：秀米组件管线，支持交互动画">
-              专业
+          <div className="fp-mode-controls">
+            <div className="fp-seg" role="group" aria-label="渲染模式" title="专业=秀米组件管线，支持交互动画；快速=内置主题管线">
+              <Btn on={state.meta.target === 'xiumi'} onClick={() => void store.actions.setMeta({ target: 'xiumi' })} title="专业：秀米组件管线，支持交互动画">
+                专业
+              </Btn>
+              <Btn on={state.meta.target === 'wechat'} onClick={() => void store.actions.setMeta({ target: 'wechat' })} title="快速：内置主题管线">
+                快速
+              </Btn>
+            </div>
+            <div className="fp-seg">
+              <Btn on={mode === 'edit'} onClick={() => setMode('edit')} title="只看文稿">
+                编辑
+              </Btn>
+              <Btn on={mode === 'preview'} onClick={() => setMode('preview')} title="只看公众号效果">
+                预览
+              </Btn>
+              <Btn on={mode === 'side'} disabled={narrow} onClick={() => setMode('side')} title={narrow ? '栏位太窄，拉宽后可用并排' : '左右并排'}>
+                并排
+              </Btn>
+            </div>
+            <Btn
+              on={state.meta.mobile}
+              disabled={mode === 'edit'}
+              onClick={() => store.actions.setMeta({ mobile: !state.meta.mobile })}
+              title={
+                mode === 'edit'
+                  ? '手机宽度效果可在「预览」或「并排」视图查看'
+                  : '按手机宽度预览（375px）'
+              }
+            >
+              手机
             </Btn>
-            <Btn on={state.meta.target === 'wechat'} onClick={() => void store.actions.setMeta({ target: 'wechat' })} title="快速：内置主题管线">
-              快速
-            </Btn>
+            <button
+              type="button"
+              className="fp-btn fp-icon-btn"
+              title="重新载入文档"
+              aria-label="重新载入文档"
+              disabled={!active || state.refreshing}
+              onClick={() => void store.actions.reloadSafely()}
+            >
+              <RefreshGlyph />
+            </button>
           </div>
-          <div className="fp-seg">
-            <Btn on={mode === 'edit'} onClick={() => setMode('edit')} title="只看文稿">
-              编辑
-            </Btn>
-            <Btn on={mode === 'preview'} onClick={() => setMode('preview')} title="只看公众号效果">
-              预览
-            </Btn>
-            <Btn on={mode === 'side'} disabled={narrow} onClick={() => setMode('side')} title={narrow ? '栏位太窄，拉宽后可用并排' : '左右并排'}>
-              并排
-            </Btn>
-          </div>
-          <Btn
-            on={state.meta.mobile}
-            disabled={mode === 'edit'}
-            onClick={() => store.actions.setMeta({ mobile: !state.meta.mobile })}
-            title={
-              mode === 'edit'
-                ? '手机宽度效果可在「预览」或「并排」视图查看'
-                : '按手机宽度预览（375px）'
-            }
-          >
-            手机
-          </Btn>
           <span className="fp-spacer" />
-          <Btn
-            title="给光标所在段落写一条批注"
-            onClick={() => {
-              setTab('notes')
-              setDrawerOpen(true)
-              requestAnimationFrame(() => noteInputRef.current?.focus())
-            }}
-          >
-            批注
-          </Btn>
-          <Btn primary title="导出 HTML" onClick={() => void onExport()}>
-            导出 HTML
-          </Btn>
-          <span className="fp-actions">
+          <div className="fp-actions">
+            <Btn
+              title="给光标所在段落写一条批注"
+              onClick={() => {
+                setTab('notes')
+                setDrawerOpen(true)
+                requestAnimationFrame(() => noteInputRef.current?.focus())
+              }}
+            >
+              批注
+            </Btn>
+            <Btn primary title="导出 HTML" onClick={() => void onExport()}>
+              导出 HTML
+            </Btn>
             <Btn primary title={`复制后可粘贴到目标编辑器（${COPY_HINT}）`} onClick={() => void onCopy()}>
               复制到剪贴板
             </Btn>
-          </span>
+          </div>
         </div>
 
         {state.meta.target === 'wechat' ? (
