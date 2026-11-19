@@ -96,6 +96,16 @@ export function ThemeGlyph({ themeKey, size = 16, className }: GlyphProps & { th
   return <Icon size={size} className={className} />
 }
 
+/** 重新载入文档。 */
+export function RefreshGlyph({ size = 14, className }: GlyphProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
+      <path d="M13.25 6A5.5 5.5 0 1 0 13 10.25" />
+      <path d="M13.25 2.25V6H9.5" />
+    </svg>
+  )
+}
+
 /** 下拉箭头。 */
 export function CaretGlyph({ size = 14, className }: GlyphProps) {
   return <ChevronDownGlyph size={size} className={className} />

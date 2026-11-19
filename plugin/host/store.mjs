@@ -15,6 +15,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 // 字号的形态规则只有一份，放在渲染层（它是那个字段的消费方，渲染层自己也必须兜底）
 import { isFontSize } from '../core/render.mjs'
+import { normalizeSpec } from '../core/xiumi/spec.mjs'
 
 export const DOC_EXTS = ['.md', '.markdown', '.txt']
 export const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp']
@@ -237,6 +238,7 @@ function defaultState(absPath) {
     macCodeBlock: true,
     mobile: false,
     target: 'xiumi',
+    xiumiSpec: {},
     baseline: null,
     notes: [],
     history: [],
@@ -252,6 +254,15 @@ export function readState(cwd, key) {
   st.history = Array.isArray(st.history) ? st.history : []
   st.openRequests = st.openRequests && typeof st.openRequests === 'object' ? st.openRequests : {}
   if (st.target !== 'wechat' && st.target !== 'xiumi') st.target = 'xiumi'
+  if (st.xiumiSpec === undefined) {
+    st.xiumiSpec = {}
+  } else {
+    try {
+      st.xiumiSpec = normalizeSpec(st.xiumiSpec)
+    } catch {
+      st.xiumiSpec = {}
+    }
+  }
   return st
 }
 
@@ -393,7 +404,9 @@ export function baselineContent(cwd, state) {
 // ── 文档读写 ───────────────────────────────────────────────────
 
 /** 打开/新建文档。已存在就不覆盖——把"你没写进去"明确告诉模型。 */
-export function openDoc({ cwd, docPath, markdown, theme, by = 'ai' }) {
+export function openDoc({ cwd, docPath, markdown, theme, meta, by = 'ai' }) {
+  // 先校验再落盘，避免非法画布参数已经报错，文档却被建了一半。
+  const metaPatch = meta ? applyMeta({}, meta) : {}
   ensureFishpaiLayout(cwd)
   const abs = resolveInCwd(cwd, docPath)
   const key = docKey(abs)
@@ -404,7 +417,7 @@ export function openDoc({ cwd, docPath, markdown, theme, by = 'ai' }) {
     fs.mkdirSync(path.dirname(abs), { recursive: true })
     const content = String(markdown ?? '')
     fs.writeFileSync(abs, content, 'utf8')
-    state = defaultState(abs)
+    state = { ...defaultState(abs), ...metaPatch }
     state.revision = 1
     state.updatedBy = by
     if (theme) state.theme = theme
@@ -419,7 +432,7 @@ export function openDoc({ cwd, docPath, markdown, theme, by = 'ai' }) {
     // baseline 的语义是"模型上次写入的版本"，模型还没写过它就不存在；
     // 若这里拿当前内容当 baseline，模型会以为"人什么都没改"，把最贵的那个信号抹掉。
     const content = fs.readFileSync(abs, 'utf8')
-    state = defaultState(abs)
+    state = { ...defaultState(abs), ...metaPatch }
     state.revision = 1
     state.updatedBy = 'human'
     if (theme) state.theme = theme
@@ -430,7 +443,10 @@ export function openDoc({ cwd, docPath, markdown, theme, by = 'ai' }) {
   }
 
   const content = fs.readFileSync(abs, 'utf8')
-  if (theme && state.theme !== theme) state = writeState(cwd, key, { ...state, theme })
+  const hasMetaPatch = Object.keys(metaPatch).length > 0
+  if (hasMetaPatch || (theme && state.theme !== theme)) {
+    state = writeState(cwd, key, { ...state, ...metaPatch, ...(theme ? { theme } : {}) })
+  }
   registerDoc(cwd, key, abs, content, state)
   return { key, path: abs, state, markdown: content, created: false, markdownIgnored: markdown !== undefined }
 }
@@ -555,9 +571,9 @@ export function rebase({ cwd, docPath, by = 'human' }) {
  *
  * 其中 `color` 与 `fontSize` 是**仅有的两个原样插值进 HTML** 的字段
  * （`color` 替换主题里的 `{{PRIMARY}}` 占位符，`fontSize` 拼进 `font-size: …;`），
- * 两者都在这里过一道形态校验；其余字段只当开关/枚举用，不参与拼串。
+ * 两者都在这里过一道形态校验；秀米画布规格另经 normalizeSpec 合并与校验，其余字段只当开关/枚举用。
  */
-const META_FIELDS = ['theme', 'color', 'font', 'fontSize', 'footnotes', 'macCodeBlock', 'mobile', 'target']
+const META_FIELDS = ['theme', 'color', 'font', 'fontSize', 'footnotes', 'macCodeBlock', 'mobile', 'target', 'xiumiSpec']
 
 /**
  * 主题色只认 `#` + 3~8 位十六进制。
@@ -579,6 +595,11 @@ function applyMeta(target, meta) {
     // 字号与主题色同一条规矩：它是原样拼进 style 的第二个字段，形态不对就当没写
     if (field === 'fontSize' && !isFontSize(meta[field])) continue
     if (field === 'target' && meta[field] !== 'wechat' && meta[field] !== 'xiumi') continue
+    if (field === 'xiumiSpec') {
+      // 画布规格要让模型立刻看到校验错误，不能出现“工具说成功、渲染却没采用”的假生效。
+      target[field] = normalizeSpec(meta[field] || {})
+      continue
+    }
     target[field] = meta[field]
   }
   return target

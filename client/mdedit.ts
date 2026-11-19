@@ -309,7 +309,7 @@ export const SHORTCUTS: ShortcutSpec[] = [
   { id: 'ul', label: '无序列表', group: '编辑', code: 'Digit8', fallbackKey: '8', keyLabel: '8', mod: true, shift: true, scope: 'editor' },
   { id: 'ol', label: '有序列表', group: '编辑', code: 'Digit7', fallbackKey: '7', keyLabel: '7', mod: true, shift: true, scope: 'editor' },
   { id: 'save', label: '保存', group: '面板', key: 's', mod: true, scope: 'editor' },
-  { id: 'copy', label: '复制到公众号', group: '面板', key: 'c', mod: true, shift: true, scope: 'editor' },
+  { id: 'copy', label: '复制到剪贴板', group: '面板', key: 'c', mod: true, shift: true, scope: 'editor' },
   // 批注框有自己的键盘处理，这里只做速查
   { id: 'note', label: '添加批注', group: '面板', key: 'enter', keyLabel: 'Enter', mod: true, scope: 'panel' },
 ]

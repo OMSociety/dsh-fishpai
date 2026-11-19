@@ -26,5 +26,5 @@ export const IS_MAC = detectMac()
 /** 修饰键的写法：Mac 用 ⌘，其余用 Ctrl。 */
 export const MOD_KEY = IS_MAC ? '⌘' : 'Ctrl'
 
-/** 「复制到公众号」的快捷键提示（与 Editor 里监听的 meta/ctrl + shift + C 对应）。 */
+/** 「复制到剪贴板」的快捷键提示（与 Editor 里监听的 meta/ctrl + shift + C 对应）。 */
 export const COPY_HINT = IS_MAC ? '⌘⇧C' : 'Ctrl+Shift+C'

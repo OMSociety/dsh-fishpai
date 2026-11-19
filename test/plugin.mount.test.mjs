@@ -64,7 +64,7 @@ function makeApp(cwd) {
 const flush = async (times = 8) => {
   for (let i = 0; i < times; i++) await new Promise((resolve) => setTimeout(resolve, 0))
 }
-test('宿主插件能在真实 Cordis 里挂载，并注册九个工具、一条路由、一个技能', async () => {
+test('宿主插件能在真实 Cordis 里挂载，并注册八个工具、一条路由、一个技能', async () => {
   const fs = await import('node:fs')
   const os = await import('node:os')
   const path = await import('node:path')
@@ -77,7 +77,7 @@ test('宿主插件能在真实 Cordis 里挂载，并注册九个工具、一条
 
   assert.deepEqual(
     registeredTools.map((t) => t.name).sort(),
-    ['fishpai_learn', 'fishpai_lint', 'fishpai_open', 'fishpai_publish', 'fishpai_read', 'fishpai_render', 'fishpai_snippets', 'fishpai_theme', 'fishpai_write'],
+    ['fishpai_learn', 'fishpai_lint', 'fishpai_open', 'fishpai_read', 'fishpai_render', 'fishpai_snippets', 'fishpai_theme', 'fishpai_write'],
   )
   assert.equal(routes.length, 1)
   assert.equal(routes[0].kind, 'prefix')
@@ -157,7 +157,7 @@ test('缺少 webServer 时照样挂载（工具与技能仍然可用）', async 
   await fiber
   await flush()
 
-  assert.equal(tools.length, 9, '没有 webServer 时工具仍应注册')
+  assert.equal(tools.length, 8, '没有 webServer 时工具仍应注册')
   assert.equal(skills.length, 1, '没有 webServer 时技能仍应注册')
   await fiber.dispose()
   await flush()

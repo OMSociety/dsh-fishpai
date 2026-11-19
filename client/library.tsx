@@ -254,16 +254,6 @@ export function SnippetLibrary({ store }: { store: FishpaiStore }) {
               页头 {snippet.headerHtml ? '有' : '无'} · 页尾 {snippet.footerHtml || snippet.footerImg ? '有' : '无'}
             </div>
             <div className="fp-item-actions">
-              <button
-                type="button"
-                className="fp-btn"
-                onClick={() => {
-                  store.actions.setPublishDraft({ snippetId: snippet.id })
-                  store.actions.toast(`发布时将叠加「${snippet.name}」`)
-                }}
-              >
-                用于发布
-              </button>
               <button type="button" className="fp-btn danger" onClick={() => void remove(snippet.id, snippet.name)}>删除</button>
             </div>
           </article>

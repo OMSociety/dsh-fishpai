@@ -19,16 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 新增 `fishpai_learn` 与 `POST /learn`：从定稿、HTML 或公开网页反推写作风格九字段，经 pending 候选与用户确认后写入 storageDomain writing 表。
 - 新增 `fishpai_snippets` 与 `POST /snippets`：页头首图、可配置页尾锚点片段经预览确认后入库；`fishpai_render` 与 `POST /render` 可用 `snippetId` 在渲染前装配。
 - 新增独立秀米渲染目标与 SVG 组件库；`fishpai_render` 和 `POST /render` 接受 `target:'xiumi'`，微信渲染管线保持独立。
+- 新增文档级秀米画布规格（18 项）：`fishpai_open({xiumi_spec})` 校验并持久化，预览、复制与导出共用；`fishpai_render({xiumi_spec})` 仅覆盖当次。
+- 新增章节头、信息卡、重点行与制作名单四个语义组件，以及版式设计指南 `skills/fishpai/references/layout.md`。
 - 新增专业组件手册 `skills/fishpai/references/components.md`，含 8 个 SMIL 交互组件（点击展开 `expand`、点击换图 `swap`、滑动图集 `swiper`、探照灯 `spotlight`、弹幕 `danmaku`、进度条 `progress`、时间线 `timeline`、对比卡 `compare`）与静态版式组件；`fishpai_lint` 补 CSS 动画禁令与 SMIL 循环校验。
-- 新增 `POST /auth`：查询/清除指定平台的登录态（只回 `loggedIn`/`savedAt`，Cookie 绝不回流面板）；面板发布流程内提供登录态管理。
-- 新增 `fishpai_publish`、`POST /publish` 与 `GET /publish/status`：异步打开浏览器，仅保存微信或秀米草稿；登录态存 storageDomain auth 表。
-- 专业管线新增受控 `:::raw` 区块，可原样承载已确认的 HTML / SVG 结构，并拒绝脚本、事件属性与主动内容。
-- 微信草稿通过 `operate_appmsg` 直存原始 HTML，保留秀米 / SVG 结构；首次保存建立草稿并捕获会话字段，`data_seq` 冲突时按服务端返回值重试一次。
+- 专业管线升级为自由排版画布：Markdown、语义组件与 `:::raw` 可混合，raw 承载安全 HTML / SVG 原创与同等素材复刻，并拒绝脚本、事件属性与主动内容。
+- raw HTML / SVG 的本地 `<img>` 与 `<image>` 素材纳入统一素材清单，预览可读取，复制与导出默认内嵌 base64。
 
 ### 变更
 
 - **BREAKING**：文档默认走秀米组件管线（专业，`target:'xiumi'`）；快速渲染内核保留为「快速」模式（`target:'wechat'`）。`fishpai_render` 省略 `target` 时跟随文档当前模式。
-- 新增首个运行时依赖 `playwright-core`（草稿发布自动化引擎），并声明可选 peer `@deepseek-ai/dsh-storage-domain`（用户级库存储）；首次发布时若本机无 Chrome / Edge，会在用户插件数据区懒下载 Chromium。
+- 声明可选 peer `@deepseek-ai/dsh-storage-domain`（用户级库存储）；`playwright-core` 用于 README 正式预览构建，属于开发依赖。
 - **BREAKING**：命名自定义主题改为用户级多主题库，存入 storageDomain themes 表，主题 key 使用 `custom:<id>`；`fishpai_theme` 支持 `set` / `show` / `clear` / `list`，并可用 `theme_id` 指定主题。不再读取 `.fishpai/theme.json` 或主题名 `custom`。
 - 渲染 golden 改为当前核心自产 snapshot，`scripts/regen-golden.mjs` 只从 `plugin/core/render.mjs` 生成；站点样本 parity 由 `FISHPAI_SITE_PARITY=1` 显式启用。
 - 项目说明、代码注释与技能文档统一以本仓库为行为依据；MoPai 保留为衍生来源与许可证出处。
@@ -48,16 +48,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `fishpai_learn` and `POST /learn`: infer nine writing-style fields from drafts, HTML, or public pages, then persist confirmed candidates to the storageDomain writing table.
 - Added `fishpai_snippets` and `POST /snippets`: confirm header/footer fragments before storage, then compose them by `snippetId` before rendering.
 - Added an independent Xiumi rendering target and SVG component library; `fishpai_render` and `POST /render` accept `target:'xiumi'`, while the WeChat rendering pipeline remains independent.
+- Added an 18-key document-level Xiumi canvas spec: `fishpai_open({xiumi_spec})` validates and persists it for preview, copy, and export; `fishpai_render({xiumi_spec})` overrides only the current render.
+- Added four semantic components (chapter headers, info cards, highlight lines, and credits) plus the layout guide `skills/fishpai/references/layout.md`.
 - Added the component reference `skills/fishpai/references/components.md` with 8 SMIL interactive components plus static layout components; `fishpai_lint` now flags CSS animations and risky SMIL loops.
-- Added `POST /auth` to query or clear a platform's login state (returns only `loggedIn`/`savedAt`, never cookies), with login management in the panel publish flow.
-- Added `fishpai_publish`, `POST /publish`, and `GET /publish/status`: asynchronous browser jobs save WeChat or Xiumi drafts only, with login state confined to the storageDomain auth table.
-- Added a controlled `:::raw` block to the professional pipeline for preserving verified HTML / SVG structures while rejecting scripts, event handlers, and active content.
-- WeChat drafts now save raw HTML through `operate_appmsg`, preserving Xiumi / SVG structures; the initial save creates the draft and captures session fields, with one retry using the server-returned `data_seq` on conflicts.
+- Upgraded the professional pipeline into a free-form canvas: Markdown, semantic components, and `:::raw` can be mixed, with raw supporting safe HTML / SVG original designs and same-material recreations while rejecting scripts, event handlers, and active content.
+- Local `<img>` and `<image>` assets in raw HTML / SVG now share the unified asset inventory: previews can read them, and copy and export embed them as base64 by default.
 
 ### Changed
 
 - **BREAKING**: Documents default to the Xiumi component pipeline (professional, `target:'xiumi'`); the quick rendering core remains available as the "quick" mode (`target:'wechat'`). `fishpai_render` follows the document's current mode when `target` is omitted.
-- Added the first runtime dependency `playwright-core` (draft-publish automation engine) and an optional peer `@deepseek-ai/dsh-storage-domain` (user-level stores); on first publish without a local Chrome / Edge, Chromium is lazily downloaded into the user plugin-data area.
+- Declared the optional peer `@deepseek-ai/dsh-storage-domain` for user-level stores; `playwright-core` supports the formal README preview build as a development dependency.
 - **BREAKING**: Named custom themes now live in the user-level storageDomain themes table and use `custom:<id>` keys. `fishpai_theme` supports `set` / `show` / `clear` / `list` with an optional `theme_id`. `.fishpai/theme.json` and the bare `custom` theme name are no longer read.
 - Rendering goldens are now snapshots produced by the current core, with `scripts/regen-golden.mjs` using only `plugin/core/render.mjs`; site parity is an opt-in soft reference via `FISHPAI_SITE_PARITY=1`.
 - Project guides, code comments, and skill documentation now use this repository as the behavioral source of truth; MoPai remains credited as the derivative source and license origin.

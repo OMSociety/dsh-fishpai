@@ -69,7 +69,7 @@ export function attachPlaceholdersToBlocks(placeholders, blocks) {
   })
 }
 
-/** 是否还有未处理的占位（复制到公众号前的提醒用）。 */
+/** 是否还有未处理的占位（复制到剪贴板前的提醒用）。 */
 export function hasPlaceholders(markdown) {
   return extractPlaceholders(markdown).length > 0
 }

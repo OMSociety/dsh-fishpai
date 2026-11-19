@@ -377,8 +377,8 @@ export function cleanForWechat(html) {
     .trim()
 }
 
-// ── 3. 「复制到公众号」那层清洗（对应站点 js/publish-utils.js）──
-// 站点点「复制到公众号」时不是照搬预览 HTML，而是走 simplifyHtmlForPlatform：
+// ── 3. 「公众号复制」那层清洗（对应站点 js/publish-utils.js）──
+// 站点点「公众号复制」时不是照搬预览 HTML，而是走 simplifyHtmlForPlatform：
 //   1) 内联样式按白名单过滤（border-radius / box-shadow / letter-spacing 等会被剥掉）
 //   2) 去掉 class / data-* 属性
 //   3) 代码块扁平化，并把 highlight.js 的 token 颜色内联成 style
@@ -548,9 +548,9 @@ export function inlineCodeStyles(html) {
 }
 
 /**
- * 「复制到公众号」那层处理（对应 publish-utils.prepareHtml）。
+ * 「公众号复制」那层处理（对应 publish-utils.prepareHtml）。
  *
- * 关键：站点「复制到公众号」按钮走的是 copyToClipboard → copyPublishHtmlToClipboard(false)，
+ * 关键：站点「公众号复制」按钮走的是 copyToClipboard → copyPublishHtmlToClipboard(false)，
  * 即 simple=false —— **不做样式白名单过滤**，也不压平 mac 代码块；
  * 只做一件事：把代码块内 span 的颜色用 getComputedStyle 内联进去。
  * 微信编辑器自己会丢弃不认识的内联属性。
@@ -808,7 +808,7 @@ function replaceDecl(style, prop, next) {
  * @param {string} [opts.font]         字体预设 sans/serif/mono（null 表示不覆盖），默认 sans
  * @param {string} [opts.fontSize]     覆盖 wrapper 字号，如 '17px'，默认 16px（非法值一律回落 16px）
  * @param {boolean}[opts.footnotes]    正文外链转脚注，默认 true
- * @param {boolean}[opts.publish]      true=按「复制到公众号」的清洗规则输出（默认），false=预览原样
+ * @param {boolean}[opts.publish]      true=按「公众号复制」的清洗规则输出（默认），false=预览原样
  * @param {boolean}[opts.macCodeBlock] 代码块是否用 mac 标题栏形态，默认 true
  * @param {boolean}[opts.simple]       站点「一键发布 14 平台」那条白名单路径
  * @param {string|object} [opts.theme] 主题 key 或中文名；也可以直接给一个**主题对象**

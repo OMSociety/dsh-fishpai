@@ -233,7 +233,7 @@ export function createMd(styles, opts = {}) {
    * 空白放在 span 外仍满足结构校验（那条规则只看**非空白**的直接文字子节点），仅非空白正文进入 span。
    *
    * 默认关闭：默认路径必须与 `test/golden/**` 逐字节一致（那是本项目的地基）。
-   * 复制到公众号/导出这条路径才开（见 plugin/host/routes.mjs 与 tools.mjs）。
+   * 复制/导出这条路径才开（见 plugin/host/routes.mjs 与 tools.mjs）。
    */
   if (opts.wrapText) {
     const escapeHtml = md.utils.escapeHtml

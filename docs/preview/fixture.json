@@ -1,7 +1,7 @@
 {
   "key": "preview",
   "sessionId": "preview",
-  "markdown": "::: raw\n<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 640 400\" width=\"640\" height=\"400\" role=\"img\" aria-label=\"鱼排：让内容自成章法。层叠的文稿卡片展示从写作到排版的完整过程\" style=\"display:block;width:100%;height:auto;margin:0 0 22px;border-radius:18px;\">\n  <rect width=\"640\" height=\"400\" rx=\"24\" fill=\"#16223f\"/>\n  <circle cx=\"604\" cy=\"34\" r=\"94\" fill=\"#203257\" opacity=\"0.72\"/>\n  <circle cx=\"36\" cy=\"390\" r=\"116\" fill=\"#1c2d51\" opacity=\"0.8\"/>\n  <path d=\"M36 50 C43 36 59 33 72 40 L86 30 L82 50 L86 70 L72 60 C59 67 43 64 36 50 Z\" fill=\"none\" stroke=\"#8da7ff\" stroke-width=\"2.2\" stroke-linejoin=\"round\"/>\n  <circle cx=\"55\" cy=\"45\" r=\"2.2\" fill=\"#c9f2d8\"/>\n  <text x=\"102\" y=\"57\" fill=\"#dfe6ff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"14\" font-weight=\"650\" letter-spacing=\"3\">FISHPAI</text>\n  <text x=\"36\" y=\"139\" fill=\"#ffffff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"46\" font-weight=\"720\" letter-spacing=\"1\">让内容</text>\n  <text x=\"36\" y=\"198\" fill=\"#ffffff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"50\" font-weight=\"760\" letter-spacing=\"1\">自成章法</text>\n  <text x=\"36\" y=\"238\" fill=\"#bcc9e9\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"17\">文稿、组件与交互，</text>\n  <text x=\"36\" y=\"264\" fill=\"#bcc9e9\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"17\">在一处成为完整的阅读作品。</text>\n  <path d=\"M36 302H304\" stroke=\"#3a4d73\" stroke-width=\"1\"/>\n  <circle cx=\"42\" cy=\"334\" r=\"4\" fill=\"#c9f2d8\"/>\n  <text x=\"54\" y=\"339\" fill=\"#e4eaff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"14\">写作</text>\n  <circle cx=\"132\" cy=\"334\" r=\"4\" fill=\"#8da7ff\"/>\n  <text x=\"144\" y=\"339\" fill=\"#e4eaff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"14\">排版</text>\n  <circle cx=\"222\" cy=\"334\" r=\"4\" fill=\"#ffd166\"/>\n  <text x=\"234\" y=\"339\" fill=\"#e4eaff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"14\">发布</text>\n\n  <rect x=\"404\" y=\"88\" width=\"174\" height=\"224\" rx=\"17\" fill=\"#263a61\" transform=\"rotate(8 491 200)\"/>\n  <rect x=\"382\" y=\"78\" width=\"180\" height=\"230\" rx=\"17\" fill=\"#4162cb\" transform=\"rotate(-7 472 193)\"/>\n  <rect x=\"374\" y=\"92\" width=\"190\" height=\"226\" rx=\"17\" fill=\"#f4f7ff\"/>\n  <rect x=\"392\" y=\"111\" width=\"54\" height=\"8\" rx=\"4\" fill=\"#7895f2\"/>\n  <circle cx=\"536\" cy=\"115\" r=\"6\" fill=\"#b8e6ca\"/>\n  <rect x=\"392\" y=\"141\" width=\"124\" height=\"12\" rx=\"6\" fill=\"#1b2c50\"/>\n  <rect x=\"392\" y=\"162\" width=\"92\" height=\"12\" rx=\"6\" fill=\"#1b2c50\"/>\n  <rect x=\"392\" y=\"192\" width=\"140\" height=\"6\" rx=\"3\" fill=\"#c7d2eb\"/>\n  <rect x=\"392\" y=\"206\" width=\"126\" height=\"6\" rx=\"3\" fill=\"#c7d2eb\"/>\n  <rect x=\"392\" y=\"228\" width=\"140\" height=\"48\" rx=\"11\" fill=\"#dce6ff\"/>\n  <path d=\"M446 253 C452 240 465 238 476 244 L488 236 L485 253 L488 270 L476 262 C465 268 452 266 446 253 Z\" fill=\"#4162cb\"/>\n  <circle cx=\"461\" cy=\"249\" r=\"2\" fill=\"#f4f7ff\"/>\n  <rect x=\"392\" y=\"291\" width=\"64\" height=\"8\" rx=\"4\" fill=\"#6d88df\"/>\n  <rect x=\"342\" y=\"250\" width=\"54\" height=\"54\" rx=\"15\" fill=\"#c9f2d8\" transform=\"rotate(-10 369 277)\"/>\n  <path d=\"M356 277 L366 287 L383 266\" fill=\"none\" stroke=\"#17304a\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n  <path d=\"M570 62V82 M560 72H580\" stroke=\"#ffd166\" stroke-width=\"3\" stroke-linecap=\"round\"/>\n  <circle cx=\"350\" cy=\"76\" r=\"5\" fill=\"#c9f2d8\"/>\n</svg>\n:::\n\n好的排版，让**观点、节奏与细节各就其位**。\n\n鱼排把文稿、组件和预览放进同一个工作台，从落笔开始，就给内容清晰的结构。\n\n## 从空白，到清晰的结构\n\n::: number_steps\n- **先写下内容。** 标题、段落与批注，都在同一份文稿里。\n- **再组织阅读。** 用组件安排重点与节奏，而不是堆叠样式。\n- **最后抵达读者。** 预览、复制与草稿发布，共用同一份结果。\n:::\n\n::: quote\n让工具处理复杂，让阅读保持简单。\n:::\n\n## 把细节，藏在恰好的位置\n\n::: expand\n展开看看：一篇文章如何被组织\n---\n正文保持轻盈，补充说明与技术细节收进展开组件。需要时点开，阅读节奏依然由你掌握。\n:::\n\n::: progress\n100 预览与发布内容同源\n:::\n\n::: gradient_banner\n把复杂留给工具，把清晰留给读者\n:::\n\n*这篇专题稿与主视觉用于展示鱼排的正式专业渲染结果。*",
+  "markdown": ":::raw\n<section style=\"margin:0 -20px 30px;line-height:0;\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 700 480\" width=\"700\" height=\"480\" role=\"img\" aria-label=\"鱼排专题主视觉：让内容有秩序地呈现\" style=\"display:block;width:100%;height:auto;\">\n  <rect x=\"0\" y=\"0\" width=\"700\" height=\"480\" fill=\"#2f4fc1\"/>\n  <g fill=\"none\" stroke=\"#ffffff\" stroke-width=\"1\" opacity=\"0.09\">\n    <path d=\"M40 0V480M140 0V480M240 0V480M340 0V480M440 0V480M540 0V480M640 0V480\"/>\n    <path d=\"M0 80H700M0 160H700M0 240H700M0 320H700M0 400H700\"/>\n  </g>\n  <rect x=\"34\" y=\"20\" width=\"48\" height=\"48\" rx=\"12\" fill=\"#ffffff\"/>\n  <image x=\"40\" y=\"26\" width=\"36\" height=\"36\" href=\"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHZpZXdCb3g9IjAgMCAzNiAzNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQwX2xpbmVhcl9maXNocGFpIiB4MT0iNyIgeTE9IjEwIiB4Mj0iMjkiIHkyPSIyNiIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjN0ZBMEZGIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzNCNTRDOSIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHBhdGggZD0iTTcuNSAxOEM5LjM0OCAxMy41NiAxMy4wNDQgMTAuNzg1IDE3Ljc0OCAxMC43ODVDMjAuOTQgMTAuNzg1IDIzLjI5MiAxMi40NSAyNC44MDQgMTQuNjdMMjguNSAxMS4zNEwyNi4zMTYgMThMMjguNSAyNC42NkwyNC44MDQgMjEuMzNDMjMuMjkyIDIzLjU1IDIwLjk0IDI1LjIxNSAxNy43NDggMjUuMjE1QzEzLjA0NCAyNS4yMTUgOS4zNDggMjIuNDQgNy41IDE4WiIgc3Ryb2tlPSJ1cmwoI3BhaW50MF9saW5lYXJfZmlzaHBhaSkiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPGNpcmNsZSBjeD0iMTIuMiIgY3k9IjE2LjUiIHI9IjEuMyIgZmlsbD0idXJsKCNwYWludDBfbGluZWFyX2Zpc2hwYWkpIi8+Cjwvc3ZnPgo=\"/>\n  <text x=\"90\" y=\"57\" fill=\"#ffffff\" font-family=\"Arial, sans-serif\" font-size=\"20\" font-weight=\"700\" letter-spacing=\"4\">FISHPAI</text>\n  <text x=\"654\" y=\"55\" text-anchor=\"end\" fill=\"#dce4ff\" font-family=\"Arial, sans-serif\" font-size=\"16\" letter-spacing=\"1.5\">ISSUE 01 / EDITORIAL</text>\n  <text x=\"36\" y=\"210\" fill=\"#ffffff\" font-family=\"Arial, sans-serif\" font-size=\"94\" font-weight=\"800\" letter-spacing=\"-4\">CONTENT</text>\n  <text x=\"36\" y=\"304\" fill=\"#c8d5ff\" font-family=\"Arial, sans-serif\" font-size=\"88\" font-weight=\"800\" letter-spacing=\"-4\">IN ORDER</text>\n  <rect x=\"40\" y=\"340\" width=\"520\" height=\"2\" fill=\"#ffffff\" opacity=\"0.55\"/>\n  <g font-family=\"Arial, sans-serif\" font-size=\"18\" font-weight=\"700\" letter-spacing=\"1.5\" fill=\"#ffffff\">\n    <rect x=\"40\" y=\"384\" width=\"12\" height=\"12\" fill=\"#f4d35e\"/>\n    <text x=\"64\" y=\"397\">WRITE</text>\n    <rect x=\"202\" y=\"384\" width=\"12\" height=\"12\" fill=\"#9db5ff\"/>\n    <text x=\"226\" y=\"397\">DESIGN</text>\n    <rect x=\"390\" y=\"384\" width=\"12\" height=\"12\" fill=\"#ffffff\"/>\n    <text x=\"414\" y=\"397\">COPY</text>\n  </g>\n  <path d=\"M586 360H660V434H586Z\" fill=\"#f4d35e\"/>\n  <path d=\"M606 397H638M626 385L638 397L626 409\" fill=\"none\" stroke=\"#17213a\" stroke-width=\"5\" stroke-linecap=\"square\" stroke-linejoin=\"miter\"/>\n</svg></section>\n:::\n\n# 把内容，排成作品\n\n好的排版先建立秩序，再表达个性。**观点、素材与阅读节奏**，都应该有清楚的位置。\n\n鱼排把文稿、自由画布和复制放进同一个工作台：写作者专注于内容，工具负责把结构完整地带到公众号。\n\n:::raw\n<table style=\"width:100%;border-collapse:collapse;table-layout:fixed;margin:26px 0 34px;\">\n  <tr>\n    <td style=\"vertical-align:top;padding:14px 12px 12px 0;border-top:2px solid #17213a;\">\n      <div style=\"font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;\">01</div>\n      <div style=\"margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;\">写下内容</div>\n    </td>\n    <td style=\"vertical-align:top;padding:14px 12px 12px;border-top:2px solid #17213a;\">\n      <div style=\"font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;\">02</div>\n      <div style=\"margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;\">组织阅读</div>\n    </td>\n    <td style=\"vertical-align:top;padding:14px 0 12px 12px;border-top:2px solid #17213a;\">\n      <div style=\"font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;\">03</div>\n      <div style=\"margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;\">抵达读者</div>\n    </td>\n  </tr>\n</table>\n:::\n\n:::chapter_header\n01\n先建立秩序\n一份文稿，承载完整的编辑过程\n:::\n\n写作、批注与修改都落在同一份 Markdown 上。正文保持可编辑，组件负责重复结构，独特画面则在自由画布中完成。\n\n:::info_card\n@一份文稿，三种输出\n手机预览用于阅读确认，复制到剪贴板用于粘贴，导出 HTML 用于归档与进一步加工。\n:::\n\n:::raw\n<section style=\"margin:24px 0 10px;padding:10px 8px 0;background-color:#ffffff;border:1px solid #e2e5ec;line-height:0;\">\n  <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 700 300\" width=\"700\" height=\"300\" role=\"img\" aria-label=\"鱼排将文稿组织成组件并发布到公众号\" style=\"display:block;width:100%;height:auto;\">\n  <rect x=\"0\" y=\"0\" width=\"700\" height=\"300\" fill=\"#ffffff\"/>\n  <g font-family=\"Arial, 'Microsoft YaHei', sans-serif\">\n    <text x=\"34\" y=\"44\" fill=\"#475467\" font-size=\"20\" font-weight=\"700\" letter-spacing=\"1.5\">SOURCE</text>\n    <text x=\"284\" y=\"44\" fill=\"#475467\" font-size=\"20\" font-weight=\"700\" letter-spacing=\"1.5\">STRUCTURE</text>\n    <text x=\"548\" y=\"44\" fill=\"#475467\" font-size=\"20\" font-weight=\"700\" letter-spacing=\"1.5\">OUTPUT</text>\n    <g fill=\"#dfe4ec\">\n      <rect x=\"34\" y=\"80\" width=\"142\" height=\"12\"/>\n      <rect x=\"34\" y=\"110\" width=\"178\" height=\"8\"/>\n      <rect x=\"34\" y=\"132\" width=\"154\" height=\"8\"/>\n      <rect x=\"34\" y=\"154\" width=\"166\" height=\"8\"/>\n      <rect x=\"34\" y=\"190\" width=\"118\" height=\"8\"/>\n    </g>\n    <path d=\"M222 142H260M248 130L260 142L248 154\" fill=\"none\" stroke=\"#2f4fc1\" stroke-width=\"4\"/>\n    <rect x=\"294\" y=\"74\" width=\"144\" height=\"40\" fill=\"#2f4fc1\"/>\n    <rect x=\"294\" y=\"126\" width=\"178\" height=\"52\" fill=\"#edf1ff\"/>\n    <rect x=\"294\" y=\"190\" width=\"122\" height=\"30\" fill=\"#f4d35e\"/>\n    <path d=\"M486 142H524M512 130L524 142L512 154\" fill=\"none\" stroke=\"#2f4fc1\" stroke-width=\"4\"/>\n    <rect x=\"556\" y=\"68\" width=\"94\" height=\"162\" rx=\"12\" fill=\"#17213a\"/>\n    <rect x=\"564\" y=\"82\" width=\"78\" height=\"134\" fill=\"#f7f7f5\"/>\n    <rect x=\"574\" y=\"94\" width=\"58\" height=\"28\" fill=\"#2f4fc1\"/>\n    <rect x=\"574\" y=\"134\" width=\"46\" height=\"6\" fill=\"#98a2b3\"/>\n    <rect x=\"574\" y=\"150\" width=\"56\" height=\"6\" fill=\"#d0d5dd\"/>\n    <rect x=\"574\" y=\"166\" width=\"50\" height=\"6\" fill=\"#d0d5dd\"/>\n    <rect x=\"574\" y=\"190\" width=\"34\" height=\"12\" fill=\"#f4d35e\"/>\n    <g fill=\"#17213a\" font-size=\"24\" font-weight=\"700\">\n      <text x=\"34\" y=\"264\">一份文稿</text>\n      <text x=\"294\" y=\"264\">结构化排版</text>\n      <text x=\"548\" y=\"264\">公众号成品</text>\n    </g>\n  </g>\n</svg>\n</section>\n<p style=\"margin:0;padding:0 12px 16px;background-color:#ffffff;color:#475467;font-size:13px;line-height:1.7;letter-spacing:0.5px;\">从内容源到结构化排版，再到公众号成品，整条链路共享同一份文稿。</p>\n:::\n\n:::highlight\n**写作、预览与复制，共享同一份内容**\n:::\n\n:::chapter_header\n02\n让视觉服务内容\n自由画布不是装饰的堆叠\n而是信息的另一种组织方式\n:::\n\n:::raw\n<section style=\"margin:22px 0 14px;\">\n  <section style=\"width:90%;padding:18px;box-sizing:border-box;background-color:#17213a;color:#ffffff;\">\n    <div style=\"font-size:12px;line-height:1.5;letter-spacing:2px;color:#b8c7f5;\">QUESTION</div>\n    <div style=\"margin-top:8px;font-size:19px;line-height:1.55;font-weight:750;\">什么时候需要自由画布？</div>\n  </section>\n  <section style=\"width:90%;margin:12px 0 0 auto;padding:18px;box-sizing:border-box;background-color:#ffffff;border:1px solid #dfe3ea;\">\n    <div style=\"font-size:12px;line-height:1.5;letter-spacing:2px;color:#2f4fc1;\">ANSWER</div>\n    <div style=\"margin-top:8px;font-size:15px;line-height:1.85;color:#344054;\">当素材、层级或交互本身就是内容的一部分。照片、标识、艺术字与 SVG 可以自由组合，正文依然保持清晰。</div>\n  </section>\n</section>\n:::\n\n:::expand\n展开看看：一篇专题稿如何被组织\n---\n**主视觉**建立主题，**章节头**划分阅读节奏，**信息卡**收拢时间与地点，**展开组件**承载补充细节。每一层都服务于阅读目标。\n:::\n\n:::chapter_header\n03\n从画布到剪贴板\n同一份文稿，交给下一个编辑场景\n:::\n\n鱼排把同一份文稿渲染为内联样式 HTML，复制到剪贴板后即可带入目标编辑器。工具处理结构，作者把精力留给内容与视觉判断。\n\n:::raw\n<section style=\"margin:30px -20px 0;padding:30px 20px 26px;background-color:#2f4fc1;color:#ffffff;\">\n  <div style=\"font-size:26px;line-height:1.5;font-weight:750;letter-spacing:1px;\">让工具处理复杂，<br>让阅读保持清晰。</div>\n  <div style=\"width:44px;height:4px;margin:20px 0;background-color:#f4d35e;\"></div>\n  <div style=\"font-size:13px;line-height:1.8;color:#dce4ff;letter-spacing:1px;\">FISHPAI · 公众号排版工作台</div>\n</section>\n:::\n\n:::credits\n文稿｜鱼排编辑部\n视觉｜原创 SVG 与品牌图形\n:::",
   "meta": {
     "theme": "default",
     "color": null,
@@ -10,7 +10,27 @@
     "footnotes": true,
     "macCodeBlock": true,
     "mobile": true,
-    "target": "xiumi"
+    "target": "xiumi",
+    "xiumiSpec": {
+      "title_color": "#17213a",
+      "title_size": 30,
+      "title_align": "left",
+      "body_color": "#344054",
+      "body_size": 15,
+      "body_align": "left",
+      "body_spacing": 0.6,
+      "line_height": 1.85,
+      "muted_color": "#667085",
+      "page_bg": "#f6f5f2",
+      "page_width": 677,
+      "page_padding_x": 20,
+      "page_padding_y": 0,
+      "card_bg": "#ffffff",
+      "card_radius": 0,
+      "card_padding": 20,
+      "accent": "#2f4fc1",
+      "accent2": "#17213a"
+    }
   },
   "themes": {
     "themes": [
@@ -204,7 +224,7 @@
     "active": {
       "key": "preview",
       "path": "/workspace/.fishpai/docs/preview.md",
-      "title": "让内容自成章法：鱼排排版工作台",
+      "title": "把内容，排成作品：鱼排排版工作台",
       "revision": 12,
       "theme": "default"
     },
@@ -213,7 +233,7 @@
       {
         "key": "preview",
         "path": "/workspace/.fishpai/docs/preview.md",
-        "title": "让内容自成章法：鱼排排版工作台",
+        "title": "把内容，排成作品：鱼排排版工作台",
         "revision": 12,
         "updatedAt": 1794988800000
       }
@@ -223,10 +243,10 @@
     "doc": {
       "key": "preview",
       "path": "/workspace/.fishpai/docs/preview.md",
-      "title": "让内容自成章法：鱼排排版工作台",
+      "title": "把内容，排成作品：鱼排排版工作台",
       "revision": 12,
       "updatedAt": 1794988800000,
-      "markdown": "::: raw\n<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 640 400\" width=\"640\" height=\"400\" role=\"img\" aria-label=\"鱼排：让内容自成章法。层叠的文稿卡片展示从写作到排版的完整过程\" style=\"display:block;width:100%;height:auto;margin:0 0 22px;border-radius:18px;\">\n  <rect width=\"640\" height=\"400\" rx=\"24\" fill=\"#16223f\"/>\n  <circle cx=\"604\" cy=\"34\" r=\"94\" fill=\"#203257\" opacity=\"0.72\"/>\n  <circle cx=\"36\" cy=\"390\" r=\"116\" fill=\"#1c2d51\" opacity=\"0.8\"/>\n  <path d=\"M36 50 C43 36 59 33 72 40 L86 30 L82 50 L86 70 L72 60 C59 67 43 64 36 50 Z\" fill=\"none\" stroke=\"#8da7ff\" stroke-width=\"2.2\" stroke-linejoin=\"round\"/>\n  <circle cx=\"55\" cy=\"45\" r=\"2.2\" fill=\"#c9f2d8\"/>\n  <text x=\"102\" y=\"57\" fill=\"#dfe6ff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"14\" font-weight=\"650\" letter-spacing=\"3\">FISHPAI</text>\n  <text x=\"36\" y=\"139\" fill=\"#ffffff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"46\" font-weight=\"720\" letter-spacing=\"1\">让内容</text>\n  <text x=\"36\" y=\"198\" fill=\"#ffffff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"50\" font-weight=\"760\" letter-spacing=\"1\">自成章法</text>\n  <text x=\"36\" y=\"238\" fill=\"#bcc9e9\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"17\">文稿、组件与交互，</text>\n  <text x=\"36\" y=\"264\" fill=\"#bcc9e9\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"17\">在一处成为完整的阅读作品。</text>\n  <path d=\"M36 302H304\" stroke=\"#3a4d73\" stroke-width=\"1\"/>\n  <circle cx=\"42\" cy=\"334\" r=\"4\" fill=\"#c9f2d8\"/>\n  <text x=\"54\" y=\"339\" fill=\"#e4eaff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"14\">写作</text>\n  <circle cx=\"132\" cy=\"334\" r=\"4\" fill=\"#8da7ff\"/>\n  <text x=\"144\" y=\"339\" fill=\"#e4eaff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"14\">排版</text>\n  <circle cx=\"222\" cy=\"334\" r=\"4\" fill=\"#ffd166\"/>\n  <text x=\"234\" y=\"339\" fill=\"#e4eaff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"14\">发布</text>\n\n  <rect x=\"404\" y=\"88\" width=\"174\" height=\"224\" rx=\"17\" fill=\"#263a61\" transform=\"rotate(8 491 200)\"/>\n  <rect x=\"382\" y=\"78\" width=\"180\" height=\"230\" rx=\"17\" fill=\"#4162cb\" transform=\"rotate(-7 472 193)\"/>\n  <rect x=\"374\" y=\"92\" width=\"190\" height=\"226\" rx=\"17\" fill=\"#f4f7ff\"/>\n  <rect x=\"392\" y=\"111\" width=\"54\" height=\"8\" rx=\"4\" fill=\"#7895f2\"/>\n  <circle cx=\"536\" cy=\"115\" r=\"6\" fill=\"#b8e6ca\"/>\n  <rect x=\"392\" y=\"141\" width=\"124\" height=\"12\" rx=\"6\" fill=\"#1b2c50\"/>\n  <rect x=\"392\" y=\"162\" width=\"92\" height=\"12\" rx=\"6\" fill=\"#1b2c50\"/>\n  <rect x=\"392\" y=\"192\" width=\"140\" height=\"6\" rx=\"3\" fill=\"#c7d2eb\"/>\n  <rect x=\"392\" y=\"206\" width=\"126\" height=\"6\" rx=\"3\" fill=\"#c7d2eb\"/>\n  <rect x=\"392\" y=\"228\" width=\"140\" height=\"48\" rx=\"11\" fill=\"#dce6ff\"/>\n  <path d=\"M446 253 C452 240 465 238 476 244 L488 236 L485 253 L488 270 L476 262 C465 268 452 266 446 253 Z\" fill=\"#4162cb\"/>\n  <circle cx=\"461\" cy=\"249\" r=\"2\" fill=\"#f4f7ff\"/>\n  <rect x=\"392\" y=\"291\" width=\"64\" height=\"8\" rx=\"4\" fill=\"#6d88df\"/>\n  <rect x=\"342\" y=\"250\" width=\"54\" height=\"54\" rx=\"15\" fill=\"#c9f2d8\" transform=\"rotate(-10 369 277)\"/>\n  <path d=\"M356 277 L366 287 L383 266\" fill=\"none\" stroke=\"#17304a\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n  <path d=\"M570 62V82 M560 72H580\" stroke=\"#ffd166\" stroke-width=\"3\" stroke-linecap=\"round\"/>\n  <circle cx=\"350\" cy=\"76\" r=\"5\" fill=\"#c9f2d8\"/>\n</svg>\n:::\n\n好的排版，让**观点、节奏与细节各就其位**。\n\n鱼排把文稿、组件和预览放进同一个工作台，从落笔开始，就给内容清晰的结构。\n\n## 从空白，到清晰的结构\n\n::: number_steps\n- **先写下内容。** 标题、段落与批注，都在同一份文稿里。\n- **再组织阅读。** 用组件安排重点与节奏，而不是堆叠样式。\n- **最后抵达读者。** 预览、复制与草稿发布，共用同一份结果。\n:::\n\n::: quote\n让工具处理复杂，让阅读保持简单。\n:::\n\n## 把细节，藏在恰好的位置\n\n::: expand\n展开看看：一篇文章如何被组织\n---\n正文保持轻盈，补充说明与技术细节收进展开组件。需要时点开，阅读节奏依然由你掌握。\n:::\n\n::: progress\n100 预览与发布内容同源\n:::\n\n::: gradient_banner\n把复杂留给工具，把清晰留给读者\n:::\n\n*这篇专题稿与主视觉用于展示鱼排的正式专业渲染结果。*",
+      "markdown": ":::raw\n<section style=\"margin:0 -20px 30px;line-height:0;\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 700 480\" width=\"700\" height=\"480\" role=\"img\" aria-label=\"鱼排专题主视觉：让内容有秩序地呈现\" style=\"display:block;width:100%;height:auto;\">\n  <rect x=\"0\" y=\"0\" width=\"700\" height=\"480\" fill=\"#2f4fc1\"/>\n  <g fill=\"none\" stroke=\"#ffffff\" stroke-width=\"1\" opacity=\"0.09\">\n    <path d=\"M40 0V480M140 0V480M240 0V480M340 0V480M440 0V480M540 0V480M640 0V480\"/>\n    <path d=\"M0 80H700M0 160H700M0 240H700M0 320H700M0 400H700\"/>\n  </g>\n  <rect x=\"34\" y=\"20\" width=\"48\" height=\"48\" rx=\"12\" fill=\"#ffffff\"/>\n  <image x=\"40\" y=\"26\" width=\"36\" height=\"36\" href=\"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHZpZXdCb3g9IjAgMCAzNiAzNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQwX2xpbmVhcl9maXNocGFpIiB4MT0iNyIgeTE9IjEwIiB4Mj0iMjkiIHkyPSIyNiIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjN0ZBMEZGIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzNCNTRDOSIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHBhdGggZD0iTTcuNSAxOEM5LjM0OCAxMy41NiAxMy4wNDQgMTAuNzg1IDE3Ljc0OCAxMC43ODVDMjAuOTQgMTAuNzg1IDIzLjI5MiAxMi40NSAyNC44MDQgMTQuNjdMMjguNSAxMS4zNEwyNi4zMTYgMThMMjguNSAyNC42NkwyNC44MDQgMjEuMzNDMjMuMjkyIDIzLjU1IDIwLjk0IDI1LjIxNSAxNy43NDggMjUuMjE1QzEzLjA0NCAyNS4yMTUgOS4zNDggMjIuNDQgNy41IDE4WiIgc3Ryb2tlPSJ1cmwoI3BhaW50MF9saW5lYXJfZmlzaHBhaSkiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPGNpcmNsZSBjeD0iMTIuMiIgY3k9IjE2LjUiIHI9IjEuMyIgZmlsbD0idXJsKCNwYWludDBfbGluZWFyX2Zpc2hwYWkpIi8+Cjwvc3ZnPgo=\"/>\n  <text x=\"90\" y=\"57\" fill=\"#ffffff\" font-family=\"Arial, sans-serif\" font-size=\"20\" font-weight=\"700\" letter-spacing=\"4\">FISHPAI</text>\n  <text x=\"654\" y=\"55\" text-anchor=\"end\" fill=\"#dce4ff\" font-family=\"Arial, sans-serif\" font-size=\"16\" letter-spacing=\"1.5\">ISSUE 01 / EDITORIAL</text>\n  <text x=\"36\" y=\"210\" fill=\"#ffffff\" font-family=\"Arial, sans-serif\" font-size=\"94\" font-weight=\"800\" letter-spacing=\"-4\">CONTENT</text>\n  <text x=\"36\" y=\"304\" fill=\"#c8d5ff\" font-family=\"Arial, sans-serif\" font-size=\"88\" font-weight=\"800\" letter-spacing=\"-4\">IN ORDER</text>\n  <rect x=\"40\" y=\"340\" width=\"520\" height=\"2\" fill=\"#ffffff\" opacity=\"0.55\"/>\n  <g font-family=\"Arial, sans-serif\" font-size=\"18\" font-weight=\"700\" letter-spacing=\"1.5\" fill=\"#ffffff\">\n    <rect x=\"40\" y=\"384\" width=\"12\" height=\"12\" fill=\"#f4d35e\"/>\n    <text x=\"64\" y=\"397\">WRITE</text>\n    <rect x=\"202\" y=\"384\" width=\"12\" height=\"12\" fill=\"#9db5ff\"/>\n    <text x=\"226\" y=\"397\">DESIGN</text>\n    <rect x=\"390\" y=\"384\" width=\"12\" height=\"12\" fill=\"#ffffff\"/>\n    <text x=\"414\" y=\"397\">COPY</text>\n  </g>\n  <path d=\"M586 360H660V434H586Z\" fill=\"#f4d35e\"/>\n  <path d=\"M606 397H638M626 385L638 397L626 409\" fill=\"none\" stroke=\"#17213a\" stroke-width=\"5\" stroke-linecap=\"square\" stroke-linejoin=\"miter\"/>\n</svg></section>\n:::\n\n# 把内容，排成作品\n\n好的排版先建立秩序，再表达个性。**观点、素材与阅读节奏**，都应该有清楚的位置。\n\n鱼排把文稿、自由画布和复制放进同一个工作台：写作者专注于内容，工具负责把结构完整地带到公众号。\n\n:::raw\n<table style=\"width:100%;border-collapse:collapse;table-layout:fixed;margin:26px 0 34px;\">\n  <tr>\n    <td style=\"vertical-align:top;padding:14px 12px 12px 0;border-top:2px solid #17213a;\">\n      <div style=\"font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;\">01</div>\n      <div style=\"margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;\">写下内容</div>\n    </td>\n    <td style=\"vertical-align:top;padding:14px 12px 12px;border-top:2px solid #17213a;\">\n      <div style=\"font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;\">02</div>\n      <div style=\"margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;\">组织阅读</div>\n    </td>\n    <td style=\"vertical-align:top;padding:14px 0 12px 12px;border-top:2px solid #17213a;\">\n      <div style=\"font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;\">03</div>\n      <div style=\"margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;\">抵达读者</div>\n    </td>\n  </tr>\n</table>\n:::\n\n:::chapter_header\n01\n先建立秩序\n一份文稿，承载完整的编辑过程\n:::\n\n写作、批注与修改都落在同一份 Markdown 上。正文保持可编辑，组件负责重复结构，独特画面则在自由画布中完成。\n\n:::info_card\n@一份文稿，三种输出\n手机预览用于阅读确认，复制到剪贴板用于粘贴，导出 HTML 用于归档与进一步加工。\n:::\n\n:::raw\n<section style=\"margin:24px 0 10px;padding:10px 8px 0;background-color:#ffffff;border:1px solid #e2e5ec;line-height:0;\">\n  <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 700 300\" width=\"700\" height=\"300\" role=\"img\" aria-label=\"鱼排将文稿组织成组件并发布到公众号\" style=\"display:block;width:100%;height:auto;\">\n  <rect x=\"0\" y=\"0\" width=\"700\" height=\"300\" fill=\"#ffffff\"/>\n  <g font-family=\"Arial, 'Microsoft YaHei', sans-serif\">\n    <text x=\"34\" y=\"44\" fill=\"#475467\" font-size=\"20\" font-weight=\"700\" letter-spacing=\"1.5\">SOURCE</text>\n    <text x=\"284\" y=\"44\" fill=\"#475467\" font-size=\"20\" font-weight=\"700\" letter-spacing=\"1.5\">STRUCTURE</text>\n    <text x=\"548\" y=\"44\" fill=\"#475467\" font-size=\"20\" font-weight=\"700\" letter-spacing=\"1.5\">OUTPUT</text>\n    <g fill=\"#dfe4ec\">\n      <rect x=\"34\" y=\"80\" width=\"142\" height=\"12\"/>\n      <rect x=\"34\" y=\"110\" width=\"178\" height=\"8\"/>\n      <rect x=\"34\" y=\"132\" width=\"154\" height=\"8\"/>\n      <rect x=\"34\" y=\"154\" width=\"166\" height=\"8\"/>\n      <rect x=\"34\" y=\"190\" width=\"118\" height=\"8\"/>\n    </g>\n    <path d=\"M222 142H260M248 130L260 142L248 154\" fill=\"none\" stroke=\"#2f4fc1\" stroke-width=\"4\"/>\n    <rect x=\"294\" y=\"74\" width=\"144\" height=\"40\" fill=\"#2f4fc1\"/>\n    <rect x=\"294\" y=\"126\" width=\"178\" height=\"52\" fill=\"#edf1ff\"/>\n    <rect x=\"294\" y=\"190\" width=\"122\" height=\"30\" fill=\"#f4d35e\"/>\n    <path d=\"M486 142H524M512 130L524 142L512 154\" fill=\"none\" stroke=\"#2f4fc1\" stroke-width=\"4\"/>\n    <rect x=\"556\" y=\"68\" width=\"94\" height=\"162\" rx=\"12\" fill=\"#17213a\"/>\n    <rect x=\"564\" y=\"82\" width=\"78\" height=\"134\" fill=\"#f7f7f5\"/>\n    <rect x=\"574\" y=\"94\" width=\"58\" height=\"28\" fill=\"#2f4fc1\"/>\n    <rect x=\"574\" y=\"134\" width=\"46\" height=\"6\" fill=\"#98a2b3\"/>\n    <rect x=\"574\" y=\"150\" width=\"56\" height=\"6\" fill=\"#d0d5dd\"/>\n    <rect x=\"574\" y=\"166\" width=\"50\" height=\"6\" fill=\"#d0d5dd\"/>\n    <rect x=\"574\" y=\"190\" width=\"34\" height=\"12\" fill=\"#f4d35e\"/>\n    <g fill=\"#17213a\" font-size=\"24\" font-weight=\"700\">\n      <text x=\"34\" y=\"264\">一份文稿</text>\n      <text x=\"294\" y=\"264\">结构化排版</text>\n      <text x=\"548\" y=\"264\">公众号成品</text>\n    </g>\n  </g>\n</svg>\n</section>\n<p style=\"margin:0;padding:0 12px 16px;background-color:#ffffff;color:#475467;font-size:13px;line-height:1.7;letter-spacing:0.5px;\">从内容源到结构化排版，再到公众号成品，整条链路共享同一份文稿。</p>\n:::\n\n:::highlight\n**写作、预览与复制，共享同一份内容**\n:::\n\n:::chapter_header\n02\n让视觉服务内容\n自由画布不是装饰的堆叠\n而是信息的另一种组织方式\n:::\n\n:::raw\n<section style=\"margin:22px 0 14px;\">\n  <section style=\"width:90%;padding:18px;box-sizing:border-box;background-color:#17213a;color:#ffffff;\">\n    <div style=\"font-size:12px;line-height:1.5;letter-spacing:2px;color:#b8c7f5;\">QUESTION</div>\n    <div style=\"margin-top:8px;font-size:19px;line-height:1.55;font-weight:750;\">什么时候需要自由画布？</div>\n  </section>\n  <section style=\"width:90%;margin:12px 0 0 auto;padding:18px;box-sizing:border-box;background-color:#ffffff;border:1px solid #dfe3ea;\">\n    <div style=\"font-size:12px;line-height:1.5;letter-spacing:2px;color:#2f4fc1;\">ANSWER</div>\n    <div style=\"margin-top:8px;font-size:15px;line-height:1.85;color:#344054;\">当素材、层级或交互本身就是内容的一部分。照片、标识、艺术字与 SVG 可以自由组合，正文依然保持清晰。</div>\n  </section>\n</section>\n:::\n\n:::expand\n展开看看：一篇专题稿如何被组织\n---\n**主视觉**建立主题，**章节头**划分阅读节奏，**信息卡**收拢时间与地点，**展开组件**承载补充细节。每一层都服务于阅读目标。\n:::\n\n:::chapter_header\n03\n从画布到剪贴板\n同一份文稿，交给下一个编辑场景\n:::\n\n鱼排把同一份文稿渲染为内联样式 HTML，复制到剪贴板后即可带入目标编辑器。工具处理结构，作者把精力留给内容与视觉判断。\n\n:::raw\n<section style=\"margin:30px -20px 0;padding:30px 20px 26px;background-color:#2f4fc1;color:#ffffff;\">\n  <div style=\"font-size:26px;line-height:1.5;font-weight:750;letter-spacing:1px;\">让工具处理复杂，<br>让阅读保持清晰。</div>\n  <div style=\"width:44px;height:4px;margin:20px 0;background-color:#f4d35e;\"></div>\n  <div style=\"font-size:13px;line-height:1.8;color:#dce4ff;letter-spacing:1px;\">FISHPAI · 公众号排版工作台</div>\n</section>\n:::\n\n:::credits\n文稿｜鱼排编辑部\n视觉｜原创 SVG 与品牌图形\n:::",
       "updatedBy": "human",
       "baseline": null
     },
@@ -238,210 +258,376 @@
       "footnotes": true,
       "macCodeBlock": true,
       "mobile": true,
-      "target": "xiumi"
+      "target": "xiumi",
+      "xiumiSpec": {
+        "title_color": "#17213a",
+        "title_size": 30,
+        "title_align": "left",
+        "body_color": "#344054",
+        "body_size": 15,
+        "body_align": "left",
+        "body_spacing": 0.6,
+        "line_height": 1.85,
+        "muted_color": "#667085",
+        "page_bg": "#f6f5f2",
+        "page_width": 677,
+        "page_padding_x": 20,
+        "page_padding_y": 0,
+        "card_bg": "#ffffff",
+        "card_radius": 0,
+        "card_padding": 20,
+        "accent": "#2f4fc1",
+        "accent2": "#17213a"
+      }
     },
     "blocks": [
       {
         "index": 0,
-        "id": "0vwl92f",
+        "id": "09hjyn7",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [],
         "startLine": 1,
-        "endLine": 19,
-        "hash": "0vwl92f",
-        "preview": "::: raw"
+        "endLine": 1,
+        "hash": "09hjyn7",
+        "preview": ":::raw"
       },
       {
         "index": 1,
-        "id": "0kippkz",
+        "id": "1hf0ddw",
         "kind": "html",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [],
-        "startLine": 21,
-        "endLine": 39,
-        "hash": "0kippkz",
-        "preview": "  <rect x=\"404\" y=\"88\" width=\"174\" height=\"224\" rx=\"17\" fill"
+        "startLine": 2,
+        "endLine": 26,
+        "hash": "1hf0ddw",
+        "preview": "<section style=\"margin:0 -20px 30px;line-height:0;\"><svg xml"
       },
       {
         "index": 2,
-        "id": "0q3l7ls",
-        "kind": "paragraph",
+        "id": "00howm1",
+        "kind": "heading",
         "variant": null,
         "lang": null,
-        "level": null,
-        "headingPath": [],
-        "startLine": 41,
-        "endLine": 41,
-        "hash": "0q3l7ls",
-        "preview": "好的排版，让**观点、节奏与细节各就其位**。"
+        "level": 1,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 28,
+        "endLine": 28,
+        "hash": "00howm1",
+        "preview": "# 把内容，排成作品"
       },
       {
         "index": 3,
-        "id": "1ahy6m2",
+        "id": "0o69ywb",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
-        "headingPath": [],
-        "startLine": 43,
-        "endLine": 43,
-        "hash": "1ahy6m2",
-        "preview": "鱼排把文稿、组件和预览放进同一个工作台，从落笔开始，就给内容清晰的结构。"
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 30,
+        "endLine": 30,
+        "hash": "0o69ywb",
+        "preview": "好的排版先建立秩序，再表达个性。**观点、素材与阅读节奏**，都应该有清楚的位置。"
       },
       {
         "index": 4,
-        "id": "1auh22a",
-        "kind": "heading",
+        "id": "12e5y5c",
+        "kind": "paragraph",
         "variant": null,
         "lang": null,
-        "level": 2,
+        "level": null,
         "headingPath": [
-          "从空白，到清晰的结构"
+          "把内容，排成作品"
         ],
-        "startLine": 45,
-        "endLine": 45,
-        "hash": "1auh22a",
-        "preview": "## 从空白，到清晰的结构"
+        "startLine": 32,
+        "endLine": 32,
+        "hash": "12e5y5c",
+        "preview": "鱼排把文稿、自由画布和复制放进同一个工作台：写作者专注于内容，工具负责把结构完整地带到公众号。"
       },
       {
         "index": 5,
-        "id": "12pegdk",
+        "id": "09hjyn7#2",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "从空白，到清晰的结构"
+          "把内容，排成作品"
         ],
-        "startLine": 47,
-        "endLine": 47,
-        "hash": "12pegdk",
-        "preview": "::: number_steps"
+        "startLine": 34,
+        "endLine": 34,
+        "hash": "09hjyn7",
+        "preview": ":::raw"
       },
       {
         "index": 6,
-        "id": "0xd6e11",
-        "kind": "list",
+        "id": "1y3wu05",
+        "kind": "html",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "从空白，到清晰的结构"
+          "把内容，排成作品"
         ],
-        "startLine": 48,
-        "endLine": 52,
-        "hash": "0xd6e11",
-        "preview": "- **先写下内容。** 标题、段落与批注，都在同一份文稿里。"
+        "startLine": 35,
+        "endLine": 51,
+        "hash": "1y3wu05",
+        "preview": "<table style=\"width:100%;border-collapse:collapse;table-layo"
       },
       {
         "index": 7,
-        "id": "0qu35wp",
+        "id": "0wcccz4",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "从空白，到清晰的结构"
+          "把内容，排成作品"
         ],
         "startLine": 53,
-        "endLine": 55,
-        "hash": "0qu35wp",
-        "preview": "::: quote"
+        "endLine": 57,
+        "hash": "0wcccz4",
+        "preview": ":::chapter_header"
       },
       {
         "index": 8,
-        "id": "1bws2wo",
-        "kind": "heading",
+        "id": "0kwid03",
+        "kind": "paragraph",
         "variant": null,
         "lang": null,
-        "level": 2,
+        "level": null,
         "headingPath": [
-          "把细节，藏在恰好的位置"
+          "把内容，排成作品"
         ],
-        "startLine": 57,
-        "endLine": 57,
-        "hash": "1bws2wo",
-        "preview": "## 把细节，藏在恰好的位置"
+        "startLine": 59,
+        "endLine": 59,
+        "hash": "0kwid03",
+        "preview": "写作、批注与修改都落在同一份 Markdown 上。正文保持可编辑，组件负责重复结构，独特画面则在自由画布中完成。"
       },
       {
         "index": 9,
-        "id": "0wsvkqu",
+        "id": "0q9s2gk",
+        "kind": "card",
+        "variant": "info",
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 61,
+        "endLine": 64,
+        "hash": "0q9s2gk",
+        "preview": ":::info_card"
+      },
+      {
+        "index": 10,
+        "id": "09hjyn7#3",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 66,
+        "endLine": 66,
+        "hash": "09hjyn7",
+        "preview": ":::raw"
+      },
+      {
+        "index": 11,
+        "id": "0eiadsm",
+        "kind": "html",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 67,
+        "endLine": 102,
+        "hash": "0eiadsm",
+        "preview": "<section style=\"margin:24px 0 10px;padding:10px 8px 0;backgr"
+      },
+      {
+        "index": 12,
+        "id": "1xhcdgh",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 104,
+        "endLine": 106,
+        "hash": "1xhcdgh",
+        "preview": ":::highlight"
+      },
+      {
+        "index": 13,
+        "id": "1wns23b",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 108,
+        "endLine": 113,
+        "hash": "1wns23b",
+        "preview": ":::chapter_header"
+      },
+      {
+        "index": 14,
+        "id": "09hjyn7#4",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 115,
+        "endLine": 115,
+        "hash": "09hjyn7",
+        "preview": ":::raw"
+      },
+      {
+        "index": 15,
+        "id": "0uxjmt6",
+        "kind": "html",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 116,
+        "endLine": 126,
+        "hash": "0uxjmt6",
+        "preview": "<section style=\"margin:22px 0 14px;\">"
+      },
+      {
+        "index": 16,
+        "id": "1rllrpf",
         "kind": "heading",
         "variant": null,
         "lang": null,
         "level": 2,
         "headingPath": [
-          "::: expand\n展开看看：一篇文章如何被组织\n---"
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
         ],
-        "startLine": 59,
-        "endLine": 61,
-        "hash": "0wsvkqu",
-        "preview": "::: expand"
+        "startLine": 128,
+        "endLine": 130,
+        "hash": "1rllrpf",
+        "preview": ":::expand"
       },
       {
-        "index": 10,
-        "id": "1gsble5",
+        "index": 17,
+        "id": "1wktq50",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "::: expand\n展开看看：一篇文章如何被组织\n---"
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
         ],
-        "startLine": 62,
-        "endLine": 63,
-        "hash": "1gsble5",
-        "preview": "正文保持轻盈，补充说明与技术细节收进展开组件。需要时点开，阅读节奏依然由你掌握。"
+        "startLine": 131,
+        "endLine": 132,
+        "hash": "1wktq50",
+        "preview": "**主视觉**建立主题，**章节头**划分阅读节奏，**信息卡**收拢时间与地点，**展开组件**承载补充细节。每一层都"
       },
       {
-        "index": 11,
-        "id": "1pu9xa7",
+        "index": 18,
+        "id": "0wc0pp1",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "::: expand\n展开看看：一篇文章如何被组织\n---"
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
         ],
-        "startLine": 65,
-        "endLine": 67,
-        "hash": "1pu9xa7",
-        "preview": "::: progress"
+        "startLine": 134,
+        "endLine": 138,
+        "hash": "0wc0pp1",
+        "preview": ":::chapter_header"
       },
       {
-        "index": 12,
-        "id": "0diu9iw",
+        "index": 19,
+        "id": "1wppbul",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "::: expand\n展开看看：一篇文章如何被组织\n---"
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
         ],
-        "startLine": 69,
-        "endLine": 71,
-        "hash": "0diu9iw",
-        "preview": "::: gradient_banner"
+        "startLine": 140,
+        "endLine": 140,
+        "hash": "1wppbul",
+        "preview": "鱼排把同一份文稿渲染为内联样式 HTML，复制到剪贴板后即可带入目标编辑器。工具处理结构，作者把精力留给内容与视觉判断。"
       },
       {
-        "index": 13,
-        "id": "003oyvr",
+        "index": 20,
+        "id": "09hjyn7#5",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "::: expand\n展开看看：一篇文章如何被组织\n---"
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
         ],
-        "startLine": 73,
-        "endLine": 73,
-        "hash": "003oyvr",
-        "preview": "*这篇专题稿与主视觉用于展示鱼排的正式专业渲染结果。*"
+        "startLine": 142,
+        "endLine": 142,
+        "hash": "09hjyn7",
+        "preview": ":::raw"
+      },
+      {
+        "index": 21,
+        "id": "0av8wi7",
+        "kind": "html",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
+        ],
+        "startLine": 143,
+        "endLine": 148,
+        "hash": "0av8wi7",
+        "preview": "<section style=\"margin:30px -20px 0;padding:30px 20px 26px;b"
+      },
+      {
+        "index": 22,
+        "id": "0qac4ts",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
+        ],
+        "startLine": 150,
+        "endLine": 153,
+        "hash": "0qac4ts",
+        "preview": ":::credits"
       }
     ],
     "notes": [],
@@ -453,222 +639,368 @@
         "rev": 12,
         "at": 1794988800000,
         "by": "human",
-        "chars": 4122,
+        "chars": 8062,
         "label": "演示文稿"
       }
     ]
   },
   "render": {
     "mode": "preview",
-    "html": "<section style=\"max-width:677px;margin:0 auto;padding:24px 20px 32px;box-sizing:border-box;background-color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;letter-spacing:0.01em;\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 640 400\" width=\"640\" height=\"400\" role=\"img\" aria-label=\"鱼排：让内容自成章法。层叠的文稿卡片展示从写作到排版的完整过程\" style=\"display:block;width:100%;height:auto;margin:0 0 22px;border-radius:18px;\">\n  <rect width=\"640\" height=\"400\" rx=\"24\" fill=\"#16223f\"/>\n  <circle cx=\"604\" cy=\"34\" r=\"94\" fill=\"#203257\" opacity=\"0.72\"/>\n  <circle cx=\"36\" cy=\"390\" r=\"116\" fill=\"#1c2d51\" opacity=\"0.8\"/>\n  <path d=\"M36 50 C43 36 59 33 72 40 L86 30 L82 50 L86 70 L72 60 C59 67 43 64 36 50 Z\" fill=\"none\" stroke=\"#8da7ff\" stroke-width=\"2.2\" stroke-linejoin=\"round\"/>\n  <circle cx=\"55\" cy=\"45\" r=\"2.2\" fill=\"#c9f2d8\"/>\n  <text x=\"102\" y=\"57\" fill=\"#dfe6ff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"14\" font-weight=\"650\" letter-spacing=\"3\">FISHPAI</text>\n  <text x=\"36\" y=\"139\" fill=\"#ffffff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"46\" font-weight=\"720\" letter-spacing=\"1\">让内容</text>\n  <text x=\"36\" y=\"198\" fill=\"#ffffff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"50\" font-weight=\"760\" letter-spacing=\"1\">自成章法</text>\n  <text x=\"36\" y=\"238\" fill=\"#bcc9e9\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"17\">文稿、组件与交互，</text>\n  <text x=\"36\" y=\"264\" fill=\"#bcc9e9\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"17\">在一处成为完整的阅读作品。</text>\n  <path d=\"M36 302H304\" stroke=\"#3a4d73\" stroke-width=\"1\"/>\n  <circle cx=\"42\" cy=\"334\" r=\"4\" fill=\"#c9f2d8\"/>\n  <text x=\"54\" y=\"339\" fill=\"#e4eaff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"14\">写作</text>\n  <circle cx=\"132\" cy=\"334\" r=\"4\" fill=\"#8da7ff\"/>\n  <text x=\"144\" y=\"339\" fill=\"#e4eaff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"14\">排版</text>\n  <circle cx=\"222\" cy=\"334\" r=\"4\" fill=\"#ffd166\"/>\n  <text x=\"234\" y=\"339\" fill=\"#e4eaff\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif\" font-size=\"14\">发布</text>\n\n  <rect x=\"404\" y=\"88\" width=\"174\" height=\"224\" rx=\"17\" fill=\"#263a61\" transform=\"rotate(8 491 200)\"/>\n  <rect x=\"382\" y=\"78\" width=\"180\" height=\"230\" rx=\"17\" fill=\"#4162cb\" transform=\"rotate(-7 472 193)\"/>\n  <rect x=\"374\" y=\"92\" width=\"190\" height=\"226\" rx=\"17\" fill=\"#f4f7ff\"/>\n  <rect x=\"392\" y=\"111\" width=\"54\" height=\"8\" rx=\"4\" fill=\"#7895f2\"/>\n  <circle cx=\"536\" cy=\"115\" r=\"6\" fill=\"#b8e6ca\"/>\n  <rect x=\"392\" y=\"141\" width=\"124\" height=\"12\" rx=\"6\" fill=\"#1b2c50\"/>\n  <rect x=\"392\" y=\"162\" width=\"92\" height=\"12\" rx=\"6\" fill=\"#1b2c50\"/>\n  <rect x=\"392\" y=\"192\" width=\"140\" height=\"6\" rx=\"3\" fill=\"#c7d2eb\"/>\n  <rect x=\"392\" y=\"206\" width=\"126\" height=\"6\" rx=\"3\" fill=\"#c7d2eb\"/>\n  <rect x=\"392\" y=\"228\" width=\"140\" height=\"48\" rx=\"11\" fill=\"#dce6ff\"/>\n  <path d=\"M446 253 C452 240 465 238 476 244 L488 236 L485 253 L488 270 L476 262 C465 268 452 266 446 253 Z\" fill=\"#4162cb\"/>\n  <circle cx=\"461\" cy=\"249\" r=\"2\" fill=\"#f4f7ff\"/>\n  <rect x=\"392\" y=\"291\" width=\"64\" height=\"8\" rx=\"4\" fill=\"#6d88df\"/>\n  <rect x=\"342\" y=\"250\" width=\"54\" height=\"54\" rx=\"15\" fill=\"#c9f2d8\" transform=\"rotate(-10 369 277)\"/>\n  <path d=\"M356 277 L366 287 L383 266\" fill=\"none\" stroke=\"#17304a\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n  <path d=\"M570 62V82 M560 72H580\" stroke=\"#ffd166\" stroke-width=\"3\" stroke-linecap=\"round\"/>\n  <circle cx=\"350\" cy=\"76\" r=\"5\" fill=\"#c9f2d8\"/>\n</svg><p style=\"margin:0 0 14px;color:#4a5365;font-size:15px;line-height:1.85;\">好的排版，让<strong style=\"color:#17213a;font-weight:700;\">观点、节奏与细节各就其位</strong>。</p><p style=\"margin:0 0 14px;color:#4a5365;font-size:15px;line-height:1.85;\">鱼排把文稿、组件和预览放进同一个工作台，从落笔开始，就给内容清晰的结构。</p><h2 style=\"margin:30px 0 14px;color:#17213a;font-size:21px;line-height:1.4;text-align:left;font-weight:700;letter-spacing:0.02em;\">从空白，到清晰的结构</h2><section style=\"margin:0 0 16px;\"><section style=\"display:flex;align-items:flex-start;margin:0 0 12px;\"><span style=\"flex:0 0 24px;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background-color:#3f63d7;color:#ffffff;font-size:13px;font-weight:700;margin-right:10px;\">1</span><span style=\"flex:1;color:#4a5365;font-size:15px;line-height:1.85;\"><strong style=\"color:#17213a;font-weight:700;\">先写下内容。</strong> 标题、段落与批注，都在同一份文稿里。</span></section><section style=\"display:flex;align-items:flex-start;margin:0 0 12px;\"><span style=\"flex:0 0 24px;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background-color:#3f63d7;color:#ffffff;font-size:13px;font-weight:700;margin-right:10px;\">2</span><span style=\"flex:1;color:#4a5365;font-size:15px;line-height:1.85;\"><strong style=\"color:#17213a;font-weight:700;\">再组织阅读。</strong> 用组件安排重点与节奏，而不是堆叠样式。</span></section><section style=\"display:flex;align-items:flex-start;margin:0 0 12px;\"><span style=\"flex:0 0 24px;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background-color:#3f63d7;color:#ffffff;font-size:13px;font-weight:700;margin-right:10px;\">3</span><span style=\"flex:1;color:#4a5365;font-size:15px;line-height:1.85;\"><strong style=\"color:#17213a;font-weight:700;\">最后抵达读者。</strong> 预览、复制与草稿发布，共用同一份结果。</span></section></section><section style=\"margin:0 0 16px;padding:12px 14px;border-left:1px solid #3f63d7;background-color:#f2f5fb;color:#4a5365;font-size:15px;line-height:1.85;\"><p style=\"margin:0 0 14px;color:#4a5365;font-size:15px;line-height:1.85;\">让工具处理复杂，让阅读保持简单。</p></section><h2 style=\"margin:30px 0 14px;color:#17213a;font-size:21px;line-height:1.4;text-align:left;font-weight:700;letter-spacing:0.02em;\">把细节，藏在恰好的位置</h2><section style=\"margin:0 0 20px;overflow:hidden;line-height:0;\"><section style=\"height:0;min-height:0;overflow:visible;display:flow-root;\"><section style=\"margin-top:64px;padding:16px;box-sizing:border-box;background-color:#f2f5fb;border-radius:12px;color:#4a5365;font-size:15px;line-height:1.85;\"><p style=\"margin:0 0 14px;color:#4a5365;font-size:15px;line-height:1.85;\">正文保持轻盈，补充说明与技术细节收进展开组件。需要时点开，阅读节奏依然由你掌握。</p></section></section><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"56\" style=\"display:block;cursor:pointer;\" role=\"button\" aria-label=\"展开看看：一篇文章如何被组织\"><rect x=\"0\" y=\"0\" width=\"100%\" height=\"56\" rx=\"12\" fill=\"#f2f5fb\"/><text x=\"16\" y=\"33\" fill=\"#17213a\" font-size=\"15\" font-weight=\"600\">展开看看：一篇文章如何被组织</text><text x=\"96%\" y=\"35\" text-anchor=\"end\" fill=\"#3f63d7\" font-size=\"24\" font-weight=\"400\">＋</text><animate attributeName=\"height\" from=\"56\" to=\"162\" dur=\"0.4s\" begin=\"click\" fill=\"freeze\"/></svg></section><section style=\"margin:0 0 18px;\"><section style=\"display:flex;justify-content:space-between;margin:0 0 6px;color:#4a5365;font-size:13px;line-height:1.5;\"><span>预览与发布内容同源</span><span style=\"color:#3f63d7;font-weight:600;\">100%</span></section><section style=\"background-color:#f2f5fb;border-radius:3px;height:6px;overflow:hidden;box-sizing:border-box;\"><section style=\"width:100%;height:6px;background-color:#3f63d7;border-radius:3px;\"></section></section></section><section style=\"margin:0 0 16px;padding:24px 16px;background:linear-gradient(135deg, #3f63d7 0%, #8ba8f2 100%);border-radius:12px;color:#ffffff;text-align:center;font-size:24px;font-weight:700;line-height:1.35;\">把复杂留给工具，把清晰留给读者</section><p style=\"margin:0 0 14px;color:#4a5365;font-size:15px;line-height:1.85;\"><em style=\"font-style:italic;\">这篇专题稿与主视觉用于展示鱼排的正式专业渲染结果。</em></p></section>",
+    "html": "<section style=\"max-width:677px;margin:0 auto;padding:0px 20px;box-sizing:border-box;background-color:#f6f5f2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;letter-spacing:0.6px;\"><section style=\"margin:0 -20px 30px;line-height:0;\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 700 480\" width=\"700\" height=\"480\" role=\"img\" aria-label=\"鱼排专题主视觉：让内容有秩序地呈现\" style=\"display:block;width:100%;height:auto;\">\n  <rect x=\"0\" y=\"0\" width=\"700\" height=\"480\" fill=\"#2f4fc1\"/>\n  <g fill=\"none\" stroke=\"#ffffff\" stroke-width=\"1\" opacity=\"0.09\">\n    <path d=\"M40 0V480M140 0V480M240 0V480M340 0V480M440 0V480M540 0V480M640 0V480\"/>\n    <path d=\"M0 80H700M0 160H700M0 240H700M0 320H700M0 400H700\"/>\n  </g>\n  <rect x=\"34\" y=\"20\" width=\"48\" height=\"48\" rx=\"12\" fill=\"#ffffff\"/>\n  <image x=\"40\" y=\"26\" width=\"36\" height=\"36\" href=\"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHZpZXdCb3g9IjAgMCAzNiAzNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQwX2xpbmVhcl9maXNocGFpIiB4MT0iNyIgeTE9IjEwIiB4Mj0iMjkiIHkyPSIyNiIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjN0ZBMEZGIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzNCNTRDOSIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHBhdGggZD0iTTcuNSAxOEM5LjM0OCAxMy41NiAxMy4wNDQgMTAuNzg1IDE3Ljc0OCAxMC43ODVDMjAuOTQgMTAuNzg1IDIzLjI5MiAxMi40NSAyNC44MDQgMTQuNjdMMjguNSAxMS4zNEwyNi4zMTYgMThMMjguNSAyNC42NkwyNC44MDQgMjEuMzNDMjMuMjkyIDIzLjU1IDIwLjk0IDI1LjIxNSAxNy43NDggMjUuMjE1QzEzLjA0NCAyNS4yMTUgOS4zNDggMjIuNDQgNy41IDE4WiIgc3Ryb2tlPSJ1cmwoI3BhaW50MF9saW5lYXJfZmlzaHBhaSkiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPGNpcmNsZSBjeD0iMTIuMiIgY3k9IjE2LjUiIHI9IjEuMyIgZmlsbD0idXJsKCNwYWludDBfbGluZWFyX2Zpc2hwYWkpIi8+Cjwvc3ZnPgo=\"/>\n  <text x=\"90\" y=\"57\" fill=\"#ffffff\" font-family=\"Arial, sans-serif\" font-size=\"20\" font-weight=\"700\" letter-spacing=\"4\">FISHPAI</text>\n  <text x=\"654\" y=\"55\" text-anchor=\"end\" fill=\"#dce4ff\" font-family=\"Arial, sans-serif\" font-size=\"16\" letter-spacing=\"1.5\">ISSUE 01 / EDITORIAL</text>\n  <text x=\"36\" y=\"210\" fill=\"#ffffff\" font-family=\"Arial, sans-serif\" font-size=\"94\" font-weight=\"800\" letter-spacing=\"-4\">CONTENT</text>\n  <text x=\"36\" y=\"304\" fill=\"#c8d5ff\" font-family=\"Arial, sans-serif\" font-size=\"88\" font-weight=\"800\" letter-spacing=\"-4\">IN ORDER</text>\n  <rect x=\"40\" y=\"340\" width=\"520\" height=\"2\" fill=\"#ffffff\" opacity=\"0.55\"/>\n  <g font-family=\"Arial, sans-serif\" font-size=\"18\" font-weight=\"700\" letter-spacing=\"1.5\" fill=\"#ffffff\">\n    <rect x=\"40\" y=\"384\" width=\"12\" height=\"12\" fill=\"#f4d35e\"/>\n    <text x=\"64\" y=\"397\">WRITE</text>\n    <rect x=\"202\" y=\"384\" width=\"12\" height=\"12\" fill=\"#9db5ff\"/>\n    <text x=\"226\" y=\"397\">DESIGN</text>\n    <rect x=\"390\" y=\"384\" width=\"12\" height=\"12\" fill=\"#ffffff\"/>\n    <text x=\"414\" y=\"397\">COPY</text>\n  </g>\n  <path d=\"M586 360H660V434H586Z\" fill=\"#f4d35e\"/>\n  <path d=\"M606 397H638M626 385L638 397L626 409\" fill=\"none\" stroke=\"#17213a\" stroke-width=\"5\" stroke-linecap=\"square\" stroke-linejoin=\"miter\"/>\n</svg></section><h1 style=\"margin:0 0 22px;color:#17213a;font-size:30px;line-height:1.4;text-align:left;font-weight:700;letter-spacing:0.02em;padding-bottom:16px;border-bottom:1px solid #ffffff;\">把内容，排成作品</h1><p style=\"margin:0 0 14px;color:#344054;font-size:15px;line-height:1.85;text-align:left;\">好的排版先建立秩序，再表达个性。<strong style=\"color:#17213a;font-weight:700;\">观点、素材与阅读节奏</strong>，都应该有清楚的位置。</p><p style=\"margin:0 0 14px;color:#344054;font-size:15px;line-height:1.85;text-align:left;\">鱼排把文稿、自由画布和复制放进同一个工作台：写作者专注于内容，工具负责把结构完整地带到公众号。</p><table style=\"width:100%;border-collapse:collapse;table-layout:fixed;margin:26px 0 34px;\">\n  <tr>\n    <td style=\"vertical-align:top;padding:14px 12px 12px 0;border-top:2px solid #17213a;\">\n      <div style=\"font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;\">01</div>\n      <div style=\"margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;\">写下内容</div>\n    </td>\n    <td style=\"vertical-align:top;padding:14px 12px 12px;border-top:2px solid #17213a;\">\n      <div style=\"font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;\">02</div>\n      <div style=\"margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;\">组织阅读</div>\n    </td>\n    <td style=\"vertical-align:top;padding:14px 0 12px 12px;border-top:2px solid #17213a;\">\n      <div style=\"font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;\">03</div>\n      <div style=\"margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;\">抵达读者</div>\n    </td>\n  </tr>\n</table><section style=\"margin:34px 0 22px;text-align:center;\"><p style=\"margin:0;font-size:0;line-height:0;\"><span style=\"display:inline-block;vertical-align:middle;padding:3px 12px;background-color:#2f4fc1;color:#ffffff;font-size:28px;line-height:1.25;font-weight:800;letter-spacing:1px;\">01</span><span style=\"display:inline-block;vertical-align:middle;padding:7px 12px;background-color:#17213a;color:#ffffff;font-size:24px;line-height:1.45;font-weight:700;letter-spacing:2px;\">先建立秩序</span></p><p style=\"margin:9px 0 0;color:#667085;font-size:13px;line-height:1.6;letter-spacing:1px;text-align:center;white-space:pre-line;\">一份文稿，承载完整的编辑过程</p></section><p style=\"margin:0 0 14px;color:#344054;font-size:15px;line-height:1.85;text-align:left;\">写作、批注与修改都落在同一份 Markdown 上。正文保持可编辑，组件负责重复结构，独特画面则在自由画布中完成。</p><section style=\"width:90%;margin:24px auto;background-color:#ffffff;border-radius:0px;box-shadow:0 3px 3px rgba(0,0,0,0.08);overflow:hidden;\"><p style=\"margin:0;padding:12px 20px;background-color:#2f4fc1;color:#ffffff;font-size:20px;line-height:1.5;font-weight:700;letter-spacing:1px;\">一份文稿，三种输出</p><section style=\"padding:18px 20px 6px;\"><p style=\"margin:0 0 14px;color:#344054;font-size:15px;line-height:1.85;text-align:left;\">手机预览用于阅读确认，复制到剪贴板用于粘贴，导出 HTML 用于归档与进一步加工。</p></section></section><section style=\"margin:24px 0 10px;padding:10px 8px 0;background-color:#ffffff;border:1px solid #e2e5ec;line-height:0;\">\n  <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 700 300\" width=\"700\" height=\"300\" role=\"img\" aria-label=\"鱼排将文稿组织成组件并发布到公众号\" style=\"display:block;width:100%;height:auto;\">\n  <rect x=\"0\" y=\"0\" width=\"700\" height=\"300\" fill=\"#ffffff\"/>\n  <g font-family=\"Arial, 'Microsoft YaHei', sans-serif\">\n    <text x=\"34\" y=\"44\" fill=\"#475467\" font-size=\"20\" font-weight=\"700\" letter-spacing=\"1.5\">SOURCE</text>\n    <text x=\"284\" y=\"44\" fill=\"#475467\" font-size=\"20\" font-weight=\"700\" letter-spacing=\"1.5\">STRUCTURE</text>\n    <text x=\"548\" y=\"44\" fill=\"#475467\" font-size=\"20\" font-weight=\"700\" letter-spacing=\"1.5\">OUTPUT</text>\n    <g fill=\"#dfe4ec\">\n      <rect x=\"34\" y=\"80\" width=\"142\" height=\"12\"/>\n      <rect x=\"34\" y=\"110\" width=\"178\" height=\"8\"/>\n      <rect x=\"34\" y=\"132\" width=\"154\" height=\"8\"/>\n      <rect x=\"34\" y=\"154\" width=\"166\" height=\"8\"/>\n      <rect x=\"34\" y=\"190\" width=\"118\" height=\"8\"/>\n    </g>\n    <path d=\"M222 142H260M248 130L260 142L248 154\" fill=\"none\" stroke=\"#2f4fc1\" stroke-width=\"4\"/>\n    <rect x=\"294\" y=\"74\" width=\"144\" height=\"40\" fill=\"#2f4fc1\"/>\n    <rect x=\"294\" y=\"126\" width=\"178\" height=\"52\" fill=\"#edf1ff\"/>\n    <rect x=\"294\" y=\"190\" width=\"122\" height=\"30\" fill=\"#f4d35e\"/>\n    <path d=\"M486 142H524M512 130L524 142L512 154\" fill=\"none\" stroke=\"#2f4fc1\" stroke-width=\"4\"/>\n    <rect x=\"556\" y=\"68\" width=\"94\" height=\"162\" rx=\"12\" fill=\"#17213a\"/>\n    <rect x=\"564\" y=\"82\" width=\"78\" height=\"134\" fill=\"#f7f7f5\"/>\n    <rect x=\"574\" y=\"94\" width=\"58\" height=\"28\" fill=\"#2f4fc1\"/>\n    <rect x=\"574\" y=\"134\" width=\"46\" height=\"6\" fill=\"#98a2b3\"/>\n    <rect x=\"574\" y=\"150\" width=\"56\" height=\"6\" fill=\"#d0d5dd\"/>\n    <rect x=\"574\" y=\"166\" width=\"50\" height=\"6\" fill=\"#d0d5dd\"/>\n    <rect x=\"574\" y=\"190\" width=\"34\" height=\"12\" fill=\"#f4d35e\"/>\n    <g fill=\"#17213a\" font-size=\"24\" font-weight=\"700\">\n      <text x=\"34\" y=\"264\">一份文稿</text>\n      <text x=\"294\" y=\"264\">结构化排版</text>\n      <text x=\"548\" y=\"264\">公众号成品</text>\n    </g>\n  </g>\n</svg>\n</section>\n<p style=\"margin:0;padding:0 12px 16px;background-color:#ffffff;color:#475467;font-size:13px;line-height:1.7;letter-spacing:0.5px;\">从内容源到结构化排版，再到公众号成品，整条链路共享同一份文稿。</p><section style=\"margin:0 0 18px;text-align:left;\"><span style=\"display:inline-block;max-width:100%;box-sizing:border-box;padding:6px 12px;background-color:#2f4fc1;color:#ffffff;font-size:15px;line-height:1.5;font-weight:700;letter-spacing:0.6px;\"><strong style=\"color:#ffffff;font-weight:700;\">写作、预览与复制，共享同一份内容</strong></span></section><section style=\"margin:34px 0 22px;text-align:center;\"><p style=\"margin:0;font-size:0;line-height:0;\"><span style=\"display:inline-block;vertical-align:middle;padding:3px 12px;background-color:#2f4fc1;color:#ffffff;font-size:28px;line-height:1.25;font-weight:800;letter-spacing:1px;\">02</span><span style=\"display:inline-block;vertical-align:middle;padding:7px 12px;background-color:#17213a;color:#ffffff;font-size:24px;line-height:1.45;font-weight:700;letter-spacing:2px;\">让视觉服务内容</span></p><p style=\"margin:9px 0 0;color:#667085;font-size:13px;line-height:1.6;letter-spacing:1px;text-align:center;white-space:pre-line;\">自由画布不是装饰的堆叠\n而是信息的另一种组织方式</p></section><section style=\"margin:22px 0 14px;\">\n  <section style=\"width:90%;padding:18px;box-sizing:border-box;background-color:#17213a;color:#ffffff;\">\n    <div style=\"font-size:12px;line-height:1.5;letter-spacing:2px;color:#b8c7f5;\">QUESTION</div>\n    <div style=\"margin-top:8px;font-size:19px;line-height:1.55;font-weight:750;\">什么时候需要自由画布？</div>\n  </section>\n  <section style=\"width:90%;margin:12px 0 0 auto;padding:18px;box-sizing:border-box;background-color:#ffffff;border:1px solid #dfe3ea;\">\n    <div style=\"font-size:12px;line-height:1.5;letter-spacing:2px;color:#2f4fc1;\">ANSWER</div>\n    <div style=\"margin-top:8px;font-size:15px;line-height:1.85;color:#344054;\">当素材、层级或交互本身就是内容的一部分。照片、标识、艺术字与 SVG 可以自由组合，正文依然保持清晰。</div>\n  </section>\n</section><section style=\"margin:0 0 20px;overflow:hidden;line-height:0;\"><section style=\"height:0;min-height:0;overflow:visible;display:flow-root;\"><section style=\"margin-top:56px;padding:16px 16px 2px;box-sizing:border-box;background-color:#ffffff;border-top:1px solid #f6f5f2;border-radius:0px;color:#344054;font-size:15px;line-height:1.85;\"><p style=\"margin:0 0 14px;color:#344054;font-size:15px;line-height:1.85;text-align:left;\"><strong style=\"color:#17213a;font-weight:700;\">主视觉</strong>建立主题，<strong style=\"color:#17213a;font-weight:700;\">章节头</strong>划分阅读节奏，<strong style=\"color:#17213a;font-weight:700;\">信息卡</strong>收拢时间与地点，<strong style=\"color:#17213a;font-weight:700;\">展开组件</strong>承载补充细节。每一层都服务于阅读目标。</p></section></section><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"56\" style=\"display:block;cursor:pointer;\" role=\"button\" aria-label=\"展开看看：一篇专题稿如何被组织\"><rect x=\"0\" y=\"0\" width=\"100%\" height=\"56\" rx=\"0\" fill=\"#ffffff\"/><text x=\"16\" y=\"33\" fill=\"#17213a\" font-size=\"15\" font-weight=\"600\">展开看看：一篇专题稿如何被组织</text><text x=\"96%\" y=\"36\" text-anchor=\"end\" fill=\"#2f4fc1\" font-size=\"24\" font-weight=\"400\">＋</text><animate attributeName=\"height\" from=\"56\" to=\"154\" dur=\"0.4s\" begin=\"click\" fill=\"freeze\"/></svg></section><section style=\"margin:34px 0 22px;text-align:center;\"><p style=\"margin:0;font-size:0;line-height:0;\"><span style=\"display:inline-block;vertical-align:middle;padding:3px 12px;background-color:#2f4fc1;color:#ffffff;font-size:28px;line-height:1.25;font-weight:800;letter-spacing:1px;\">03</span><span style=\"display:inline-block;vertical-align:middle;padding:7px 12px;background-color:#17213a;color:#ffffff;font-size:24px;line-height:1.45;font-weight:700;letter-spacing:2px;\">从画布到剪贴板</span></p><p style=\"margin:9px 0 0;color:#667085;font-size:13px;line-height:1.6;letter-spacing:1px;text-align:center;white-space:pre-line;\">同一份文稿，交给下一个编辑场景</p></section><p style=\"margin:0 0 14px;color:#344054;font-size:15px;line-height:1.85;text-align:left;\">鱼排把同一份文稿渲染为内联样式 HTML，复制到剪贴板后即可带入目标编辑器。工具处理结构，作者把精力留给内容与视觉判断。</p><section style=\"margin:30px -20px 0;padding:30px 20px 26px;background-color:#2f4fc1;color:#ffffff;\">\n  <div style=\"font-size:26px;line-height:1.5;font-weight:750;letter-spacing:1px;\">让工具处理复杂，<br>让阅读保持清晰。</div>\n  <div style=\"width:44px;height:4px;margin:20px 0;background-color:#f4d35e;\"></div>\n  <div style=\"font-size:13px;line-height:1.8;color:#dce4ff;letter-spacing:1px;\">FISHPAI · 公众号排版工作台</div>\n</section><section style=\"margin:34px 0 0;padding-top:18px;border-top:1px solid #ffffff;\"><p style=\"margin:0;color:#667085;font-size:13px;line-height:1.9;letter-spacing:0.5px;text-align:center;\"><strong style=\"color:#17213a;font-weight:700;\">文稿</strong>　鱼排编辑部</p><p style=\"margin:0;color:#667085;font-size:13px;line-height:1.9;letter-spacing:0.5px;text-align:center;\"><strong style=\"color:#17213a;font-weight:700;\">视觉</strong>　原创 SVG 与品牌图形</p></section></section>",
     "themeKey": "xiumi",
     "themeName": "秀米",
-    "componentCount": 11,
+    "componentCount": 17,
     "hljsCss": ".hljs-comment{color: rgb(92, 99, 112); font-style: italic;}\n.hljs-quote{color: rgb(92, 99, 112); font-style: italic;}\n.hljs-doctag{color: rgb(198, 120, 221);}\n.hljs-formula{color: rgb(198, 120, 221);}\n.hljs-keyword{color: rgb(198, 120, 221);}\n.hljs-deletion{color: rgb(224, 108, 117);}\n.hljs-name{color: rgb(224, 108, 117);}\n.hljs-section{color: rgb(224, 108, 117);}\n.hljs-selector-tag{color: rgb(224, 108, 117);}\n.hljs-subst{color: rgb(224, 108, 117);}\n.hljs-literal{color: rgb(86, 182, 194);}\n.hljs-addition{color: rgb(152, 195, 121);}\n.hljs-attribute{color: rgb(152, 195, 121);}\n.hljs-meta{color: rgb(97, 174, 238);}\n.hljs-regexp{color: rgb(152, 195, 121);}\n.hljs-string{color: rgb(152, 195, 121);}\n.hljs-attr{color: rgb(209, 154, 102);}\n.hljs-number{color: rgb(209, 154, 102);}\n.hljs-selector-attr{color: rgb(209, 154, 102);}\n.hljs-selector-class{color: rgb(209, 154, 102);}\n.hljs-selector-pseudo{color: rgb(209, 154, 102);}\n.hljs-template-variable{color: rgb(209, 154, 102);}\n.hljs-type{color: rgb(209, 154, 102);}\n.hljs-variable{color: rgb(209, 154, 102);}\n.hljs-bullet{color: rgb(97, 174, 238);}\n.hljs-link{color: rgb(97, 174, 238);}\n.hljs-selector-id{color: rgb(97, 174, 238);}\n.hljs-symbol{color: rgb(97, 174, 238);}\n.hljs-title{color: rgb(97, 174, 238);}\n.hljs-params{color: rgb(171, 178, 191);}\n.hljs-emphasis{color: rgb(171, 178, 191); font-style: italic;}\n.hljs-strong{color: rgb(171, 178, 191); font-weight: 700;}",
     "linkCount": 0,
     "hasCode": false,
     "blocks": [
       {
         "index": 0,
-        "id": "0vwl92f",
+        "id": "09hjyn7",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [],
         "startLine": 1,
-        "endLine": 19,
-        "hash": "0vwl92f",
-        "preview": "::: raw"
+        "endLine": 1,
+        "hash": "09hjyn7",
+        "preview": ":::raw"
       },
       {
         "index": 1,
-        "id": "0kippkz",
+        "id": "1hf0ddw",
         "kind": "html",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [],
-        "startLine": 21,
-        "endLine": 39,
-        "hash": "0kippkz",
-        "preview": "  <rect x=\"404\" y=\"88\" width=\"174\" height=\"224\" rx=\"17\" fill"
+        "startLine": 2,
+        "endLine": 26,
+        "hash": "1hf0ddw",
+        "preview": "<section style=\"margin:0 -20px 30px;line-height:0;\"><svg xml"
       },
       {
         "index": 2,
-        "id": "0q3l7ls",
-        "kind": "paragraph",
+        "id": "00howm1",
+        "kind": "heading",
         "variant": null,
         "lang": null,
-        "level": null,
-        "headingPath": [],
-        "startLine": 41,
-        "endLine": 41,
-        "hash": "0q3l7ls",
-        "preview": "好的排版，让**观点、节奏与细节各就其位**。"
+        "level": 1,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 28,
+        "endLine": 28,
+        "hash": "00howm1",
+        "preview": "# 把内容，排成作品"
       },
       {
         "index": 3,
-        "id": "1ahy6m2",
+        "id": "0o69ywb",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
-        "headingPath": [],
-        "startLine": 43,
-        "endLine": 43,
-        "hash": "1ahy6m2",
-        "preview": "鱼排把文稿、组件和预览放进同一个工作台，从落笔开始，就给内容清晰的结构。"
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 30,
+        "endLine": 30,
+        "hash": "0o69ywb",
+        "preview": "好的排版先建立秩序，再表达个性。**观点、素材与阅读节奏**，都应该有清楚的位置。"
       },
       {
         "index": 4,
-        "id": "1auh22a",
-        "kind": "heading",
+        "id": "12e5y5c",
+        "kind": "paragraph",
         "variant": null,
         "lang": null,
-        "level": 2,
+        "level": null,
         "headingPath": [
-          "从空白，到清晰的结构"
+          "把内容，排成作品"
         ],
-        "startLine": 45,
-        "endLine": 45,
-        "hash": "1auh22a",
-        "preview": "## 从空白，到清晰的结构"
+        "startLine": 32,
+        "endLine": 32,
+        "hash": "12e5y5c",
+        "preview": "鱼排把文稿、自由画布和复制放进同一个工作台：写作者专注于内容，工具负责把结构完整地带到公众号。"
       },
       {
         "index": 5,
-        "id": "12pegdk",
+        "id": "09hjyn7#2",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "从空白，到清晰的结构"
+          "把内容，排成作品"
         ],
-        "startLine": 47,
-        "endLine": 47,
-        "hash": "12pegdk",
-        "preview": "::: number_steps"
+        "startLine": 34,
+        "endLine": 34,
+        "hash": "09hjyn7",
+        "preview": ":::raw"
       },
       {
         "index": 6,
-        "id": "0xd6e11",
-        "kind": "list",
+        "id": "1y3wu05",
+        "kind": "html",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "从空白，到清晰的结构"
+          "把内容，排成作品"
         ],
-        "startLine": 48,
-        "endLine": 52,
-        "hash": "0xd6e11",
-        "preview": "- **先写下内容。** 标题、段落与批注，都在同一份文稿里。"
+        "startLine": 35,
+        "endLine": 51,
+        "hash": "1y3wu05",
+        "preview": "<table style=\"width:100%;border-collapse:collapse;table-layo"
       },
       {
         "index": 7,
-        "id": "0qu35wp",
+        "id": "0wcccz4",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "从空白，到清晰的结构"
+          "把内容，排成作品"
         ],
         "startLine": 53,
-        "endLine": 55,
-        "hash": "0qu35wp",
-        "preview": "::: quote"
+        "endLine": 57,
+        "hash": "0wcccz4",
+        "preview": ":::chapter_header"
       },
       {
         "index": 8,
-        "id": "1bws2wo",
-        "kind": "heading",
+        "id": "0kwid03",
+        "kind": "paragraph",
         "variant": null,
         "lang": null,
-        "level": 2,
+        "level": null,
         "headingPath": [
-          "把细节，藏在恰好的位置"
+          "把内容，排成作品"
         ],
-        "startLine": 57,
-        "endLine": 57,
-        "hash": "1bws2wo",
-        "preview": "## 把细节，藏在恰好的位置"
+        "startLine": 59,
+        "endLine": 59,
+        "hash": "0kwid03",
+        "preview": "写作、批注与修改都落在同一份 Markdown 上。正文保持可编辑，组件负责重复结构，独特画面则在自由画布中完成。"
       },
       {
         "index": 9,
-        "id": "0wsvkqu",
+        "id": "0q9s2gk",
+        "kind": "card",
+        "variant": "info",
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 61,
+        "endLine": 64,
+        "hash": "0q9s2gk",
+        "preview": ":::info_card"
+      },
+      {
+        "index": 10,
+        "id": "09hjyn7#3",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 66,
+        "endLine": 66,
+        "hash": "09hjyn7",
+        "preview": ":::raw"
+      },
+      {
+        "index": 11,
+        "id": "0eiadsm",
+        "kind": "html",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 67,
+        "endLine": 102,
+        "hash": "0eiadsm",
+        "preview": "<section style=\"margin:24px 0 10px;padding:10px 8px 0;backgr"
+      },
+      {
+        "index": 12,
+        "id": "1xhcdgh",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 104,
+        "endLine": 106,
+        "hash": "1xhcdgh",
+        "preview": ":::highlight"
+      },
+      {
+        "index": 13,
+        "id": "1wns23b",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 108,
+        "endLine": 113,
+        "hash": "1wns23b",
+        "preview": ":::chapter_header"
+      },
+      {
+        "index": 14,
+        "id": "09hjyn7#4",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 115,
+        "endLine": 115,
+        "hash": "09hjyn7",
+        "preview": ":::raw"
+      },
+      {
+        "index": 15,
+        "id": "0uxjmt6",
+        "kind": "html",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品"
+        ],
+        "startLine": 116,
+        "endLine": 126,
+        "hash": "0uxjmt6",
+        "preview": "<section style=\"margin:22px 0 14px;\">"
+      },
+      {
+        "index": 16,
+        "id": "1rllrpf",
         "kind": "heading",
         "variant": null,
         "lang": null,
         "level": 2,
         "headingPath": [
-          "::: expand\n展开看看：一篇文章如何被组织\n---"
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
         ],
-        "startLine": 59,
-        "endLine": 61,
-        "hash": "0wsvkqu",
-        "preview": "::: expand"
+        "startLine": 128,
+        "endLine": 130,
+        "hash": "1rllrpf",
+        "preview": ":::expand"
       },
       {
-        "index": 10,
-        "id": "1gsble5",
+        "index": 17,
+        "id": "1wktq50",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "::: expand\n展开看看：一篇文章如何被组织\n---"
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
         ],
-        "startLine": 62,
-        "endLine": 63,
-        "hash": "1gsble5",
-        "preview": "正文保持轻盈，补充说明与技术细节收进展开组件。需要时点开，阅读节奏依然由你掌握。"
+        "startLine": 131,
+        "endLine": 132,
+        "hash": "1wktq50",
+        "preview": "**主视觉**建立主题，**章节头**划分阅读节奏，**信息卡**收拢时间与地点，**展开组件**承载补充细节。每一层都"
       },
       {
-        "index": 11,
-        "id": "1pu9xa7",
+        "index": 18,
+        "id": "0wc0pp1",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "::: expand\n展开看看：一篇文章如何被组织\n---"
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
         ],
-        "startLine": 65,
-        "endLine": 67,
-        "hash": "1pu9xa7",
-        "preview": "::: progress"
+        "startLine": 134,
+        "endLine": 138,
+        "hash": "0wc0pp1",
+        "preview": ":::chapter_header"
       },
       {
-        "index": 12,
-        "id": "0diu9iw",
+        "index": 19,
+        "id": "1wppbul",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "::: expand\n展开看看：一篇文章如何被组织\n---"
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
         ],
-        "startLine": 69,
-        "endLine": 71,
-        "hash": "0diu9iw",
-        "preview": "::: gradient_banner"
+        "startLine": 140,
+        "endLine": 140,
+        "hash": "1wppbul",
+        "preview": "鱼排把同一份文稿渲染为内联样式 HTML，复制到剪贴板后即可带入目标编辑器。工具处理结构，作者把精力留给内容与视觉判断。"
       },
       {
-        "index": 13,
-        "id": "003oyvr",
+        "index": 20,
+        "id": "09hjyn7#5",
         "kind": "paragraph",
         "variant": null,
         "lang": null,
         "level": null,
         "headingPath": [
-          "::: expand\n展开看看：一篇文章如何被组织\n---"
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
         ],
-        "startLine": 73,
-        "endLine": 73,
-        "hash": "003oyvr",
-        "preview": "*这篇专题稿与主视觉用于展示鱼排的正式专业渲染结果。*"
+        "startLine": 142,
+        "endLine": 142,
+        "hash": "09hjyn7",
+        "preview": ":::raw"
+      },
+      {
+        "index": 21,
+        "id": "0av8wi7",
+        "kind": "html",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
+        ],
+        "startLine": 143,
+        "endLine": 148,
+        "hash": "0av8wi7",
+        "preview": "<section style=\"margin:30px -20px 0;padding:30px 20px 26px;b"
+      },
+      {
+        "index": 22,
+        "id": "0qac4ts",
+        "kind": "paragraph",
+        "variant": null,
+        "lang": null,
+        "level": null,
+        "headingPath": [
+          "把内容，排成作品",
+          ":::expand\n展开看看：一篇专题稿如何被组织\n---"
+        ],
+        "startLine": 150,
+        "endLine": 153,
+        "hash": "0qac4ts",
+        "preview": ":::credits"
       }
     ],
     "notes": [],

@@ -10,7 +10,6 @@
 import {
   api,
   ConflictError,
-  type AuthStatus,
   type Block,
   type DocMeta,
   type HistoryEntry,
@@ -19,8 +18,6 @@ import {
   type LearnStyle,
   type Note,
   type Placeholder,
-  type PublishJob,
-  type PublishTarget,
   type SnippetInfo,
   type SnippetPreview,
   type ThemeInfo,
@@ -37,30 +34,6 @@ export interface Toast {
  * 这里只是先拦一道，好给一句人话提示，而不是等一个 413。
  */
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
-
-export type PublishPhase = 'idle' | 'saving' | 'rendering' | 'sending' | 'ok' | 'error'
-
-export interface PublishState {
-  phase: PublishPhase
-  target: PublishTarget
-  title: string
-  author: string
-  snippetId: string
-  jobId: string | null
-  progress: number
-  message: string
-  result: PublishJob['result']
-  error: string | null
-}
-
-export interface AuthState {
-  status: AuthStatus | null
-  loading: boolean
-  clearing: boolean
-  error: string | null
-}
-
-export const isPublishBusy = (phase: PublishPhase) => phase === 'saving' || phase === 'rendering' || phase === 'sending'
 
 export interface FishpaiState {
   status: 'loading' | 'ready' | 'empty' | 'error'
@@ -98,8 +71,6 @@ export interface FishpaiState {
   snippets: SnippetInfo[]
   libraryLoading: boolean
   libraryError: string | null
-  publish: PublishState
-  auth: Record<PublishTarget, AuthState>
   presets: Array<{ name: string; color: string }>
   /**
    * 字体预设（`sans` / `serif` / `mono`）。宿主经 `/themes` 返回预设，面板保存并应用它；
@@ -117,6 +88,7 @@ export interface FishpaiState {
   themeName: string
   previewing: boolean
   saving: boolean
+  refreshing: boolean
   dirty: boolean
   conflict: { revision: number; markdown: string } | null
   external: { revision: number; reason: 'revision' | 'switch'; key?: string } | null
@@ -133,6 +105,7 @@ const DEFAULT_META: DocMeta = {
   macCodeBlock: true,
   mobile: false,
   target: 'xiumi',
+  xiumiSpec: {},
 }
 
 function initialState(sessionId: string): FishpaiState {
@@ -161,22 +134,6 @@ function initialState(sessionId: string): FishpaiState {
     snippets: [],
     libraryLoading: false,
     libraryError: null,
-    publish: {
-      phase: 'idle',
-      target: 'wechat',
-      title: '',
-      author: '',
-      snippetId: '',
-      jobId: null,
-      progress: 0,
-      message: '',
-      result: null,
-      error: null,
-    },
-    auth: {
-      wechat: { status: null, loading: false, clearing: false, error: null },
-      xiumi: { status: null, loading: false, clearing: false, error: null },
-    },
     presets: [],
     fonts: ['sans', 'serif', 'mono'],
     sizes: ['14px', '15px', '16px', '17px', '18px'],
@@ -185,6 +142,7 @@ function initialState(sessionId: string): FishpaiState {
     themeName: '',
     previewing: false,
     saving: false,
+    refreshing: false,
     dirty: false,
     conflict: null,
     external: null,
@@ -200,13 +158,16 @@ function decodeAttr(value: string): string {
   return value.replace(/&(?:amp|lt|gt|quot|#39);/g, (m) => ENTITIES[m] || m)
 }
 
-/** 把预览 HTML 里本地图片的 `src` 换成面板取回来的 data URI（没取到的保持原样）。 */
+/** 把预览 HTML/SVG 里本地图片的引用换成面板取回来的 data URI（没取到的保持原样）。 */
 function inlineImages(html: string, imageMap: Record<string, string>): string {
   if (!html || !Object.keys(imageMap).length) return html
-  return html.replace(/(<img\b[^>]*?\bsrc=")([^"]*)(")/g, (full, pre, src, post) => {
+  const replace = (_full: string, pre: string, src: string, post: string) => {
     const hit = imageMap[src] || imageMap[decodeAttr(src)]
-    return hit ? `${pre}${hit}${post}` : full
-  })
+    return hit ? `${pre}${hit}${post}` : _full
+  }
+  return html
+    .replace(/(<img\b[^>]*?\bsrc=")([^"]*)(")/g, replace)
+    .replace(/(<image\b[^>]*?\b(?:href|xlink:href)=")([^"]*)(")/g, replace)
 }
 
 /**
@@ -219,7 +180,8 @@ export function buildSrcdoc(html: string, imageMap: Record<string, string> = {},
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  html,body{margin:0;padding:0;background:#fff}
+  html,body{margin:0;padding:0;background:#fff;scrollbar-width:none}
+  html::-webkit-scrollbar,body::-webkit-scrollbar{width:0;height:0;display:none}
   fp-block{display:block;height:0;overflow:hidden}
   img{max-width:100%;height:auto}
 ${hljsCss}
@@ -285,9 +247,6 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
   let saveTimer: ReturnType<typeof setTimeout> | null = null
   let previewTimer: ReturnType<typeof setTimeout> | null = null
   let disposed = false
-  let publishSeq = 0
-  const authSeq: Record<PublishTarget, number> = { wechat: 0, xiumi: 0 }
-  let publishWait: { cancel: () => void } | null = null
   let libraryRequests = 0
   // 提示条自己会消失，但它的定时器也必须能被 dispose 收走——否则面板卸载后
   // 这个闭包还攥着 state 不放，在已卸载的 store 上 patch 一次。
@@ -299,31 +258,6 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
   const patch = (next: Partial<FishpaiState>) => {
     state = { ...state, ...next }
     emit()
-  }
-  const patchPublish = (next: Partial<PublishState>) => patch({ publish: { ...state.publish, ...next } })
-  const patchAuth = (platform: PublishTarget, next: Partial<AuthState>) =>
-    patch({ auth: { ...state.auth, [platform]: { ...state.auth[platform], ...next } } })
-  const cancelPublishWait = () => {
-    publishWait?.cancel()
-    publishWait = null
-  }
-  const waitForPublish = (ms: number): Promise<boolean> =>
-    new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        publishWait = null
-        resolve(!disposed)
-      }, ms)
-      publishWait = {
-        cancel: () => {
-          clearTimeout(timer)
-          resolve(false)
-        },
-      }
-    })
-  const beginPublish = () => {
-    publishSeq += 1
-    cancelPublishWait()
-    return publishSeq
   }
   const toast = (text: string, kind: 'info' | 'error' = 'info') => {
     toastSeq += 1
@@ -428,7 +362,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     try {
       const res = await api.save(state.sessionId, state.docKey, snapshotMarkdown, state.revision, state.meta)
       patch({
-        saving: isPublishBusy(state.publish.phase),
+        saving: false,
         revision: res.revision,
         savedMarkdown: snapshotMarkdown,
         dirty: state.markdown !== snapshotMarkdown,
@@ -439,10 +373,10 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       })
     } catch (error) {
       if (error instanceof ConflictError) {
-        patch({ saving: isPublishBusy(state.publish.phase), conflict: { revision: error.revision, markdown: error.markdown } })
+        patch({ saving: false, conflict: { revision: error.revision, markdown: error.markdown } })
         return
       }
-      patch({ saving: isPublishBusy(state.publish.phase), error: `保存失败：${(error as Error).message}` })
+      patch({ saving: false, error: `保存失败：${(error as Error).message}` })
     } finally {
       saveInFlight = false
     }
@@ -474,7 +408,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
    * 宿主对正文读取失败返回 404；面板保留当前正文并显示错误，空正文只来自真实的空文档。
    */
   async function loadDoc(docKey: string): Promise<boolean> {
-    if (!docKey || isPublishBusy(state.publish.phase)) return false
+    if (!docKey) return false
     const token = ++loadToken
     const dirtyBefore = state.dirty
     let res: Awaited<ReturnType<typeof api.doc>>
@@ -608,143 +542,9 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     }
   }
 
-  async function pollPublish(jobId: string, token: number): Promise<boolean> {
-    const deadline = Date.now() + 3 * 60 * 1000
-    while (token === publishSeq && !disposed) {
-      if (Date.now() > deadline) {
-        throw new Error('等待草稿箱结果超时；重试会继续查询原任务，请先核对草稿箱，避免重复发送')
-      }
-      const res = await api.publishStatus(state.sessionId, jobId)
-      if (token !== publishSeq || disposed) return false
-      const job = res.job
-      patchPublish({
-        target: job.platform,
-        jobId: job.id,
-        progress: Math.max(0, Math.min(100, Number(job.progress) || 0)),
-        message: job.message || '草稿箱任务进行中…',
-      })
-      if (job.status === 'done') {
-        patch({
-          saving: saveInFlight,
-          publish: { ...state.publish, phase: 'ok', message: job.message || '草稿已保存', result: job.result, error: null },
-        })
-        toast(`已保存到${job.platform === 'wechat' ? '微信公众号' : '秀米'}草稿箱`)
-        return true
-      }
-      if (job.status === 'failed') {
-        patchPublish({ jobId: null })
-        throw new Error(job.error || job.message || '草稿箱任务失败')
-      }
-      if (job.status === 'need-login') {
-        throw new Error(job.message || '目标平台需要登录；完成登录后点「重试」继续查询原任务')
-      }
-      if (!(await waitForPublish(1000))) return false
-    }
-    return false
-  }
-
-  async function trackPublish(jobId: string, token: number): Promise<boolean> {
-    try {
-      return await pollPublish(jobId, token)
-    } catch (error) {
-      if (token !== publishSeq || disposed) return false
-      const message = (error as Error).message
-      patch({
-        saving: saveInFlight,
-        publish: { ...state.publish, phase: 'error', message: '草稿箱任务未完成', error: message },
-      })
-      return false
-    }
-  }
-
-  async function publishToDraft(input: {
-    target: PublishTarget
-    title: string
-    author: string
-    snippetId?: string
-  }): Promise<boolean> {
-    if (isPublishBusy(state.publish.phase)) return false
-    if (!state.docKey) {
-      toast('还没有打开文档', 'error')
-      return false
-    }
-    if (!input.title.trim()) {
-      toast('先填写草稿标题', 'error')
-      return false
-    }
-    const token = beginPublish()
-    patch({
-      saving: true,
-      publish: {
-        ...state.publish,
-        phase: 'saving',
-        target: input.target,
-        title: input.title.trim(),
-        author: input.author,
-        snippetId: input.snippetId || '',
-        jobId: null,
-        progress: 0,
-        message: '正在保存文档…',
-        result: null,
-        error: null,
-      },
-    })
-    try {
-      while (saveInFlight) {
-        if (!(await waitForPublish(50)) || token !== publishSeq) return false
-      }
-      await saveNow()
-      if (state.conflict) throw new Error('文档存在 revision 冲突，请先处理冲突再发送')
-      if (state.external) throw new Error('文档有外部更新，请先处理上方提示再发送')
-      if (state.dirty) throw new Error('文档还没保存成功，请处理保存错误后重试')
-      const docKey = state.docKey
-      if (!docKey) throw new Error('还没有打开文档')
-      patchPublish({ phase: 'rendering', message: '正在生成发布 HTML…' })
-      const rendered = await api.renderPublish(state.sessionId, docKey, state.markdown, state.meta, {
-        target: state.meta.target,
-        snippetId: input.snippetId || undefined,
-      })
-      if (token !== publishSeq || disposed) return false
-      patchPublish({ phase: 'sending', message: '正在创建草稿箱任务…' })
-      const queued = await api.publish(state.sessionId, {
-        platform: input.target,
-        title: input.title.trim(),
-        author: input.author.trim() || undefined,
-        html: rendered.html,
-      })
-      if (token !== publishSeq || disposed) return false
-      patchPublish({ jobId: queued.jobId, message: '草稿箱任务已创建' })
-      return await trackPublish(queued.jobId, token)
-    } catch (error) {
-      if (token !== publishSeq || disposed) return false
-      patch({
-        saving: saveInFlight,
-        publish: {
-          ...state.publish,
-          phase: 'error',
-          message: '草稿箱任务未完成',
-          error: (error as Error).message,
-        },
-      })
-      return false
-    }
-  }
-
-  async function retryPublish(): Promise<boolean> {
-    if (isPublishBusy(state.publish.phase)) return false
-    const { jobId, target, title, author, snippetId } = state.publish
-    if (!jobId) return publishToDraft({ target, title, author, snippetId })
-    const token = beginPublish()
-    patch({ saving: true })
-    patchPublish({ phase: 'sending', message: '继续查询原草稿箱任务…', error: null })
-    return trackPublish(jobId, token)
-  }
-
   // ── 对外动作 ───────────────────────────────────────────────
   const actions = {
     init,
-    publishToDraft,
-    retryPublish,
 
     /**
      * 面板上自己起一篇（空文档 + 一行标题），不必等模型 `fishpai_open`。
@@ -822,41 +622,6 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       void refreshPreview(state.markdown, meta)
     },
 
-    setPublishDraft(next: Partial<Pick<PublishState, 'target' | 'title' | 'author' | 'snippetId'>>) {
-      if (!isPublishBusy(state.publish.phase)) patchPublish(next)
-    },
-
-    async refreshAuthStatus(platform: PublishTarget) {
-      if (state.auth[platform].loading) return
-      const token = ++authSeq[platform]
-      patchAuth(platform, { loading: true, error: null })
-      try {
-        const status = await api.authStatus(state.sessionId, platform)
-        if (token === authSeq[platform] && !disposed) patchAuth(platform, { status, loading: false })
-      } catch (error) {
-        if (token === authSeq[platform] && !disposed) patchAuth(platform, { loading: false, error: (error as Error).message })
-      }
-    },
-
-    async clearAuth(platform: PublishTarget) {
-      const token = ++authSeq[platform]
-      patchAuth(platform, { clearing: true, error: null })
-      try {
-        const status = await api.clearAuth(state.sessionId, platform)
-        if (token !== authSeq[platform] || disposed) return
-        patchAuth(platform, { status, clearing: false })
-        toast(`已清除${platform === 'wechat' ? '微信' : '秀米'}登录态，下次发布时可重新登录`)
-      } catch (error) {
-        if (token === authSeq[platform] && !disposed) patchAuth(platform, { clearing: false, error: (error as Error).message })
-      }
-    },
-
-    dismissPublish() {
-      if (isPublishBusy(state.publish.phase)) return
-      beginPublish()
-      patchPublish({ phase: 'idle', jobId: null, progress: 0, message: '', result: null, error: null })
-    },
-
     refreshLearnStyles: listLearnStyles,
     refreshSnippets: listSnippets,
     async refreshLibraries() {
@@ -896,13 +661,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         removed: boolean
       }
       if (res.removed) {
-        patch({
-          snippets: state.snippets.filter((item) => item.id !== snippetId),
-          publish: {
-            ...state.publish,
-            snippetId: state.publish.snippetId === snippetId ? '' : state.publish.snippetId,
-          },
-        })
+        patch({ snippets: state.snippets.filter((item) => item.id !== snippetId) })
       }
       toast(res.removed ? '片段已删除' : '这条片段已经不在了')
     },
@@ -1043,12 +802,17 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       toast('已用你的版本覆盖，AI 的版本留在历史里')
     },
 
-    /** 导出/复制用：拿「复制到公众号」形态的 HTML（本地图片已内嵌 base64）。 */
-    async publishHtml(): Promise<string> {
+    /** 复制用：生成可粘贴到目标编辑器的 HTML（本地图片已内嵌 base64）。 */
+    async copyHtml(): Promise<string> {
       if (!state.docKey) throw new Error('还没有打开文档')
       await saveNow()
-      const res = await api.renderPublish(state.sessionId, state.docKey, state.markdown, state.meta, { target: state.meta.target })
+      const res = await api.renderCopyHtml(state.sessionId, state.docKey, state.markdown, state.meta, { target: state.meta.target })
       return res.html
+    },
+
+    /** 导出与复制使用同一种 HTML 形态，由面板负责下载。 */
+    async exportHtml(): Promise<string> {
+      return actions.copyHtml()
     },
 
     /** 轮询发现宿主的当前文档变了（AI 写入 / 换了一篇 / 别的窗口写的 / 模型换了主题）。 */
@@ -1060,14 +824,6 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         patch({ meta: { ...state.meta, theme: themeKey } })
         void refreshThemes()
         schedulePreview()
-      }
-      if (isPublishBusy(state.publish.phase)) {
-        if (state.docKey && key !== state.docKey) {
-          patch({ external: { revision, reason: 'switch', key } })
-        } else if (key === state.docKey && revision > state.revision) {
-          patch({ external: { revision, reason: 'revision' } })
-        }
-        return
       }
       if (state.docKey && key !== state.docKey) {
         // 模型换文档了：有未保存改动就只提示，别把用户正在写的字换掉
@@ -1099,24 +855,28 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
      * 直接 reload 会把用户还没保存的输入丢掉——这是那个按钮最容易咬人的地方。
      */
     async reloadSafely() {
-      if (!state.docKey || isPublishBusy(state.publish.phase)) return
+      if (!state.docKey || state.refreshing) return
       if (state.conflict) {
         toast('先处理上方的冲突再刷新', 'error')
         return
       }
-      if (state.dirty) {
-        await saveNow()
+      patch({ refreshing: true })
+      try {
         if (state.dirty) {
-          toast('保存没成功，已取消刷新以免丢字', 'error')
-          return
+          await saveNow()
+          if (state.dirty) {
+            toast('保存没成功，已取消刷新以免丢字', 'error')
+            return
+          }
         }
+        if (await loadDoc(state.docKey)) toast('已重新载入')
+      } finally {
+        patch({ refreshing: false })
       }
-      if (await loadDoc(state.docKey)) toast('已重新载入')
     },
 
     /** 采用外部版本（放弃自己的未保存改动）——换文档时切到新文档。 */
     async acceptExternal() {
-      if (isPublishBusy(state.publish.phase)) return
       const target = state.external?.key || state.docKey
       if (!target) return
       // 不在这里清 `external`：载入成功时 `loadDoc` 自己会清；载入失败就把横幅留着，
@@ -1126,7 +886,6 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
 
     toast,
     flush() {
-      if (isPublishBusy(state.publish.phase)) return Promise.resolve()
       if (saveTimer) clearTimeout(saveTimer)
       // 「外部更新」横幅在场时本地 revision 已过期：采用服务端报回来的版本号去写
       // （这就是横幅上「保留我的」的意思），否则必然撞 409。
@@ -1144,8 +903,6 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     actions,
     dispose() {
       disposed = true
-      publishSeq += 1
-      cancelPublishWait()
       if (saveTimer) clearTimeout(saveTimer)
       if (previewTimer) clearTimeout(previewTimer)
       for (const timer of toastTimers) clearTimeout(timer)

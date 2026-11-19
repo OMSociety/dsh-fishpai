@@ -21,6 +21,41 @@ function isRemote(src) {
   return /^(https?:|data:|blob:|\/\/)/i.test(String(src || ''))
 }
 
+function decodeAttr(value) {
+  return String(value || '').replace(/&(?:amp|lt|gt|quot|#39);/g, (entity) => ({
+    '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'",
+  })[entity] || entity)
+}
+
+/** Markdown 图片与 raw 中的 HTML/SVG 图片共用同一份素材清单，顺序稳定且按引用路径去重。 */
+function imageSources(markdown) {
+  const source = String(markdown || '')
+  const out = []
+  const seen = new Set()
+  const add = (src) => {
+    const value = decodeAttr(src).trim()
+    if (!value || seen.has(value)) return
+    seen.add(value)
+    out.push(value)
+  }
+  for (const match of source.matchAll(/!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) add(match[1])
+  for (const match of source.matchAll(/<img\b[^>]*?\bsrc\s*=\s*(["'])(.*?)\1/gi)) add(match[2])
+  for (const match of source.matchAll(/<image\b[^>]*?\b(?:href|xlink:href)\s*=\s*(["'])(.*?)\1/gi)) add(match[2])
+  return out
+}
+
+/** 发布产物内嵌 raw HTML/SVG 的本地图片；远程图、越界图与超限图保持原引用。 */
+export function inlineHtmlImages(html, { cwd, docPath, maxBytes = MAX_EMBED_BYTES }) {
+  const resolve = makeImageResolver({ cwd, docPath, maxBytes })
+  const replace = (full, prefix, quote, src) => {
+    const dataUri = resolve(decodeAttr(src))
+    return dataUri ? `${prefix}${quote}${dataUri}${quote}` : full
+  }
+  return String(html || '')
+    .replace(/(<img\b[^>]*?\bsrc\s*=\s*)(["'])(.*?)\2/gi, replace)
+    .replace(/(<image\b[^>]*?\b(?:href|xlink:href)\s*=\s*)(["'])(.*?)\2/gi, replace)
+}
+
 /**
  * 造一个 `imageResolver` 给 `render()` 用：把 <img src> 换成 data URI。
  *
@@ -77,13 +112,7 @@ export function readAsset({ cwd, docPath, src, maxBytes = 20 * 1024 * 1024 }) {
  * 复制过去也不显示，必须手动重新上传。本地图不走这里——它们会被内嵌成 base64 带过去。
  */
 export function listRemoteImages({ markdown }) {
-  const out = []
-  const re = /!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g
-  let m
-  while ((m = re.exec(String(markdown || ''))) !== null) {
-    if (isRemote(m[1])) out.push({ src: m[1] })
-  }
-  return out
+  return imageSources(markdown).filter(isRemote).map((src) => ({ src }))
 }
 
 /**
@@ -96,10 +125,7 @@ export function listRemoteImages({ markdown }) {
 export function listLocalImages({ markdown, cwd, docPath, maxBytes = MAX_EMBED_BYTES }) {
   const baseDir = path.dirname(docPath)
   const out = []
-  const re = /!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g
-  let m
-  while ((m = re.exec(String(markdown || ''))) !== null) {
-    const src = m[1]
+  for (const src of imageSources(markdown)) {
     if (isRemote(src)) continue
     let status = 'ok'
     let size = null

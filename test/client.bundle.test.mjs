@@ -331,7 +331,7 @@ test('专业默认与组件抽屉：渲染目标贯通，八种容器模板都�
     assert.ok(source.includes(`:::${name}`), `组件模板缺失：${name}`)
   }
   assert.ok(source.includes('target: "xiumi"'), '默认渲染目标应为专业（秀米）')
-  assert.ok(source.includes('target: state.meta.target'), '发布渲染要读文档的渲染目标')
+  assert.ok(source.includes('target: state.meta.target'), '复制与导出渲染要读文档的渲染目标')
   assert.ok(source.includes('state.meta.target,'), '预览 renderPreview 要显式收到渲染目标')
 })
 
@@ -364,7 +364,7 @@ test('专业模式收起快速控件，面板与编辑器跟随 DSH 主背景', 
     assert.ok(!styles.includes(token), `不能引用 Theme provider 未提供的令牌：${token}`)
   }
   const bundle = fs.readFileSync(BUNDLE, 'utf8')
-  for (const hook of ['fp-quick-settings', 'fp-more-menu', 'data-open']) {
+  for (const hook of ['fp-quick-settings', 'fp-icon-btn', 'data-open']) {
     assert.ok(bundle.includes(hook), `面板结构进入产物：${hook}`)
   }
 })
@@ -392,15 +392,30 @@ test('专业模式默认预览，文稿与预览标题保持作者视角', () =>
   }
 })
 
-test('发布登录态按当前平台查询与登录/清除，状态与后端证据一致', () => {
+test('客户端只保留复制链路，不包含草稿发布与登录态管理', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
-  for (const copy of ['正在检查登录态', '已登录', '未登录', '保存于', '清除登录态', '登录', '清除后重新发布']) {
-    assert.ok(source.includes(copy), `登录态管理文案缺失：${copy}`)
+  for (const copy of ['复制到剪贴板', '复制后可粘贴到目标编辑器', '已复制到剪贴板：可粘贴到目标编辑器']) {
+    assert.ok(source.includes(copy), `复制文案缺失：${copy}`)
   }
-  assert.ok(source.includes('auth.status?.loggedIn'), '登录/清除按钮要按登录态分支')
-  assert.ok(source.includes('authStatus') && source.includes('clearAuth'), 'store 要接查询与清除两个 API')
-  assert.ok(source.includes('/auth'), '登录态请求要走 /auth')
-  assert.ok(!source.includes('已过期'), 'Cookie 有效期由发布流程的登录错误确认')
+  assert.ok(source.includes('renderCopyHtml'), '复制与导出统一走 renderCopyHtml')
+  assert.ok(source.includes('mode: "publish"'), '复制仍使用 /render 的 publish 形态')
+  for (const absent of [
+    '/publish',
+    '/auth',
+    'publishToDraft',
+    'publishStatus',
+    'authStatus',
+    'clearAuth',
+    'PublishControls',
+    'fp-publish',
+    '发送到草稿箱',
+    '正在检查登录态',
+    '清除登录态',
+    '微信登录',
+    '秀米登录',
+  ]) {
+    assert.ok(!source.includes(absent), `客户端产物不应包含：${absent}`)
+  }
 })
 
 test('复制回退路径使用清洗后的 HTML', () => {
@@ -473,7 +488,7 @@ test('快捷键速查表：宽度随面板收缩（定宽会在窄栏里溢出�
 test('面板提示与批注定位文案进入产物', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   assert.ok(source.includes('可以改用旁边的「导出 HTML」拿文件'), '复制失败要指向另一个按钮')
-  assert.ok(source.includes('可以改用「复制到公众号」'), '导出失败要指向另一个按钮')
+  assert.ok(source.includes('可以改用「复制到剪贴板」'), '导出失败要指向另一个按钮')
   assert.ok(source.includes('文字还在输入框里'), '批注失败要说明文字没丢')
   assert.ok(source.includes('正文还是空的'), '没有落点时要说清楚为什么没加上')
   assert.ok(source.includes('"定位"'), '批注卡片要有「定位」按钮')
@@ -491,51 +506,33 @@ test('空面板的载入、失败与空文档状态提供对应操作', () => {
   assert.ok(source.includes('fp-sweep'), '载入中的进度条动画')
 })
 
-test('更多菜单使用 DSH 原生材质、行距与键盘焦点样式', () => {
+test('工具行直出刷新图标与导出按钮，不使用更多菜单', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   const panel = fs.readFileSync(path.join(ROOT, 'client', 'panel.tsx'), 'utf8')
-  for (const rule of [
-    '.fp-more[open]>summary',
-    'min-width:160px',
-    'background:var(--dsw-specific-menu)',
-    'backdrop-filter:var(--dsw-menu-backdrop-filter)',
-    'box-shadow:var(--dsw-elevation-prominent)',
-    '.fp-more-menu .fp-menu-row:hover',
-    '.fp-more-menu .fp-menu-row:focus-visible',
+  for (const snippet of [
+    'className="fp-btn fp-icon-btn"',
+    'title="重新载入文档"',
+    'aria-label="重新载入文档"',
+    'disabled={!active || state.refreshing}',
+    'onClick={() => void store.actions.reloadSafely()}',
+    '<RefreshGlyph />',
+    '<Btn primary title="导出 HTML" onClick={() => void onExport()}>',
+    'const html = await store.actions.exportHtml()',
   ]) {
-    assert.ok(source.includes(rule), `更多菜单样式缺失：${rule}`)
+    assert.ok(panel.includes(snippet), `工具行交互缺失：${snippet}`)
   }
-  assert.ok(panel.includes('<div className="fp-more-menu" data-menu-material>'), '更多菜单接入 DSH 菜单材质上下文')
-})
-
-test('发布弹层与更多菜单共用 DSH 原生菜单材质', () => {
-  const source = fs.readFileSync(BUNDLE, 'utf8')
-  const publish = fs.readFileSync(path.join(ROOT, 'client', 'publish.tsx'), 'utf8')
-  const surface = source.match(/\.fp-more-menu,\.fp-publish-popover\{([^}]+)\}/)?.[1] || ''
-  for (const rule of [
-    '--dsw-elevation-stroke-color:var(--dsw-alias-border-l1)',
-    'border:0;border-radius:var(--dsw-radius-lg)',
-    'background:var(--dsw-specific-menu)',
-    'backdrop-filter:var(--dsw-menu-backdrop-filter)',
-    'box-shadow:var(--dsw-elevation-prominent)',
-  ]) {
-    assert.ok(surface.includes(rule), `发布弹层材质缺失：${rule}`)
+  for (const absent of ['<details className="fp-more">', 'fp-more-menu', 'title="更多操作"']) {
+    assert.ok(!panel.includes(absent), `面板不应包含更多菜单：${absent}`)
+    assert.ok(!source.includes(absent), `产物不应包含更多菜单：${absent}`)
   }
-  assert.ok(publish.includes('<div className="fp-publish-popover" data-menu-material role="dialog"'), '发布弹层接入 DSH 菜单材质上下文')
-})
-
-test('发布弹层只在存在页头页尾片段时显示片段选择', () => {
-  const publish = fs.readFileSync(path.join(ROOT, 'client', 'publish.tsx'), 'utf8')
-  assert.match(
-    publish,
-    /\{state\.snippets\.length > 0 \? \(\s*<label className="fp-field">\s*<span>页头页尾<\/span>/,
-    '空片段库不应留下只有“不叠加片段”一项的选择框',
-  )
-  assert.match(
-    publish,
-    /state\.snippets\.length > 0 \? '片段只进入本次发布 HTML，不改正文。' : ''/,
-    '没有片段时，发布说明不应继续提片段',
-  )
+  const refreshAt = panel.indexOf('title="重新载入文档"')
+  const exportAt = panel.indexOf('<Btn primary title="导出 HTML"')
+  const copyAt = panel.lastIndexOf('复制到剪贴板')
+  const modesAt = panel.indexOf('aria-label="渲染模式"')
+  assert.ok(refreshAt >= 0 && refreshAt < modesAt, '刷新图标位于工具行最左侧')
+  assert.ok(refreshAt < exportAt && exportAt < copyAt, '工具行顺序为刷新 → 导出 → 复制')
+  assert.ok(source.includes('.fp-row .fp-btn-primary{min-height:26px}'), '导出与复制共用按钮高度')
+  assert.ok(source.includes('.fp-icon-btn{') && source.includes('width:26px;min-height:26px;padding:0'), '刷新保持方形纯图标按钮')
 })
 
 test('快捷键提示分系统：两套文案都在产物里，而键盘处理始终 meta || ctrl', () => {

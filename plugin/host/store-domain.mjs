@@ -1,8 +1,8 @@
 /**
- * 用户级资产库：命名主题、写作风格、页头页尾片段、发布登录态。
+ * 用户级资产库：命名主题、写作风格、页头页尾片段。
  *
  * 为什么是 storageDomain 而不是 cwd 级文件：
- *   这四类是「用户级资产」——换工作目录、换会话都该跟着用户走，且要跨重启保留。
+ *   这三类是「用户级资产」——换工作目录、换会话都该跟着用户走，且要跨重启保留。
  *   宿主的 storageDomain（@deepseek-ai/dsh-storage-domain）正好提供版本化、schema 校验、
  *   宿主托管落盘（profile 目录）的 KV 存储，同步读、持久写，正是这类资产的归宿。
  *   文档协同状态（.fishpai/state、history）仍留在 cwd——那是「这篇文档」的状态，按工作区隔离才对。
@@ -94,36 +94,17 @@ const snippetRecord = codec((v) => {
   }
 })
 
-// ── 发布登录态 ──────────────────────────────────────────────────
-// 记录：{ platform, storageState, savedAt }
-// storageState 是 playwright 的 storage_state JSON（含 Cookie），属敏感数据——
-// 只存这里（宿主托管的 profile 目录），绝不进工作目录 / git。
-
-const authRecord = codec((v) => {
-  if (!isRecord(v)) throw new TypeError('登录态必须是对象')
-  const platform = str(v.platform, { max: 20 })
-  if (platform !== 'wechat' && platform !== 'xiumi') throw new TypeError('platform 只能是 wechat / xiumi')
-  if (!isRecord(v.storageState)) throw new TypeError('storageState 必须是对象')
-  return {
-    platform,
-    storageState: v.storageState,
-    savedAt: typeof v.savedAt === 'number' && Number.isFinite(v.savedAt) ? v.savedAt : Date.now(),
-  }
-})
-
 // ── 域声明 ──────────────────────────────────────────────────────
 
 export const THEMES_DOMAIN = 'fishpai_themes'
 export const WRITING_DOMAIN = 'fishpai_writing_styles'
 export const SNIPPETS_DOMAIN = 'fishpai_snippets'
-export const AUTH_DOMAIN = 'fishpai_auth'
 
 function domainSpecs(defineDomain) {
   return {
     themes: defineDomain({ name: THEMES_DOMAIN, version: 1, tables: { themes: { valueSchema: themeRecord } } }),
     writing: defineDomain({ name: WRITING_DOMAIN, version: 1, tables: { styles: { valueSchema: writingStyleRecord } } }),
     snippets: defineDomain({ name: SNIPPETS_DOMAIN, version: 1, tables: { snippets: { valueSchema: snippetRecord } } }),
-    auth: defineDomain({ name: AUTH_DOMAIN, version: 1, tables: { auth: { valueSchema: authRecord } } }),
   }
 }
 
@@ -131,10 +112,10 @@ function domainSpecs(defineDomain) {
  * 打开全部用户级域，返回一组句柄；调用方（插件 apply）负责 close。
  *
  * storageDomain 不可用时返回 null；内置主题与文档协同仍可使用，
- * 命名主题、learn、片段与发布登录态会明确报告能力不可用。
+ * 命名主题、learn 与片段会明确报告能力不可用。
  *
  * @param {object} ctx cordis 上下文
- * @returns {Promise<{themes, writing, snippets, auth, close} | null>}
+ * @returns {Promise<{themes, writing, snippets, close} | null>}
  */
 export async function openUserStores(ctx) {
   const storageDomain = ctx && typeof ctx.get === 'function' ? ctx.get('storageDomain', true) : ctx?.storageDomain
@@ -150,13 +131,10 @@ export async function openUserStores(ctx) {
     opened.push(writing)
     const snippets = await storageDomain.open(specs.snippets)
     opened.push(snippets)
-    const auth = await storageDomain.open(specs.auth)
-    opened.push(auth)
     return {
       themes,
       writing,
       snippets,
-      auth,
       async close() {
         for (const d of opened.reverse()) {
           try {

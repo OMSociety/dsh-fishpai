@@ -978,7 +978,7 @@ test('fishpai_render：默认（复制形态）加兼容层，publish:false 时�
   assert.doesNotMatch(fs.readFileSync(path.join(cwd, '预览原样.html'), 'utf8'), /<span>/)
 })
 
-test('fishpai_render 的兼容层与面板的「复制到公众号」同款：字号也推进，且不碰「参考资料」', async () => {
+test('fishpai_render 的兼容层与面板的「复制到剪贴板」同款：字号也推进，且不碰「参考资料」', async () => {
   const cwd = tmpWorkspace()
   const { tools, exec } = fakeHost(cwd)
   const byName = (name) => tools.find((t) => t.name === name)
@@ -1078,11 +1078,11 @@ function fakeHost(cwd, stores = memoryStores()) {
   return { ctx, tools, dispose, exec, stores }
 }
 
-test('工具契约：九个工具都是合法的 raw JSON-Schema 形态', () => {
+test('工具契约：八个工具都是合法的 raw JSON-Schema 形态', () => {
   const { tools } = fakeHost(tmpWorkspace())
   assert.deepEqual(
     tools.map((t) => t.name).sort(),
-    ['fishpai_learn', 'fishpai_lint', 'fishpai_open', 'fishpai_publish', 'fishpai_read', 'fishpai_render', 'fishpai_snippets', 'fishpai_theme', 'fishpai_write'],
+    ['fishpai_learn', 'fishpai_lint', 'fishpai_open', 'fishpai_read', 'fishpai_render', 'fishpai_snippets', 'fishpai_theme', 'fishpai_write'],
   )
   for (const tool of tools) {
     assert.equal(typeof tool.description, 'string')

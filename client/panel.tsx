@@ -6,9 +6,8 @@
  */
 import * as React from 'react'
 import { useSyncExternalStore } from 'react'
-import { buildSrcdoc, isPublishBusy, type FishpaiStore } from './store'
+import { buildSrcdoc, type FishpaiStore } from './store'
 import { sanitizeHtmlFragment } from './sanitize'
-import { PublishControls } from './publish'
 import { LearnLibrary, SnippetLibrary } from './library'
 import { COPY_HINT, IS_MAC, MOD_KEY } from './keys'
 import {
@@ -23,7 +22,7 @@ import {
   type EditAction,
   type EditResult,
 } from './mdedit'
-import { CaretGlyph, FishMark, ThemeGlyph, TickGlyph } from './icons'
+import { CaretGlyph, FishMark, RefreshGlyph, ThemeGlyph, TickGlyph } from './icons'
 import type { Block, DocMeta, Note, Placeholder, ThemeInfo } from './api'
 
 type ViewMode = 'edit' | 'preview' | 'side'
@@ -654,6 +653,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
   }
 
   const currentTheme = state.themes.find((t) => t.key === state.meta.theme) || null
+  const active = state.status === 'ready' && Boolean(state.docKey)
   // 只用来把"点了没反应"的开关置灰并说明原因。
   // 判据来自**宿主渲染结果**（linkCount / hasCode），不是在这里拿正则猜正文——
   // 猜的话 `github.com/x/y` 这种没写协议的链接会漏（它照样生成了「参考资料」），
@@ -672,9 +672,9 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
       if (!okToCopy) return
     }
     try {
-      const html = await store.actions.publishHtml()
+      const html = await store.actions.copyHtml()
       await copyRich(html, state.markdown)
-      store.actions.toast('已复制到剪贴板：粘进公众号编辑器即可')
+      store.actions.toast('已复制到剪贴板：可粘贴到目标编辑器')
     } catch (error) {
       // 复制失败时给出下一步：另一条路就在旁边，用户不必自己猜
       store.actions.toast(`复制失败：${(error as Error).message}　可以改用旁边的「导出 HTML」拿文件`, 'error')
@@ -683,12 +683,12 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
 
   const onExport = async () => {
     try {
-      const html = await store.actions.publishHtml()
+      const html = await store.actions.exportHtml()
       const base = (state.title || 'article').replace(/[\\/:*?"<>|]/g, '')
       download(`${base}.html`, html)
       store.actions.toast(`已导出 ${base}.html`)
     } catch (error) {
-      store.actions.toast(`导出失败：${(error as Error).message}　可以改用「复制到公众号」`, 'error')
+      store.actions.toast(`导出失败：${(error as Error).message}　可以改用「复制到剪贴板」`, 'error')
     }
   }
 
@@ -778,6 +778,16 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
     <div className="fp-root" data-narrow={narrow ? 'true' : 'false'} ref={rootRef}>
       <div className="fp-toolbar">
         <div className="fp-row">
+          <button
+            type="button"
+            className="fp-btn fp-icon-btn"
+            title="重新载入文档"
+            aria-label="重新载入文档"
+            disabled={!active || state.refreshing}
+            onClick={() => void store.actions.reloadSafely()}
+          >
+            <RefreshGlyph />
+          </button>
           <div className="fp-seg" role="group" aria-label="渲染模式" title="专业=秀米组件管线，支持交互动画；快速=内置主题管线">
             <Btn on={state.meta.target === 'xiumi'} onClick={() => void store.actions.setMeta({ target: 'xiumi' })} title="专业：秀米组件管线，支持交互动画">
               专业
@@ -820,36 +830,13 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
           >
             批注
           </Btn>
+          <Btn primary title="导出 HTML" onClick={() => void onExport()}>
+            导出 HTML
+          </Btn>
           <span className="fp-actions">
-            <Btn primary title={`复制后直接粘进公众号编辑器（${COPY_HINT}）`} onClick={() => void onCopy()}>
-              复制到公众号
+            <Btn primary title={`复制后可粘贴到目标编辑器（${COPY_HINT}）`} onClick={() => void onCopy()}>
+              复制到剪贴板
             </Btn>
-            <PublishControls store={store} narrow={narrow} />
-            <details className="fp-more">
-              <summary className="fp-btn" title="更多操作">更多</summary>
-              <div className="fp-more-menu" data-menu-material>
-                <button
-                  type="button"
-                  className="fp-menu-row"
-                  onClick={(event) => {
-                    event.currentTarget.closest('details')?.removeAttribute('open')
-                    void store.actions.reloadSafely()
-                  }}
-                >
-                  重新载入文档
-                </button>
-                <button
-                  type="button"
-                  className="fp-menu-row"
-                  onClick={(event) => {
-                    event.currentTarget.closest('details')?.removeAttribute('open')
-                    void onExport()
-                  }}
-                >
-                  导出 HTML
-                </button>
-              </div>
-            </details>
           </span>
         </div>
 
@@ -968,22 +955,6 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
         </div>
       ) : null}
 
-      {state.publish.phase === 'error' ? (
-        <div className="fp-banner" data-kind="error" role="alert">
-          <span>发送到{state.publish.target === 'wechat' ? '微信' : '秀米'}草稿箱未完成：{state.publish.error || '请稍后重试。'}</span>
-          <span className="fp-spacer" />
-          <Btn onClick={() => void store.actions.retryPublish()}>重试</Btn>
-          <button
-            type="button"
-            className="fp-banner-x"
-            aria-label="关闭发布失败提示"
-            onClick={() => store.actions.dismissPublish()}
-          >
-            ×
-          </button>
-        </div>
-      ) : null}
-
       {state.external ? (
         <div className="fp-banner">
           <span>
@@ -1062,9 +1033,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
         status={(
           <>
             <span>{countWords(state.markdown)} 字</span>
-            <span title={isPublishBusy(state.publish.phase) ? state.publish.message : undefined}>
-              {isPublishBusy(state.publish.phase) ? '发布中…' : state.saving ? '保存中…' : state.dirty ? '未保存' : '已保存'}
-            </span>
+            <span>{state.saving ? '保存中…' : state.dirty ? '未保存' : '已保存'}</span>
             {manualImages.length ? (
               <span
                 className="fp-warn"
@@ -1148,6 +1117,43 @@ interface ComponentSpec {
 }
 
 const COMPONENT_CATALOG: ComponentSpec[] = [
+  {
+    name: '章节头',
+    description: '编号、主标题与副标题组成章节入口',
+    glyph: '#',
+    template: `:::chapter_header
+#1
+章节标题
+章节副标题
+:::`,
+  },
+  {
+    name: '信息卡',
+    description: '用卡头与正文集中说明一组信息',
+    glyph: '▤',
+    template: `:::info_card
+@卡片标题
+正文支持 **Markdown**。
+:::`,
+  },
+  {
+    name: '重点行',
+    description: '用小面积底色突出日期或关键信息',
+    glyph: 'A',
+    template: `:::highlight
+需要突出的一行信息
+:::`,
+  },
+  {
+    name: '制作名单',
+    description: '按角色列出文案、设计与排版人员',
+    glyph: '≡',
+    template: `:::credits
+文案｜姓名
+设计｜姓名
+排版｜姓名
+:::`,
+  },
   {
     name: '点击展开',
     description: '先露出摘要，点击后再展开正文',

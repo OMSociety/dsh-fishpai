@@ -250,7 +250,7 @@ export function validateThemeSpec(spec, baseThemes) {
     // 说了不生效就要说清"那该怎么办"：固定正文字号得改具体槽位，写在 wrapper 上是白写。
     if (writtenSize) {
       notes.push(
-        `wrapper 的「${writtenSize}」不会生效：面板的「字号」会替换掉它（预览与「复制到公众号」都以用户选的字号为准）。要固定正文字号，请改具体槽位（p / li / blockquote 等）`,
+        `wrapper 的「${writtenSize}」不会生效：面板的「字号」会替换掉它（预览与「复制到剪贴板」都以用户选的字号为准）。要固定正文字号，请改具体槽位（p / li / blockquote 等）`,
       )
     }
   }

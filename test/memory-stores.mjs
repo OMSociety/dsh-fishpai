@@ -48,7 +48,6 @@ export function memoryStores() {
     themes: new MemoryDomain(),
     writing: new MemoryDomain(),
     snippets: new MemoryDomain(),
-    auth: new MemoryDomain(),
     async close() {},
   }
 }

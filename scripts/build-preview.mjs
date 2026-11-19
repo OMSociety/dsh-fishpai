@@ -51,6 +51,8 @@ async function captureScreenshot() {
     await page.waitForFunction(() => document.documentElement.dataset.previewReady === 'true', null, { timeout: 15000 })
     await page.frameLocator('.fp-preview').locator('body > section').first().waitFor({ timeout: 5000 })
     const expander = page.frameLocator('.fp-preview').locator('svg[role="button"]').first()
+    await expander.evaluate((node) => node.scrollIntoView({ block: 'center' }))
+    await page.waitForTimeout(100)
     const before = await expander.boundingBox()
     if (!before) throw new Error('展开组件在预览中不可见')
     await page.mouse.click(before.x + before.width / 2, before.y + before.height / 2)

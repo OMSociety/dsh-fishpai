@@ -1,11 +1,11 @@
 ---
 name: fishpai
-description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联样式 HTML，并在 DSH 右侧栏的「鱼排编辑器」面板里与人协同改稿（专业组件管线 + 11 套快速主题 + 微信脚注 + 代码块高亮 + 秀米/微信草稿发布）。当用户要求「公众号排版」「微信排版」「把这篇 Markdown 排好看点」「套个主题」「加交互组件」「复制到公众号」「存到草稿箱」「改这篇公众号文章」，或提到鱼排 / FishPai / 墨排 / MoPai / mopai-markdown / 秀米 / xiumi 时使用；也用于人在鱼排面板里改过稿、加了批注或行内占位之后，需要读懂 diff 再改稿的场合。
+description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联样式 HTML，并在 DSH 右侧栏的「鱼排编辑器」面板里与人协同改稿（专业自由画布 + 11 套快速主题 + 微信脚注 + 代码块高亮 + 复制到剪贴板）。当用户要求「公众号排版」「微信排版」「把这篇 Markdown 排好看点」「套个主题」「加交互组件」「复制到剪贴板」「导出公众号 HTML」「改这篇公众号文章」，或提到鱼排 / FishPai / 墨排 / MoPai / mopai-markdown / 秀米 / xiumi 时使用；也用于人在鱼排面板里改过稿、加了批注或行内占位之后，需要读懂 diff 再改稿的场合。
 ---
 
 # 鱼排 FishPai（公众号排版与协同改稿）
 
-鱼排把 Markdown 排成**内联样式 HTML**：整段粘进微信公众号编辑器就得到成品排版，也能一键存进公众号或秀米的草稿箱。
+鱼排把 Markdown 排成**内联样式 HTML**：复制到剪贴板后粘进微信公众号编辑器就得到成品排版，也可以导出自包含 HTML 文件。
 
 ## 两条渲染管线
 
@@ -13,7 +13,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 
 | 管线 | target | 适合 |
 |---|---|---|
-| **专业**（默认） | `xiumi` | 一开始就知道要专业的稿子：多栏卡片、进度条、时间线、对比卡，以及「粘进公众号也能动」的 SMIL 交互组件（点击展开、滑动切换、弹幕等）。组件用法见 [references/components.md](references/components.md) |
+| **专业**（默认） | `xiumi` | 自由排版画布：Markdown、语义组件、用户素材与原创 HTML/SVG 可以混合。适合活动专题、品牌视觉、复杂分层与 SMIL 交互；预设组件是快捷方式，不是创作上限。见 [版式设计指南](references/layout.md) 与 [组件手册](references/components.md) |
 | **快速** | `wechat` | 快速成稿：快速渲染内核 + 11 套主题 + 主题色，一次排版直接复制 |
 
 面板顶部用「专业 / 快速」标签切换；`fishpai_render` 的 `target` 参数省略时跟随文档当前模式（默认专业）。
@@ -21,38 +21,93 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 ## 什么时候用
 
 - 用户要把一篇 Markdown（活动通告、文章、说明）排成公众号样式
-- 用户想换主题、调字号、调主题色，或要「复制到公众号」「存到草稿箱」
+- 用户想换主题、调字号、调主题色，或要「复制到剪贴板」「导出 HTML」
 - 用户要加交互组件（点击展开、图集、弹幕、进度条、时间线等）
 - 用户在**鱼排面板里改过稿、加过批注/占位**，要你把他的改动读进来再改
 - 用户提到鱼排 / FishPai / 墨排 / MoPai / mopai-markdown / 秀米 / xiumi
 
-**不适用**：需要**群发**公众号。鱼排只产出可粘贴的 HTML、并能把内容存进草稿箱；**群发永远由人在公众号后台手动完成**，鱼排不做、也不绕平台风控。
+**不适用**：需要**群发**公众号。鱼排只产出可粘贴或可导出的 HTML；**群发永远由人在公众号后台手动完成**，鱼排不做、也不绕平台风控。
 
 ## 写作规范
 
 涉及起草、改写、润色、降低 AI（Artificial Intelligence，人工智能）味、质量自评或结尾写作时，读取 [references/writing.md](references/writing.md)。指纹提示与五维评分只用于定位问题和安排修改顺序，不阻断交付；只做排版、主题或渲染调整时无需读取。
 
-## 九个工具与正确顺序
+## 八个工具与正确顺序
 
 | 工具 | 用途 |
 |---|---|
-| `fishpai_open` | 打开/新建文档并在右侧栏弹出面板。传 `markdown` 新建；传 `path` 打开已有的 `.md`（**不覆盖**已有内容；`path` 可省略扩展名，会自动补 `.md`） |
+| `fishpai_open` | 打开/新建文档并在右侧栏弹出面板。传 `markdown` 新建；传 `path` 打开已有的 `.md`（**不覆盖**已有内容）。专业稿可同时传 `xiumi_spec`，画布参数随文档保存，预览、复制与导出共用 |
 | `fishpai_read` | **改稿前必做**。返回：与"你上次写入的版本"的**块级 diff**、人的**批注**、**行内占位**、图片提醒、全文与块 id |
 | `fishpai_write` | 改稿。必须带 `base_revision`；优先 `mode:"patch"` 只改指定块，`mode:"replace"` 才整篇换 |
-| `fishpai_render` | 导出可粘贴/归档用的自包含 HTML 文件（本地图片内嵌 base64；`out_path` 可省略扩展名）。`target` 选 `xiumi`（专业，默认跟随文档）或 `wechat`（快速）；`snippetId` 可拼入已确认的页头页尾片段 |
+| `fishpai_render` | 导出可粘贴/归档用的 HTML 文件（发布形态默认内嵌本地图片；`out_path` 可省略扩展名）。`target` 选 `xiumi`（专业，默认跟随文档）或 `wechat`（快速）；`snippetId` 可拼入已确认的页头页尾片段 |
 | `fishpai_theme` | 管理**用户级命名主题库**（`set` / `show` / `clear` / `list`），可存多套命名主题，跨工作目录共享。用户要"某种观感"时用，见下面「自定义主题」一节 |
 | `fishpai_learn` | 从定稿（Markdown/HTML/网页）反推写作风格，产出九字段风格卡。`preview` 生成候选 → 用户确认 → `commit` 入库。落用户级风格库 |
 | `fishpai_snippets` | 提取并管理页头页尾片段。`preview` 生成候选 → 用户确认 → `commit` 入库；渲染时用 `fishpai_render` 的 `snippetId` 装配，不改源 Markdown |
 | `fishpai_lint` | 检查 HTML 是否满足微信粘贴约束（id/class/CSS 动画/grid 等禁令），结果区分草稿 API 路径观察与粘贴路径推论 |
-| `fishpai_publish` | 异步打开浏览器，把 HTML 存成**微信或秀米草稿**，立即返回 job id。**只存草稿，绝不群发**；首次使用需用户在可见浏览器里扫码登录 |
 
 标准流程：
 
-1. 用户要写/改一篇公众号文章 → `fishpai_open({ markdown })`（或 `{ path: 'in/x.md' }` 打开现成的）
-2. 告诉用户「右侧栏的「鱼排编辑器」已打开，你可以直接改字、选中块加批注」，然后**停下等他**
-3. 用户说"我改了，你看看" → `fishpai_read`
-4. 按 diff + 批注改稿 → `fishpai_write({ base_revision, mode:'patch', patches:[…] })`
-5. 用户满意 → 他自己点面板上的「复制到公众号」，或「发送到草稿箱」存成草稿；需要成品文件时用 `fishpai_render`
+- **直接排版**：`fishpai_open`（专业稿同时设 `xiumi_spec`）→ 写稿或局部改稿 → 面板复制或 `fishpai_render` 导出。插件内部自动校验规格、组件必填内容和 raw 安全边界；不逐项跑 lint、不主动做浏览器截图、不研究平台内部机制。工具明确报错时才针对该错误修正。
+- **协同改稿**：打开后告诉用户可在右侧栏改字、选块加批注；用户说“我改了”再 `fishpai_read`，按 diff 与批注用 `fishpai_write` 局部修改。
+- **交付**：用户点「复制到剪贴板」；需要成品 HTML 文件时调用 `fishpai_render`。真实设备验收只在最终候选完成后做一次，不把中途验收转嫁给用户。
+
+## 专业自由画布
+
+专业稿先确定内容角色，再决定视觉结构；不要从某个固定组件或模板出发套满全文。常见的三类结构是：
+
+1. **活动长文**：章节编号与标题带 → 普通正文 → 白底信息卡 → 图片／重点行。
+2. **对话或快闪**：整页底色 → 大幅主视觉 → 问答／对白 → 时间地点信息卡。
+3. **互动叙事**：固定比例 SVG／分层位图主视觉承担画面，普通 HTML 保留正文、名单和链接。
+
+这三类只是组织方法。用户给了素材时，模型应自由做裁切、叠层、色块、对白、图像组合与原创 SVG；素材中有品牌标识就使用对应素材，不另造标识。详细设计决策与起点参数见 [references/layout.md](references/layout.md)。
+
+### 文档级 `xiumi_spec`
+
+`fishpai_open({ path, xiumi_spec })` 保存画布；`fishpai_render({ target:'xiumi', xiumi_spec })` 只做当次覆盖。两组工具都不需要手动修改渲染代码。
+
+```json
+{
+  "page_bg": "#f2f2f2",
+  "page_padding_x": 20,
+  "page_padding_y": 24,
+  "body_color": "#3e3e3e",
+  "body_size": 15,
+  "body_align": "center",
+  "body_spacing": 1,
+  "line_height": 1.8,
+  "accent": "#3f63d7",
+  "accent2": "#17213a",
+  "card_bg": "#ffffff",
+  "card_radius": 10,
+  "card_padding": 20
+}
+```
+
+规格键分组：
+
+- 画布：`page_bg` `page_width` `page_padding_x` `page_padding_y`。需要整页视觉时设置背景与留白，raw 主视觉可配合零水平留白。
+- 标题：`title_color` `title_size` `title_align`。
+- 正文：`body_color` `body_size` `body_align` `body_spacing` `line_height` `muted_color`。
+- 卡片：`card_bg` `card_radius` `card_padding`。
+- 色彩：`accent` `accent2`。先建立角色，再在组件和 raw 中复用，避免逐段换色。
+
+未知键、越界数值与非法颜色会在写入或渲染时直接报错；修正参数即可，不需要额外排障。
+
+### `raw` 是自由创作区
+
+```markdown
+:::raw
+<section style="width:100%;background-color:#f2f2f2;padding:24px 0;">
+  <svg viewBox="0 0 700 360" role="img" aria-label="主视觉" style="display:block;width:100%;height:auto;">
+    <!-- 自有图片、矢量路径、色块与 SMIL 图层 -->
+  </svg>
+</section>
+:::
+```
+
+`raw` 原样保留安全 HTML/SVG，适合独特主视觉、复杂对白、素材分层和固定比例交互。它与 Markdown、语义组件可交替出现，不要求整篇位图化。脚本、事件处理器、iframe、外链样式与危险 URL 会被插件拒绝。
+
+正文使用系统默认字体。艺术字、特殊字形与图中文字应使用图片或矢量路径，不配置网页字体。文章是一套明确配色；深色适配由微信阅读端处理，不使用 `prefers-color-scheme` 假设编辑端会生成双主题，最终候选在目标阅读环境检查即可。
 
 ## 铁律
 
@@ -91,7 +146,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
   **公众号编辑器只认黑体**（iOS 设备上才是苹方）：衬线 / 等宽只在「导出 HTML」里有效，粘进编辑器会退回黑体，
   而面板预览里看不出这个差别。用户要的是"公众号里也衬线"时，说明实际得用导出，别让他以为坏了。
 - **段落**：段落之间空一行；`breaks` 已开启，单换行即换行
-- **图片**：`![alt](相对路径)`。复制到公众号时本地图会自动内嵌成 base64，**粘进编辑器不需要手动重传**
+- **图片**：`![alt](相对路径)`。复制到剪贴板时本地图会自动内嵌成 base64，**粘进编辑器不需要手动重传**
   （编辑器接收后由微信自行转存）。会被微信拦掉的是 `http(s)://` 的**外链图**，以及内嵌不了的本地图
   （文件不存在、在工作目录之外、超过 5 MB）——这几类要在编辑器里手动上传，`fishpai_read` 会把它们单独列出来
 - **外链**：正文里的 `[文字](url)` 会自动转成文末「参考资料」脚注（微信正文不支持外链）
@@ -99,15 +154,11 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 ## 面板操作
 
 - **切换专业 / 快速**：顶部工具行的「专业」「快速」两枚标签对应当前文档的渲染目标，默认是「专业」。
-  专业模式默认显示「预览」，快速模式默认「并排」；需要改稿时切到「编辑」。点击渲染标签后立即切换并重新预览，复制、导出与发送到草稿箱也沿用这个选择。
+  专业模式默认显示「预览」，快速模式默认「并排」；需要改稿时切到「编辑」。点击渲染标签后立即切换并重新预览，复制与导出也沿用这个选择。
 - **插入交互组件**：在「编辑」或「并排」视图的 Markdown 文稿工具行点「⊕ 组件」，按名称与简介选择组件。
   面板会在光标处插入对应的 `:::` 容器模板，并选中第一行占位内容，直接输入即可替换；组件指令详见
   [组件手册](references/components.md)。在「快速」模式下使用组件会自动切到「专业」并提示原因。
-- **管理发布登录态**：打开「发送到草稿箱」popover，平台切换下方显示当前平台的登录态。
-  「已登录」会附保存时间（`MM-DD HH:mm`），没有保存记录则显示「未登录」。点「清除登录态」只清除当前平台；
-  清除后重新发布即可重新登录，不需要另找登录按钮。保存记录不代表 Cookie 已实时验证，登录失效会在发布时报错，
-  届时按提示清除后重试即可。
-- **含 SVG 的微信草稿走自动发布**：编辑器的 `insertHTML` 与粘贴会按 ProseMirror schema 清洗 SVG。鱼排发布先正常保存以建立草稿并捕获编辑器会话字段，再调用 `operate_appmsg` 直存原始 HTML；遇到 `data_seq` 版本冲突时按服务端返回值重试一次。该链路已在目标账号实测 SVG 与 SMIL 动画完整回显。
+- **复制与导出**：点「复制到剪贴板」取得当前渲染目标的 HTML；需要归档或进一步加工时用「导出 HTML」。复杂 SVG 与交互在目标编辑器中的保留程度以其粘贴处理为准。
 
 ## 自定义主题（用户级命名主题库）
 
@@ -151,7 +202,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
   `border-radius` `border-collapse` `border-image` `width` `height` `max-width` `display` `overflow-x`
   `box-shadow` `-webkit-background-clip` `-webkit-text-fill-color`
 - **`wrapper` 里必须同时有 `font-family` 与 `font-size`**，否则面板的「字体」「字号」调节失效（漏了会自动补上）。
-  但**写在 `wrapper` 上的 `font-size` 本身不生效**：面板的「字号」控件就是靠替换这一条工作的，预览与「复制到公众号」都以用户选的字号为准。
+  但**写在 `wrapper` 上的 `font-size` 本身不生效**：面板的「字号」控件就是靠替换这一条工作的，预览与「复制到剪贴板」都以用户选的字号为准。
   想固定正文字号，改具体槽位（`p` / `li` / `blockquote`），别指望 `wrapper`。
 - 想跟「主题色」联动就用 `{{PRIMARY}}` / `{{PRIMARY_BG}}` 占位符
 - 不许出现 `{}` `<` `>` `"`（双引号；单引号可以，`font-family: 'Georgia', serif` 这类字体栈没问题）`url(...)` `expression(...)` `@import` `javascript:`；`!important` 写了会被自动去掉（微信不保留它）。不要写图标或 emoji

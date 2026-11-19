@@ -239,9 +239,10 @@ test('快捷键作用域：批注的 ⌘+Enter 不在编辑器的匹配范围里
   assert.equal(md.matchShortcut(enter), null)
   assert.equal(md.matchShortcut(enter, 'panel')?.id, 'note')
   assert.equal(md.matchShortcut(enter, 'all')?.id, 'note')
-  // 编辑器自己消化的那几条：保存与复制到公众号
+  // 编辑器自己消化的那几条：保存与复制到剪贴板
   assert.equal(md.matchShortcut({ key: 's', metaKey: true })?.id, 'save')
   assert.equal(md.matchShortcut({ key: 'c', metaKey: true, shiftKey: true })?.id, 'copy')
+  assert.equal(md.SHORTCUTS.find((shortcut) => shortcut.id === 'copy')?.label, '复制到剪贴板')
 })
 
 test('SHORTCUTS 与动作表对齐：每条编辑快捷键都有对应动作，反之也一样', () => {

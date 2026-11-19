@@ -50,15 +50,15 @@ function expandable({ coverText, fallback, body, coverHeight }, spec) {
   const lines = Math.max(1, Math.ceil([...text].length / charsPerLine))
   const blocks = (String(body).match(/<(?:p|h[1-6]|section|table)\b/g) || []).length
   const contentHeight = Math.min(1200, Math.max(72, Math.ceil(lines * spec.body_size * spec.line_height + blocks * 10 + 32)))
-  const totalHeight = coverHeight + 8 + contentHeight
+  const totalHeight = coverHeight + contentHeight
   return section('margin:0 0 20px;overflow:hidden;line-height:0;',
     `<section style="height:0;min-height:0;overflow:visible;display:flow-root;">`
-    + `<section style="margin-top:${coverHeight + 8}px;padding:16px;box-sizing:border-box;background-color:${spec.card_bg};border-radius:${spec.card_radius}px;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};">${safeInline(body)}</section>`
+    + `<section style="margin-top:${coverHeight}px;padding:16px 16px 2px;box-sizing:border-box;background-color:${spec.card_bg};border-top:1px solid ${spec.page_bg};border-radius:${spec.card_radius}px;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};">${safeInline(body)}</section>`
     + `</section>`
     + `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="${coverHeight}" style="display:block;cursor:pointer;" role="button" aria-label="${escapeHtml(label.full)}">`
     + `<rect x="0" y="0" width="100%" height="${coverHeight}" rx="${spec.card_radius}" fill="${spec.card_bg}"/>`
     + `<text x="16" y="${Math.round(coverHeight / 2 + 5)}" fill="${spec.title_color}" font-size="15" font-weight="600">${escapeHtml(label.visible)}</text>`
-    + `<text x="96%" y="${Math.round(coverHeight / 2 + 7)}" text-anchor="end" fill="${spec.accent}" font-size="24" font-weight="400">＋</text>`
+    + `<text x="96%" y="${Math.round(coverHeight / 2 + 8)}" text-anchor="end" fill="${spec.accent}" font-size="24" font-weight="400">＋</text>`
     + `<animate attributeName="height" from="${coverHeight}" to="${totalHeight}" dur="0.4s" begin="click" fill="freeze"/>`
     + `</svg>`
   )

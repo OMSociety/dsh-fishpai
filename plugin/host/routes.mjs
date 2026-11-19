@@ -30,7 +30,7 @@ import { attachPlaceholdersToBlocks, extractPlaceholders, reanchorNotes } from '
 import { lintWechatHtml } from '../core/wechat-lint.mjs'
 import { renderXiumi, renderXiumiPublish } from '../core/xiumi/index.mjs'
 import * as store from './store.mjs'
-import { listLocalImages, makeImageResolver, readAsset } from './assets.mjs'
+import { listLocalImages, makeImageResolver, readAsset, inlineHtmlImages } from './assets.mjs'
 
 export const API_PREFIX = '/fishpai/api'
 
@@ -220,6 +220,7 @@ function docPayload({ cwd, key, domain }) {
       macCodeBlock: state.macCodeBlock !== false,
       mobile: !!state.mobile,
       target: state.target,
+      xiumiSpec: state.xiumiSpec || {},
     },
     ...liveSurface({ cwd, key, abs, markdown }),
     history: publicHistory(state.history),
@@ -234,7 +235,7 @@ function docPayload({ cwd, key, domain }) {
  * @param {{resolveCwd: (sessionId: string) => string, log?: (msg: string) => void, getStores?: () => Promise<object|null>}} deps
  * @returns {(req: object, res: object) => Promise<void>}
  */
-export function createApiHandler({ resolveCwd, log = () => {}, getStores = async () => null, learn, snippets, publish }) {
+export function createApiHandler({ resolveCwd, log = () => {}, getStores = async () => null, learn, snippets }) {
   function sessionOf(source, url) {
     const sessionId = String(source.sessionId || url.searchParams.get('sessionId') || '')
     if (!sessionId) throw new Error('缺少 sessionId')
@@ -249,12 +250,6 @@ export function createApiHandler({ resolveCwd, log = () => {}, getStores = async
     const route = `${req.method} ${url.pathname.slice(API_PREFIX.length)}`
 
     try {
-      if (route === 'GET /publish/status') {
-        sessionOf({}, url)
-        const job = publish.status(String(url.searchParams.get('jobId') || ''))
-        return json(res, 200, { ok: true, job })
-      }
-
       if (route === 'GET /themes') {
         const stores = await getStores()
         return json(res, 200, {
@@ -478,10 +473,12 @@ export function createApiHandler({ resolveCwd, log = () => {}, getStores = async
         if (!['wechat', 'xiumi'].includes(target)) return fail(res, 400, `未知渲染目标：${target}`)
         if (target === 'xiumi') {
           const isPublish = String(body.mode) === 'publish'
+          const spec = body.xiumi_spec || state?.xiumiSpec || {}
           // 发布/复制走文本包裹形态（过粘贴 lint）；预览保持原始产物。
-          const out = isPublish ? renderXiumiPublish(markdown, { spec: body.xiumi_spec || {} }) : renderXiumi(markdown, { spec: body.xiumi_spec || {} })
+          const out = isPublish ? renderXiumiPublish(markdown, { spec }) : renderXiumi(markdown, { spec })
           if (isPublish) {
-            return json(res, 200, { ok: true, target, mode: 'publish', html: out.html, themeKey: out.themeKey, themeName: out.themeName })
+            const html = inlineHtmlImages(out.html, { cwd, docPath: abs })
+            return json(res, 200, { ok: true, target, mode: 'publish', html, themeKey: out.themeKey, themeName: out.themeName })
           }
           return json(res, 200, {
             ok: true,
@@ -552,33 +549,6 @@ export function createApiHandler({ resolveCwd, log = () => {}, getStores = async
           // 面板因此不必等"保存 + 重载"才看得到自己刚写的东西。
           ...liveSurface({ cwd, key, abs, markdown }),
         })
-      }
-
-      if (route === 'POST /publish') {
-        sessionOf(body, url)
-        const job = publish.submit({ platform: body.platform, title: body.title, author: body.author, html: body.html })
-        return json(res, 202, { ok: true, jobId: job.id, status: job.status })
-      }
-
-      // 登录态管理：查询某平台的登录状态，或清除它（清除后下次发布自动弹出扫码重登）。
-      // 登录态本体（Cookie/storageState）绝不回传到面板——只回「是否已登录 + 保存时间」。
-      if (route === 'POST /auth') {
-        sessionOf(body, url)
-        const platform = String(body.platform || '')
-        if (!['wechat', 'xiumi'].includes(platform)) return fail(res, 400, 'platform 只支持 wechat / xiumi')
-        const action = String(body.action || 'status')
-        const stores = await getStores()
-        if (!stores?.auth) return fail(res, 503, 'storageDomain 不可用，无法读取登录态')
-        const table = stores.auth.table('auth')
-        if (action === 'status') {
-          const saved = table.get(platform)
-          return json(res, 200, { ok: true, platform, loggedIn: Boolean(saved?.storageState), savedAt: saved?.savedAt || null })
-        }
-        if (action === 'clear') {
-          await table.delete(platform)
-          return json(res, 200, { ok: true, platform, loggedIn: false, savedAt: null })
-        }
-        return fail(res, 400, '未知 action（可用 status / clear）')
       }
 
       if (route === 'POST /history') {

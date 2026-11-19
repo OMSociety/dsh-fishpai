@@ -26,7 +26,7 @@ test('README 预览运行正式面板、store 与样式，并验收展开交互'
 
 test('独立操作与相邻按钮共用表面，键盘焦点使用独立轮廓', () => {
   const panel = read('client/panel.tsx')
-  assert.match(panel, /<Btn primary title=\{`复制后直接粘进公众号编辑器/)
+  assert.match(panel, /<Btn primary title=\{`复制后可粘贴到目标编辑器/)
   const css = read('client/styles.ts')
   const primary = css.match(/\.fp-btn-primary\{([^}]+)\}/)?.[1] || ''
   assert.match(primary, /background:var\(--dsw-alias-bg-layer-2\)/)

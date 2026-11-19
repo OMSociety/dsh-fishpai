@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 480" width="700" height="480" role="img" aria-label="鱼排专题主视觉：让内容有秩序地呈现" style="display:block;width:100%;height:auto;">
+  <rect x="0" y="0" width="700" height="480" fill="#2f4fc1"/>
+  <g fill="none" stroke="#ffffff" stroke-width="1" opacity="0.09">
+    <path d="M40 0V480M140 0V480M240 0V480M340 0V480M440 0V480M540 0V480M640 0V480"/>
+    <path d="M0 80H700M0 160H700M0 240H700M0 320H700M0 400H700"/>
+  </g>
+  <rect x="34" y="20" width="48" height="48" rx="12" fill="#ffffff"/>
+  <image x="40" y="26" width="36" height="36" href="data:image/svg+xml;base64,__FISHPAI_ICON_BASE64__"/>
+  <text x="90" y="57" fill="#ffffff" font-family="Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="4">FISHPAI</text>
+  <text x="654" y="55" text-anchor="end" fill="#dce4ff" font-family="Arial, sans-serif" font-size="16" letter-spacing="1.5">ISSUE 01 / EDITORIAL</text>
+  <text x="36" y="210" fill="#ffffff" font-family="Arial, sans-serif" font-size="94" font-weight="800" letter-spacing="-4">CONTENT</text>
+  <text x="36" y="304" fill="#c8d5ff" font-family="Arial, sans-serif" font-size="88" font-weight="800" letter-spacing="-4">IN ORDER</text>
+  <rect x="40" y="340" width="520" height="2" fill="#ffffff" opacity="0.55"/>
+  <g font-family="Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="1.5" fill="#ffffff">
+    <rect x="40" y="384" width="12" height="12" fill="#f4d35e"/>
+    <text x="64" y="397">WRITE</text>
+    <rect x="202" y="384" width="12" height="12" fill="#9db5ff"/>
+    <text x="226" y="397">DESIGN</text>
+    <rect x="390" y="384" width="12" height="12" fill="#ffffff"/>
+    <text x="414" y="397">COPY</text>
+  </g>
+  <path d="M586 360H660V434H586Z" fill="#f4d35e"/>
+  <path d="M606 397H638M626 385L638 397L626 409" fill="none" stroke="#17213a" stroke-width="5" stroke-linecap="square" stroke-linejoin="miter"/>
+</svg>

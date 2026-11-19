@@ -16,6 +16,7 @@ export interface DocMeta {
   macCodeBlock: boolean
   mobile: boolean
   target: RenderTarget
+  xiumiSpec: Record<string, string | number>
 }
 
 export interface Block {
@@ -115,29 +116,6 @@ export interface ThemeInfo {
   darkWrapper: boolean
   /** 综合判断：是否适合直接粘进公众号（= !gradientText && !darkWrapper）。 */
   wechatSafe: boolean
-}
-
-export type PublishTarget = 'wechat' | 'xiumi'
-export type PublishJobStatus = 'queued' | 'running' | 'need-login' | 'done' | 'failed'
-
-export interface AuthStatus {
-  ok: true
-  platform: PublishTarget
-  loggedIn: boolean
-  savedAt: number | null
-}
-
-export interface PublishJob {
-  id: string
-  platform: PublishTarget
-  status: PublishJobStatus
-  phase: string
-  progress: number
-  message: string
-  result: { url?: string; appmsgid?: string; [key: string]: unknown } | null
-  error: string | null
-  createdAt: number
-  updatedAt: number
 }
 
 export interface LearnStyle {
@@ -273,7 +251,7 @@ export const api = {
    *
    * `hljsCss` 是 highlight.js 配色：预览 iframe 是沙箱 srcdoc，里面没有它的样式表，
    * 代码块 token 只有 class、没有颜色——宿主把同一份色表（hljs-map.json）生成 CSS 带下来，
-   * 客户端注入 srcdoc。发布产物不吃它（走内联），所以 golden 不受影响。
+   * 客户端注入 srcdoc。复制/导出产物不吃它（走内联），所以 golden 不受影响。
    */
   renderPreview: (sessionId: string, docKey: string, markdown: string, meta: Partial<DocMeta>, target: RenderTarget) =>
     call<{
@@ -292,7 +270,7 @@ export const api = {
       body: JSON.stringify({ sessionId, docKey, markdown, meta, target, mode: 'preview' }),
     }),
 
-  renderPublish: (
+  renderCopyHtml: (
     sessionId: string,
     docKey: string,
     markdown: string,
@@ -303,24 +281,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ sessionId, docKey, markdown, meta, mode: 'publish', ...options }),
     }),
-
-  publish: (
-    sessionId: string,
-    payload: { platform: PublishTarget; title: string; author?: string; html: string },
-  ) =>
-    call<{ ok: true; jobId: string; status: PublishJobStatus }>(`/publish`, {
-      method: 'POST',
-      body: JSON.stringify({ sessionId, ...payload }),
-    }),
-
-  publishStatus: (sessionId: string, jobId: string) =>
-    call<{ ok: true; job: PublishJob }>(`/publish/status?${q({ sessionId, jobId })}`),
-
-  authStatus: (sessionId: string, platform: PublishTarget) =>
-    call<AuthStatus>(`/auth`, { method: 'POST', body: JSON.stringify({ sessionId, action: 'status', platform }) }),
-
-  clearAuth: (sessionId: string, platform: PublishTarget) =>
-    call<AuthStatus>(`/auth`, { method: 'POST', body: JSON.stringify({ sessionId, action: 'clear', platform }) }),
 
   learn: (sessionId: string, payload: Record<string, unknown>) =>
     call<LearnPreview | { ok: true; styles: LearnStyle[] } | { ok: true; style: LearnStyle } | { ok: true; removed: boolean }>(

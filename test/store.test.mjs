@@ -41,9 +41,7 @@ export const api = {
   meta: need('meta'),
   clearTheme: need('clearTheme'),
   renderPreview: need('renderPreview'),
-  renderPublish: need('renderPublish'),
-  authStatus: need('authStatus'),
-  clearAuth: need('clearAuth'),
+  renderCopyHtml: need('renderCopyHtml'),
   upload: need('upload'),
   notes: need('notes'),
   history: need('history'),
@@ -80,7 +78,7 @@ const stub = (methods) => {
 
 const docPayload = (key, markdown, revision) => ({
   doc: { key, path: `${key}.md`, title: '测试文档', markdown, revision, updatedAt: 1, updatedBy: 'human', baseline: null },
-  meta: { theme: 'default', color: null, font: 'sans', fontSize: '16px', footnotes: true, macCodeBlock: true, mobile: false, target: 'xiumi' },
+  meta: { theme: 'default', color: null, font: 'sans', fontSize: '16px', footnotes: true, macCodeBlock: true, mobile: false, target: 'xiumi', xiumiSpec: {} },
   blocks: [],
   notes: [],
   placeholders: [],
@@ -366,39 +364,29 @@ test('预览：缺省的面板字段按空集合处理', async () => {
   store.dispose()
 })
 
-test('发布登录态：按平台查询，清除后使用后端返回的未登录状态', async () => {
-  const store = createFishpaiStore('s-auth')
+test('复制 HTML：先保存当前正文，再按文档目标生成复制形态', async () => {
+  const store = await readyStore('s-copy', 'k1', '服务端的正文', 3)
+  store.actions.setMarkdown('待复制的正文')
   const calls = []
   stub({
-    authStatus: async (sid, platform) => {
-      calls.push(['status', sid, platform])
-      return { ok: true, platform, loggedIn: true, savedAt: 1700000000000 }
+    save: async (sid, key, markdown, baseRevision) => {
+      calls.push(['save', sid, key, markdown, baseRevision])
+      return { ok: true, revision: 4, updatedAt: 2, history: [] }
     },
-    clearAuth: async (sid, platform) => {
-      calls.push(['clear', sid, platform])
-      return { ok: true, platform, loggedIn: false, savedAt: null }
+    renderCopyHtml: async (sid, key, markdown, meta, options) => {
+      calls.push(['render', sid, key, markdown, meta.target, options])
+      return { ok: true, html: '<section>待复制的正文</section>', themeName: '默认公众号', target: meta.target }
     },
   })
 
-  await store.actions.refreshAuthStatus('wechat')
-  assert.equal(store.getSnapshot().auth.wechat.status.loggedIn, true)
-  assert.equal(store.getSnapshot().auth.wechat.status.savedAt, 1700000000000)
-  assert.equal(store.getSnapshot().auth.wechat.loading, false)
-
-  await store.actions.refreshAuthStatus('xiumi')
-  assert.equal(store.getSnapshot().auth.xiumi.status.loggedIn, true)
-  assert.equal(store.getSnapshot().auth.wechat.status.loggedIn, true, '两个平台的记录要分开保存')
-
-  await store.actions.clearAuth('wechat')
-  assert.equal(store.getSnapshot().auth.wechat.status.loggedIn, false)
-  assert.equal(store.getSnapshot().auth.wechat.status.savedAt, null)
-  assert.equal(store.getSnapshot().auth.wechat.clearing, false)
-  assert.equal(store.getSnapshot().auth.xiumi.status.loggedIn, true, '清除微信不能误清秀米')
+  const html = await store.actions.copyHtml()
+  assert.equal(html, '<section>待复制的正文</section>')
   assert.deepEqual(calls, [
-    ['status', 's-auth', 'wechat'],
-    ['status', 's-auth', 'xiumi'],
-    ['clear', 's-auth', 'wechat'],
+    ['save', 's-copy', 'k1', '待复制的正文', 3],
+    ['render', 's-copy', 'k1', '待复制的正文', 'xiumi', { target: 'xiumi' }],
   ])
+  assert.equal(store.getSnapshot().savedMarkdown, '待复制的正文')
+  assert.equal(store.getSnapshot().dirty, false)
   store.dispose()
 })
 
@@ -408,9 +396,17 @@ test('buildSrcdoc：hljs 配色注入预览 iframe，不注入时代码块是黑
   const html = '<pre><code><span class="hljs-keyword">const</span> x = 1;</code></pre>'
   const withCss = buildSrcdoc(html, {}, '.hljs-keyword{color: rgb(198, 120, 221);}')
   assert.match(withCss, /\.hljs-keyword\{color: rgb\(198, 120, 221\);\}/, '配色要进 srcdoc 的样式表')
-  assert.match(withCss, /<span class="hljs-keyword">/, '预览正文本身仍是 class（内联在 publish 那条路上做）')
+  assert.match(withCss, /<span class="hljs-keyword">/, '预览正文本身仍是 class（内联在复制/导出路上做）')
 
   const noCss = buildSrcdoc(html)
   assert.doesNotMatch(noCss, /\.hljs-keyword\{/, '没给配色时不该凭空出现')
   assert.match(noCss, /<span class="hljs-keyword">/, '正文不受影响')
+})
+
+test('buildSrcdoc：raw HTML 与 SVG 本地图片共用预览素材映射', () => {
+  const html = '<img src="assets/a.png"><svg><image href="assets/a.png"/></svg>'
+  const out = buildSrcdoc(html, { 'assets/a.png': 'data:image/png;base64,AA==' })
+  assert.equal((out.match(/data:image\/png;base64,AA==/g) || []).length, 2)
+  assert.match(out, /scrollbar-width:none/, '预览保留滚动能力但不显示滚动条')
+  assert.match(out, /::-webkit-scrollbar\{width:0;height:0;display:none\}/)
 })

@@ -21,7 +21,7 @@
 
 它同时是一个**人在回路里的改稿台**——面板与模型看的是同一篇文档，谁改了什么一目了然。
 
-快速模式使用本仓库维护的渲染内核与主题，初始设计源自 [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT）；专业模式由本仓库的秀米组件管线生成。署名与许可链条见 [`NOTICE.md`](NOTICE.md)。
+快速模式使用本仓库维护的渲染内核与主题，初始设计源自 [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT）；专业模式提供文档级画布规格、语义组件与自由 HTML / SVG 创作区。署名与许可链条见 [`NOTICE.md`](NOTICE.md)。
 
 ## 核心特性
 
@@ -38,9 +38,8 @@
 | **写作风格学习** | 从定稿 / HTML / 公开网页反推九字段写作风格，经暂存预览与你确认后入库；附写作规范参考（风格卡、AI 味指纹、五维自评、文末收束） |
 | **页头页尾片段库** | 页头首图、可配置页尾锚点片段经预览确认后入库，渲染时按 `snippetId` 装配 |
 | **微信约束检查** | `fishpai_lint` 检查全内联、禁用标签 / 属性、position、CSS 变量、grid、文本包裹与正文对比度 |
-| **秀米渲染目标** | 独立秀米组件管线：标题、列表、卡片、横幅与 8 个交互组件；`fishpai_render` 默认用 `target:'xiumi'` 生成专业页面 |
-| **草稿发布自动化** | 面板「发送到草稿箱」：异步打开浏览器，仅保存微信或秀米草稿（**只存草稿，绝不群发**）；微信原始 HTML 直存保留 SVG 结构，登录态存用户级存储 |
-| **九个模型工具** | `fishpai_open` / `read` / `write` / `render` / `theme` / `learn` / `snippets` / `lint` / `publish`，配一份教模型怎么用的技能 |
+| **专业自由画布** | 18 项文档级 `xiumi_spec` 控制画布、字阶与组件配色；章节头、信息卡、重点行、制作名单与 8 个交互组件可同自由 HTML / SVG 混排，本地素材在预览、复制与导出间同源使用 |
+| **八个模型工具** | `fishpai_open` / `read` / `write` / `render` / `theme` / `learn` / `snippets` / `lint`，配一份教模型怎么用的技能 |
 
 ## 效果
 
@@ -67,7 +66,7 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 ```
 
 > 装好后**刷新一下浏览器页面**，「鱼排编辑器」从右侧栏的引导页打开——只重启宿主不够，客户端产物是页面加载时取的；入口与布局按会话记忆，新会话第一次要点一次（模型调 `fishpai_open` 时也会自动打开）。
-> 发布链依赖 `playwright-core`；首次发布时若本机没有 Chrome / Edge，会在用户插件数据区懒下载 Chromium（约 170 MB，任务消息当场告知）。命名主题、写作风格、页头页尾与登录态存于用户级 `storageDomain`。
+> 命名主题、写作风格与页头页尾片段存于用户级 `storageDomain`，跨工作目录、跨重启保留。插件运行不需要浏览器或平台登录。
 
 **装完怎么用**
 
@@ -77,21 +76,20 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 4. 光标放在某段上点「＋批注」写一句要求，再到正文里写一行 `<!-- 鱼排: 这里补个过渡 -->`
 5. 让模型 `fishpai_read` → 它应当说出**你改了哪一块、批注要求什么、占位在哪一行**
 6. 让模型 `fishpai_write`（`mode: "patch"`）→ 只有那块变了，你其它改动原样保留
-7. 点「复制到公众号」→ 粘进公众号编辑器，版式正确（标题 / 列表 / 引用 / 表格 / 信息卡片）
+7. 点「复制到剪贴板」→ 粘进公众号编辑器，版式正确（标题 / 列表 / 引用 / 表格 / 信息卡片）
 
 ## 模型工具
 
 | 工具 | 作用 | 关键参数 |
 |---|---|---|
-| `fishpai_open` | 打开 / 新建文档，并在右侧栏弹出面板 | `path`（可省扩展名，自动补 `.md`）、`markdown`（新建时写正文）、`theme` |
+| `fishpai_open` | 打开 / 新建文档，并在右侧栏弹出面板 | `path`（可省扩展名，自动补 `.md`）、`markdown`（新建时写正文）、`theme`、`xiumi_spec`（专业画布持久规格） |
 | `fishpai_read` | **改稿前必做**：读块级 diff、批注、占位、图片提醒与块 id | `doc_key`、`include` |
 | `fishpai_write` | 改稿。必须带 `base_revision`；优先按块改 | `doc_key`、`base_revision`、`mode`（`patch` / `replace`）、`patches[{block_id 或 block_index, op, markdown}]` |
-| `fishpai_render` | 导出可粘贴 / 归档的自包含 HTML（本地图片内嵌 base64） | `out_path`（可省扩展名）、`theme`、`theme_spec`（临时自定义主题，不落盘）、`target`（`'xiumi'` 专业默认 / `'wechat'` 快速）、`snippetId`（装配页头页尾片段）、`publish`（`false` = 预览原样形态）、`embed_images` |
+| `fishpai_render` | 导出可粘贴 / 归档的自包含 HTML（本地图片内嵌 base64） | `out_path`（可省扩展名）、`theme`、`theme_spec`（临时自定义主题，不落盘）、`target`（`'xiumi'` 专业默认 / `'wechat'` 快速）、`xiumi_spec`（当次画布覆盖）、`snippetId`（装配页头页尾片段）、`publish`（`false` = 预览原样形态）、`embed_images` |
 | `fishpai_theme` | 用户级**「命名主题库」**（多套，`set` / `show` / `clear` / `list`）：模型在某套内置主题上只覆盖想改的槽位，存为 `custom:<id>` 命名主题 | `action`、`theme_id`、`theme_spec` |
 | `fishpai_learn` | 写作风格学习：反推九字段风格，暂存预览后确认入库 | `action`（`preview` / `commit` / `list` / `delete`）、`markdown` / `html` / `url` / `path`、`pending_id`、`confirm` |
 | `fishpai_snippets` | 页头页尾片段库：预览确认后入库，渲染时按名装配 | `action`、`name`、`headerHtml` / `footerHtml` / `footerImg`、`footerAnchors`、`pending_id`、`confirm` |
 | `fishpai_lint` | 微信约束检查：全内联、禁用标签 / 属性、position、CSS 变量、grid、文本包裹与正文对比度 | `html` |
-| `fishpai_publish` | 草稿发布：异步打开浏览器仅保存微信 / 秀米草稿（不群发） | `platform`、`title`、`author`、`html` |
 
 模型的标准动作顺序是 **`open` → 等你改 → `read` → `write` → 你点复制**；技能 `fishpai`
 （随插件注册）里写明了这套纪律与排版口径，模型会在需要时自己读。
@@ -105,7 +103,7 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 | `Ctrl/⌘ + E` | 行内代码 | `Ctrl/⌘ + Shift + .` | 引用 |
 | `Ctrl/⌘ + K` | 链接 | `Ctrl/⌘ + Shift + 8` / `+ 7` | 无序 / 有序列表 |
 | `Ctrl/⌘ + Shift + X` | 删除线 | `Tab` / `Shift + Tab` | 缩进 / 反缩进 |
-| `Ctrl/⌘ + S` | 保存 | `Ctrl/⌘ + Shift + C` | 复制到公众号 |
+| `Ctrl/⌘ + S` | 保存 | `Ctrl/⌘ + Shift + C` | 复制到剪贴板 |
 | `Ctrl/⌘ + V` | 粘贴图片（或拖进来） | `Ctrl/⌘ + Enter` | 添加批注（在批注框里） |
 
 编辑器右上角的「快捷键」按钮里就是这份表（Mac 显示 `⌘`、Windows 显示 `Ctrl`）。
@@ -119,7 +117,7 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 | `<文档同级>/assets/` | 粘贴进来的图片 | 相对路径引用（`assets/xxx.png`），文档搬走图也跟着走 |
 | `.fishpai/state/` | 主题、revision、baseline、批注 | 按文档路径哈希命名；删掉会丢批注、历史与「模型上次写入的基线」（正文不动，但模型暂时看不出你改了什么） |
 | `.fishpai/history/` | 历史快照（最多 50 份） | 面板「历史」抽屉里可一键回滚 |
-| 用户级存储（`storageDomain`） | 命名主题库、写作风格库、页头页尾片段库、发布登录态 | 跨工作目录、跨重启持久；命名主题为 `custom:<id>`，登录态仅存于 auth 域、绝不进工作目录或 git |
+| 用户级存储（`storageDomain`） | 命名主题库、写作风格库、页头页尾片段库 | 跨工作目录、跨重启持久；命名主题为 `custom:<id>` |
 | `.fishpai/.gitignore` | 忽略 `state/`、`history/` | 插件自建，只追加缺失的行（你写的改动一字不动）；正文与图片是否入库由你自己决定 |
 
 ## 开发
@@ -138,7 +136,7 @@ npm run check:build  # 确认 lib/ 无漂移
 ```
 plugin/index.mjs        宿主入口：注册工具 + /fishpai/api 路由 + fishpai 技能
 plugin/core/            渲染内核（ESM，零依赖）：runtime / markdown / render / diff / notes / patch / theme-info / theme-spec / learn / snippets / wechat-lint / xiumi/
-plugin/host/            宿主侧：工具契约、HTTP 路由、文档存储、图片、命名主题、storageDomain 封装、发布自动化（publish/）
+plugin/host/            宿主侧：工具契约、HTTP 路由、文档存储、图片、命名主题与 storageDomain 封装
 plugin/vendor/          内置主题 themes.js + markdown-it 14.1.0 + highlight.js 11.9.0 + hljs-map.json
 client/                 客户端源码（TSX → esbuild 打成 lib/client.js）
 lib/client.js           客户端 bundle（入库；dsh plugin add 不做构建）

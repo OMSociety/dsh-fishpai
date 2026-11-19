@@ -45,25 +45,10 @@ export const CSS = `
 .fp-toolbar{display:flex;flex-direction:column;gap:4px;padding:6px 8px;border-bottom:1px solid var(--dsw-alias-border-l2);flex:none}
 .fp-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:0}
 .fp-row .fp-spacer{flex:1 1 auto}
-/* 三个动作按钮是一组：窄到放不下时整体换行，而不是"复制到公众号"被单独挤到下一行 */
-.fp-actions{display:inline-flex;align-items:center;gap:4px;flex:none;margin-left:auto}
-.fp-more{position:relative;display:inline-flex}
-.fp-more>summary{list-style:none;display:inline-flex;align-items:center;cursor:pointer;user-select:none}
-.fp-more>summary::-webkit-details-marker{display:none}
-.fp-more[open]>summary{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l1)}
-.fp-more-menu,.fp-publish-popover{
-  --dsw-elevation-stroke-color:var(--dsw-alias-border-l1);
-  border:0;border-radius:var(--dsw-radius-lg);
-  background:var(--dsw-specific-menu);backdrop-filter:var(--dsw-menu-backdrop-filter);
-  box-shadow:var(--dsw-elevation-prominent);
-}
-.fp-more-menu{
-  position:absolute;top:calc(100% + 6px);right:0;z-index:46;min-width:160px;padding:6px;
-  display:flex;flex-direction:column;gap:2px;font:inherit;color:var(--dsw-alias-label-primary);
-}
-.fp-more-menu .fp-menu-row{min-height:28px;padding:4px 8px;border-radius:var(--dsw-radius-sm);white-space:nowrap}
-.fp-more-menu .fp-menu-row:hover{background:var(--dsw-alias-bg-layer-2)}
-.fp-more-menu .fp-menu-row:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
+/* 刷新保持纯图标；导出与复制共用按钮高度，复制固定在末尾。 */
+.fp-actions{display:inline-flex;align-items:center;gap:4px;flex:none}
+.fp-row .fp-btn-primary{min-height:26px}
+.fp-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;min-height:26px;padding:0;flex:none}
 /* 面板窄的时候收紧一点：让主操作组尽量留在第一行 */
 .fp-root[data-narrow="true"] .fp-toolbar{padding:6px 6px;gap:3px}
 .fp-root[data-narrow="true"] .fp-row{gap:3px}
@@ -317,41 +302,12 @@ export const CSS = `
 .fp-component-description{color:var(--dsw-alias-label-secondary);font-size:10.5px;line-height:1.45}
 .fp-root[data-narrow="true"] .fp-component-list{grid-template-columns:1fr}
 
-/* 草稿箱组合按钮与发布参数浮层。 */
-.fp-publish{position:relative;display:inline-flex;min-width:0}
-.fp-publish-split{display:inline-flex;align-items:stretch;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2)}
-.fp-publish-split .fp-btn{border:0;background:transparent}
-.fp-publish-main{max-width:15em;overflow:hidden;text-overflow:ellipsis}
-.fp-publish-caret{border-left:1px solid var(--dsw-alias-border-l2)!important;border-radius:0 5px 5px 0!important;padding-left:4px!important;padding-right:4px!important}
-.fp-publish-popover{
-  position:absolute;top:calc(100% + 6px);right:0;z-index:45;width:292px;max-width:calc(100vw - 24px);
-  display:flex;flex-direction:column;gap:10px;padding:12px;
-  color:var(--dsw-alias-label-primary);
-}
-.fp-publish-targets{
-  display:flex;gap:2px;padding:2px;border:1px solid var(--dsw-alias-border-l2);
-  border-radius:7px;background:var(--dsw-alias-bg-layer-2);
-}
-.fp-publish-targets .fp-btn{flex:1 1 50%;min-width:0;padding:4px 7px;border-radius:5px;white-space:normal}
-.fp-publish-targets .fp-btn[data-on="true"]{
-  color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);
-  border-color:transparent;box-shadow:var(--dsw-shadow-lv1,0 1px 3px rgba(0,0,0,.18));
-}
-.fp-publish-auth{display:flex;align-items:center;gap:6px;min-width:0;padding:0 2px;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.5}
-.fp-publish-auth > span{flex:1 1 auto;min-width:0}
-.fp-publish-auth .fp-btn{flex:none;padding:3px 6px;font-size:11px}
-.fp-field{display:flex;flex-direction:column;gap:4px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px}
 .fp-input{
   width:100%;min-width:0;font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);
   border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:6px 8px;outline:none;
 }
 .fp-input:focus{border-color:var(--dsw-alias-brand-primary);box-shadow:0 0 0 2px var(--dsw-alias-bg-layer-2)}
 .fp-input[disabled]{opacity:.6}
-.fp-publish-note,.fp-publish-progress{font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary)}
-.fp-publish-error{font-size:11px;line-height:1.6;color:var(--dsw-alias-state-error-primary);word-break:break-word}
-.fp-publish-result{color:var(--dsw-alias-label-primary);font-size:11px}
-.fp-publish-submit{justify-content:center;padding:5px 8px;text-align:center}
-.fp-root[data-narrow="true"] .fp-publish-main{max-width:9em}
 
 /* 风格与页头页尾素材库。 */
 .fp-btn.danger{color:var(--dsw-alias-state-error-primary)}

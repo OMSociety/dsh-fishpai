@@ -1,5 +1,5 @@
 /**
- * 模型侧工具：文档协作、渲染、用户资产、微信 lint 与草稿发布。
+ * 模型侧工具：文档协作、渲染、用户资产与微信 lint。
  *
  * 用 **raw JSON-Schema 注册**（`ctx.tools.register({name, description, parameters, output, execute})`），
  * 不要 import `defineTool`——树外插件解析 `@deepseek-ai/dsh-tools` 不可靠（本机 dsh-ssh-tunnel /
@@ -26,7 +26,7 @@ import {
   themeFor,
   writeCustomTheme,
 } from './custom-theme.mjs'
-import { MAX_EMBED_BYTES, listLocalImages, listRemoteImages, makeImageResolver } from './assets.mjs'
+import { MAX_EMBED_BYTES, listLocalImages, listRemoteImages, makeImageResolver, inlineHtmlImages } from './assets.mjs'
 
 const OUT_SCHEMA = {
   type: 'object',
@@ -176,6 +176,7 @@ export function registerTools(ctx, deps) {
         path: { type: 'string', description: '工作目录内的 .md 路径（可省略扩展名，会自动补 .md）；省略则在 <工作目录>/.fishpai/docs/ 下按标题新建' },
         markdown: { type: 'string', description: '初始 Markdown。目标文件已存在时不会覆盖，只打开现状' },
         theme: { type: 'string', description: '主题 key 或中文名；省略则用 default（默认公众号，最适合粘进微信）。tech / gradient / dark_night 等风格更适合导出 HTML' },
+        xiumi_spec: { type: 'object', additionalProperties: true, description: '秀米画布的 DEFAULT_SPEC 增量配置；打开或新建文档时校验并保存为该文档的持久设置' },
       },
       required: [],
       additionalProperties: false,
@@ -192,6 +193,7 @@ export function registerTools(ctx, deps) {
           docPath,
           markdown: args.markdown === undefined ? undefined : String(args.markdown),
           theme: args.theme ? String(args.theme) : undefined,
+          meta: args.xiumi_spec === undefined ? undefined : { xiumiSpec: args.xiumi_spec },
           by: 'ai',
         })
         store.setActive(cwd, sessionId, opened.key)
@@ -203,6 +205,7 @@ export function registerTools(ctx, deps) {
           `revision = ${opened.state.revision}，主题 = ${opened.state.theme}`,
           '右侧栏的「鱼排编辑器」面板已弹出（若没看到请点右侧栏顶部的鱼排图标）。',
         ]
+        if (args.xiumi_spec !== undefined) lines.push('秀米画布参数已校验并保存到该文档。')
         if (opened.markdownIgnored && !opened.created) {
           lines.push('注意：该文件已存在，你传入的 markdown 没有写入，避免覆盖用户内容。要改内容请用 fishpai_write。')
         }
@@ -450,7 +453,7 @@ export function registerTools(ctx, deps) {
   register({
     name: 'fishpai_render',
     description:
-      '把文档渲染成可直接粘贴进微信公众号编辑器的自包含 HTML 文件（内联样式、本地图片内嵌 base64），落在工作目录里。用于交付、预览或归档；日常发布仍由用户在侧栏点「复制到公众号」或「导出」。',
+      '把文档渲染成可直接粘贴进微信公众号编辑器的自包含 HTML 文件（内联样式、本地图片内嵌 base64），落在工作目录里。用于交付、预览或归档；日常发布仍由用户在侧栏点「复制到剪贴板」或「导出」。',
     parameters: {
       type: 'object',
       properties: {
@@ -467,10 +470,10 @@ export function registerTools(ctx, deps) {
         },
         out_path: { type: 'string', description: '输出 HTML 路径（工作目录内；可省略扩展名，会自动补 .html）；省略则与文档同名的 .html' },
         embed_images: { type: 'boolean', description: '是否把本地图片内嵌成 base64，默认 true' },
-        publish: { type: 'boolean', description: 'true（默认）=「复制到公众号」形态；false = 预览原样 HTML' },
+        publish: { type: 'boolean', description: 'true（默认）=「复制到剪贴板」形态；false = 预览原样 HTML' },
         snippetId: { type: 'string', description: '已确认的页头页尾片段名；渲染前拼入 Markdown，不改源文件' },
         target: { type: 'string', enum: ['wechat', 'xiumi'], description: '渲染目标；省略则跟随文档的专业/快速模式（默认专业 xiumi），wechat 走内置主题快速管线' },
-        xiumi_spec: { type: 'object', additionalProperties: true, description: 'target=xiumi 时的 DEFAULT_SPEC 增量覆盖' },
+        xiumi_spec: { type: 'object', additionalProperties: true, description: 'target=xiumi 时当次使用的 DEFAULT_SPEC 增量覆盖；省略则读文档设置，不隐式保存' },
       },
       required: [],
       additionalProperties: false,
@@ -485,6 +488,7 @@ export function registerTools(ctx, deps) {
         // 校验不过就直接失败——错误文案是写给模型看的，让它自己改对再来一次。
         const targetName = args.target || state.target || 'xiumi'
         if (!['wechat', 'xiumi'].includes(targetName)) throw new Error(`未知渲染目标：${targetName}`)
+        const xiumiSpec = args.xiumi_spec || state.xiumiSpec || {}
         const custom = targetName === 'wechat' && args.theme_spec ? buildCustomTheme(args.theme_spec, themes()) : null
         const stores = targetName === 'wechat' && deps.getStores ? await deps.getStores() : null
         const theme = targetName === 'xiumi'
@@ -493,7 +497,7 @@ export function registerTools(ctx, deps) {
             ? custom.theme
             : themeFor({ domain: stores?.themes, name: args.theme ? String(args.theme) : state.theme }).theme
         const out = targetName === 'xiumi'
-          ? (args.publish !== false ? renderXiumiPublish(markdown, { spec: args.xiumi_spec || {} }) : renderXiumi(markdown, { spec: args.xiumi_spec || {} }))
+          ? (args.publish !== false ? renderXiumiPublish(markdown, { spec: xiumiSpec }) : renderXiumi(markdown, { spec: xiumiSpec }))
           : renderCore(markdown, {
           theme,
           color: state.color || undefined,
@@ -502,7 +506,7 @@ export function registerTools(ctx, deps) {
           footnotes: state.footnotes !== false,
           macCodeBlock: state.macCodeBlock !== false,
           publish: args.publish !== false,
-          // 导出的成品是要粘进公众号的，所以跟面板的「复制到公众号」走同一条兼容层：
+          // 导出的成品是要粘进公众号的，所以跟面板的「复制到剪贴板」走同一条兼容层：
           // ① 把文字包进 <span>，避开微信结构校验对"含行内元素的段落"的误报；
           // ② 把 background 简写拆成微信肯保留的长写，否则引用块/表头底色会被丢；
           // ③ 把选定的字号推进到 p / li / 引用上（微信会剥掉最外层 wrapper 的样式）。
@@ -512,6 +516,9 @@ export function registerTools(ctx, deps) {
           promoteFontSize: args.publish !== false,
           imageResolver: args.embed_images === false ? undefined : makeImageResolver({ cwd, docPath: abs }),
         })
+        if (targetName === 'xiumi' && args.publish !== false && args.embed_images !== false) {
+          out.html = inlineHtmlImages(out.html, { cwd, docPath: abs })
+        }
         const target = args.out_path
           ? store.resolveInCwd(cwd, store.withDefaultExt(String(args.out_path), '.html'), { exts: ['.html', '.htm'] })
           : store.resolveInCwd(cwd, path.join(path.dirname(abs), `${path.basename(abs, path.extname(abs))}.html`), { exts: ['.html', '.htm'] })
@@ -520,7 +527,7 @@ export function registerTools(ctx, deps) {
         const lines = [
           `${targetName === 'xiumi' ? '已导出秀米 HTML' : '已导出 HTML'}：${path.relative(cwd, target).replace(/\\/g, '/')}`,
           `主题「${out.themeName}」　${out.html.length} 字符（约 ${Math.round(Buffer.byteLength(out.html, 'utf8') / 1024)} KB）`,
-          args.embed_images === false ? '本地图片未内嵌。' : '本地图片已内嵌 base64。',
+          args.embed_images !== false && (targetName === 'wechat' || args.publish !== false) ? '本地图片已内嵌 base64。' : '本地图片保留原始引用。',
         ]
         if (custom) {
           lines.push(describeThemeSpec(custom.spec))
@@ -623,7 +630,7 @@ export function registerTools(ctx, deps) {
         const lines = [
           `已保存命名主题 ${built.key}「${built.spec.name}」（base=${built.spec.base}，改了 ${Object.keys(built.spec.styles).length} 个槽位）。`,
           switched
-            ? '当前文档已切到它——面板里就能看到效果（预览与「复制到公众号」都走这套）。'
+            ? '当前文档已切到它——面板里就能看到效果（预览与「复制到剪贴板」都走这套）。'
             : `在文档主题设置里选择 ${built.key} 即可使用。`,
         ]
         for (const note of built.spec.notes) lines.push(`提示：${note}`)
@@ -724,28 +731,6 @@ export function registerTools(ctx, deps) {
     async execute(args) {
       try { return ok(JSON.stringify(lintWechatHtml(args.html), null, 2)) }
       catch (error) { return err(`fishpai_lint 失败：${error.message}`) }
-    },
-  })
-
-  register({
-    name: 'fishpai_publish',
-    description: '异步打开浏览器，把 HTML 保存为微信或秀米草稿并立即返回 job id；绝不群发，登录需用户在可见浏览器中完成。',
-    parameters: {
-      type: 'object', additionalProperties: false,
-      properties: {
-        platform: { type: 'string', enum: ['wechat', 'xiumi'] },
-        title: { type: 'string' },
-        author: { type: 'string' },
-        html: { type: 'string', description: '已由 fishpai_render 生成的完整 HTML' },
-      },
-      required: ['platform', 'title', 'html'],
-    },
-    output: { schema: OUT_SCHEMA, render: renderText },
-    async execute(args) {
-      try {
-        const job = deps.publish.submit(args)
-        return ok(JSON.stringify({ jobId: job.id, status: job.status, message: '任务已提交；通过 GET /fishpai/api/publish/status?sessionId=<当前会话>&jobId=<jobId> 轮询。只保存草稿。' }, null, 2))
-      } catch (error) { return err(`fishpai_publish 失败：${error.message}`) }
     },
   })
 

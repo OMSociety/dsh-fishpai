@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 300" width="700" height="300" role="img" aria-label="鱼排将文稿组织成组件并发布到公众号" style="display:block;width:100%;height:auto;">
+  <rect x="0" y="0" width="700" height="300" fill="#ffffff"/>
+  <g font-family="Arial, 'Microsoft YaHei', sans-serif">
+    <text x="34" y="44" fill="#475467" font-size="20" font-weight="700" letter-spacing="1.5">SOURCE</text>
+    <text x="284" y="44" fill="#475467" font-size="20" font-weight="700" letter-spacing="1.5">STRUCTURE</text>
+    <text x="548" y="44" fill="#475467" font-size="20" font-weight="700" letter-spacing="1.5">OUTPUT</text>
+    <g fill="#dfe4ec">
+      <rect x="34" y="80" width="142" height="12"/>
+      <rect x="34" y="110" width="178" height="8"/>
+      <rect x="34" y="132" width="154" height="8"/>
+      <rect x="34" y="154" width="166" height="8"/>
+      <rect x="34" y="190" width="118" height="8"/>
+    </g>
+    <path d="M222 142H260M248 130L260 142L248 154" fill="none" stroke="#2f4fc1" stroke-width="4"/>
+    <rect x="294" y="74" width="144" height="40" fill="#2f4fc1"/>
+    <rect x="294" y="126" width="178" height="52" fill="#edf1ff"/>
+    <rect x="294" y="190" width="122" height="30" fill="#f4d35e"/>
+    <path d="M486 142H524M512 130L524 142L512 154" fill="none" stroke="#2f4fc1" stroke-width="4"/>
+    <rect x="556" y="68" width="94" height="162" rx="12" fill="#17213a"/>
+    <rect x="564" y="82" width="78" height="134" fill="#f7f7f5"/>
+    <rect x="574" y="94" width="58" height="28" fill="#2f4fc1"/>
+    <rect x="574" y="134" width="46" height="6" fill="#98a2b3"/>
+    <rect x="574" y="150" width="56" height="6" fill="#d0d5dd"/>
+    <rect x="574" y="166" width="50" height="6" fill="#d0d5dd"/>
+    <rect x="574" y="190" width="34" height="12" fill="#f4d35e"/>
+    <g fill="#17213a" font-size="24" font-weight="700">
+      <text x="34" y="264">一份文稿</text>
+      <text x="294" y="264">结构化排版</text>
+      <text x="548" y="264">公众号成品</text>
+    </g>
+  </g>
+</svg>

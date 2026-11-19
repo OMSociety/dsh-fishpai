@@ -15,17 +15,17 @@ import * as store from '../plugin/host/store.mjs'
 
 const md = '# 标题\n\n正文 **加粗**。\n\n- 甲\n- 乙'
 
-test('秀米：规格十一键与静态组件、交互组件注册表', () => {
-  assert.deepEqual(Object.keys(DEFAULT_SPEC).sort(), ['title_color','title_size','title_align','body_color','body_size','line_height','card_bg','card_radius','card_padding','accent','accent2'].sort())
+test('秀米：规格十八键与静态组件、交互组件注册表', () => {
+  assert.deepEqual(Object.keys(DEFAULT_SPEC).sort(), ['title_color','title_size','title_align','body_color','body_size','body_align','body_spacing','line_height','muted_color','page_bg','page_width','page_padding_x','page_padding_y','card_bg','card_radius','card_padding','accent','accent2'].sort())
   assert.deepEqual(Object.keys(HTML_COMPONENTS), ['heading','paragraph','card','two_columns','quote','divider'])
   assert.deepEqual(Object.keys(SVG_COMPONENTS), ['svg_gradient_banner','svg_wave_divider','svg_number_icons'])
-  assert.deepEqual(Object.keys(WECHAT_COMPONENTS), ['wc_heading','wc_paragraph','wc_card','wc_bullet_list','wc_gradient_banner','wc_wave_divider','wc_number_steps','wc_quote','wc_two_columns','wc_raw'])
+  assert.deepEqual(Object.keys(WECHAT_COMPONENTS), ['wc_heading','wc_paragraph','wc_card','wc_bullet_list','wc_gradient_banner','wc_wave_divider','wc_number_steps','wc_info_card','wc_chapter_header','wc_highlight','wc_credits','wc_quote','wc_two_columns','wc_raw'])
 })
 test('秀米：Markdown 与指令经 wc 别名组成页面', () => {
   const components = componentsFromMarkdown('# 标题\n\n正文\n\n:::card\n卡片\n:::\n\n:::gradient_banner\n渐变\n:::')
   assert.deepEqual(components.map((x) => x.type), ['heading','paragraph','card','gradient_banner'])
   const html = buildPage(components)
-  assert.match(html, /^<section style="max-width:677px;margin:0 auto;padding:24px 20px 32px;box-sizing:border-box;background-color:#ffffff;/)
+  assert.match(html, /^<section style="max-width:677px;margin:0 auto;padding:24px 20px;box-sizing:border-box;background-color:#ffffff;/)
   assert.match(html, /linear-gradient\(135deg, #3f63d7 0%, #5b7cdb 100%\)/)
   assert.match(SVG_COMPONENTS.svg_wave_divider({}, DEFAULT_SPEC), /^<svg/)
 })
@@ -33,7 +33,30 @@ test('秀米：自定义规格与未知组件边界', () => {
   assert.match(buildPage([{ type: 'paragraph', text: '正文' }], { spec: { body_color: '#111111' } }), /color:#111111/)
   assert.throws(() => buildPage([{ type: '未知', text: 'x' }]), /未知组件/)
   assert.throws(() => componentsFromMarkdown(':::wat\nx\n:::'), /未知指令/)
+  assert.throws(() => componentsFromMarkdown(':::chapter_header\n#1\n:::'), /需要编号与主标题/)
+  assert.throws(() => componentsFromMarkdown(':::info_card\n:::'), /需要正文/)
+  assert.throws(() => componentsFromMarkdown(':::highlight\n:::'), /需要一行重点内容/)
+  assert.throws(() => componentsFromMarkdown(':::credits\n:::'), /至少需要一行/)
   assert.throws(() => componentsFromMarkdown(':::card\nx'), /未闭合/)
+})
+test('秀米：自由画布与语义组件共享同一份规格', () => {
+  const source = [
+    ':::chapter_header', '#1', '内容结构', '从信息到阅读', ':::',
+    ':::info_card', '@核心信息', '正文保持 **Markdown** 表达。', ':::',
+    ':::highlight', '**重点日期**', ':::',
+    '正文居中。', ':::credits', '文案｜鱼排', '排版｜鱼排', ':::',
+  ].join('\n\n')
+  const html = renderXiumi(source, { spec: { page_bg: '#f2f2f2', page_padding_x: 0, page_padding_y: 0, body_align: 'center', body_spacing: 2, accent: '#96d23a', accent2: '#111111', card_bg: '#ffffff' } }).html
+  assert.match(html, /max-width:677px;margin:0 auto;padding:0px 0px/)
+  assert.match(html, /background-color:#f2f2f2/)
+  assert.match(html, /letter-spacing:2px/)
+  assert.match(html, /#1<\/span>/)
+  assert.match(html, /内容结构/)
+  assert.match(html, /width:90%/)
+  assert.match(html, /<strong[^>]*>Markdown<\/strong>/)
+  assert.match(html, /<strong style="color:#ffffff;font-weight:700;">重点日期<\/strong>/)
+  assert.match(html, /text-align:center/)
+  assert.match(html, /文案<\/strong>/)
 })
 test('秀米：raw 保留 HTML/SVG 并拒绝主动内容', () => {
   const source = '<section data-p="1">原文<svg><foreignObject><div xmlns="http://www.w3.org/1999/xhtml">叠字</div></foreignObject></svg></section>'

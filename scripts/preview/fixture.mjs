@@ -2,7 +2,8 @@
  * README 面板的确定性演示文档与正式接口回包。
  * 公众号 HTML 由专业渲染管线生成，块清单与宿主路由使用同一切分函数。
  */
-import { renderXiumi } from '../../plugin/core/xiumi/index.mjs'
+import { readFileSync } from 'node:fs'
+import { renderXiumi, normalizeSpec } from '../../plugin/core/xiumi/index.mjs'
 import { hljsPreviewCss, themeCatalog } from '../../plugin/core/render.mjs'
 import { colorPresets } from '../../plugin/core/runtime.mjs'
 import { splitBlocks } from '../../plugin/core/markdown.mjs'
@@ -13,96 +14,132 @@ export const PREVIEW_PATH = '/workspace/.fishpai/docs/preview.md'
 export const PREVIEW_REVISION = 12
 export const PREVIEW_UPDATED_AT = Date.parse('2026-11-18T08:00:00.000Z')
 
-const PREVIEW_HERO = String.raw`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="鱼排：让内容自成章法。层叠的文稿卡片展示从写作到排版的完整过程" style="display:block;width:100%;height:auto;margin:0 0 22px;border-radius:18px;">
-  <rect width="640" height="400" rx="24" fill="#16223f"/>
-  <circle cx="604" cy="34" r="94" fill="#203257" opacity="0.72"/>
-  <circle cx="36" cy="390" r="116" fill="#1c2d51" opacity="0.8"/>
-  <path d="M36 50 C43 36 59 33 72 40 L86 30 L82 50 L86 70 L72 60 C59 67 43 64 36 50 Z" fill="none" stroke="#8da7ff" stroke-width="2.2" stroke-linejoin="round"/>
-  <circle cx="55" cy="45" r="2.2" fill="#c9f2d8"/>
-  <text x="102" y="57" fill="#dfe6ff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="14" font-weight="650" letter-spacing="3">FISHPAI</text>
-  <text x="36" y="139" fill="#ffffff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="46" font-weight="720" letter-spacing="1">让内容</text>
-  <text x="36" y="198" fill="#ffffff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="50" font-weight="760" letter-spacing="1">自成章法</text>
-  <text x="36" y="238" fill="#bcc9e9" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="17">文稿、组件与交互，</text>
-  <text x="36" y="264" fill="#bcc9e9" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="17">在一处成为完整的阅读作品。</text>
-  <path d="M36 302H304" stroke="#3a4d73" stroke-width="1"/>
-  <circle cx="42" cy="334" r="4" fill="#c9f2d8"/>
-  <text x="54" y="339" fill="#e4eaff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="14">写作</text>
-  <circle cx="132" cy="334" r="4" fill="#8da7ff"/>
-  <text x="144" y="339" fill="#e4eaff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="14">排版</text>
-  <circle cx="222" cy="334" r="4" fill="#ffd166"/>
-  <text x="234" y="339" fill="#e4eaff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="14">发布</text>
+const FISHPAI_ICON = readFileSync(new URL('../../icon.svg', import.meta.url), 'utf8')
+const PREVIEW_HERO = readFileSync(new URL('../../docs/preview/hero.svg', import.meta.url), 'utf8')
+  .replace('__FISHPAI_ICON_BASE64__', Buffer.from(FISHPAI_ICON).toString('base64'))
+  .trim()
+const PREVIEW_PROCESS = readFileSync(new URL('../../docs/preview/process.svg', import.meta.url), 'utf8').trim()
 
-  <rect x="404" y="88" width="174" height="224" rx="17" fill="#263a61" transform="rotate(8 491 200)"/>
-  <rect x="382" y="78" width="180" height="230" rx="17" fill="#4162cb" transform="rotate(-7 472 193)"/>
-  <rect x="374" y="92" width="190" height="226" rx="17" fill="#f4f7ff"/>
-  <rect x="392" y="111" width="54" height="8" rx="4" fill="#7895f2"/>
-  <circle cx="536" cy="115" r="6" fill="#b8e6ca"/>
-  <rect x="392" y="141" width="124" height="12" rx="6" fill="#1b2c50"/>
-  <rect x="392" y="162" width="92" height="12" rx="6" fill="#1b2c50"/>
-  <rect x="392" y="192" width="140" height="6" rx="3" fill="#c7d2eb"/>
-  <rect x="392" y="206" width="126" height="6" rx="3" fill="#c7d2eb"/>
-  <rect x="392" y="228" width="140" height="48" rx="11" fill="#dce6ff"/>
-  <path d="M446 253 C452 240 465 238 476 244 L488 236 L485 253 L488 270 L476 262 C465 268 452 266 446 253 Z" fill="#4162cb"/>
-  <circle cx="461" cy="249" r="2" fill="#f4f7ff"/>
-  <rect x="392" y="291" width="64" height="8" rx="4" fill="#6d88df"/>
-  <rect x="342" y="250" width="54" height="54" rx="15" fill="#c9f2d8" transform="rotate(-10 369 277)"/>
-  <path d="M356 277 L366 287 L383 266" fill="none" stroke="#17304a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M570 62V82 M560 72H580" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="350" cy="76" r="5" fill="#c9f2d8"/>
-</svg>`
-
-export const PREVIEW_MARKDOWN = `::: raw
-${PREVIEW_HERO}
+export const PREVIEW_MARKDOWN = `:::raw
+<section style="margin:0 -20px 30px;line-height:0;">${PREVIEW_HERO}</section>
 :::
 
-好的排版，让**观点、节奏与细节各就其位**。
+# 把内容，排成作品
 
-鱼排把文稿、组件和预览放进同一个工作台，从落笔开始，就给内容清晰的结构。
+好的排版先建立秩序，再表达个性。**观点、素材与阅读节奏**，都应该有清楚的位置。
 
-## 从空白，到清晰的结构
+鱼排把文稿、自由画布和复制放进同一个工作台：写作者专注于内容，工具负责把结构完整地带到公众号。
 
-::: number_steps
-- **先写下内容。** 标题、段落与批注，都在同一份文稿里。
-- **再组织阅读。** 用组件安排重点与节奏，而不是堆叠样式。
-- **最后抵达读者。** 预览、复制与草稿发布，共用同一份结果。
+:::raw
+<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin:26px 0 34px;">
+  <tr>
+    <td style="vertical-align:top;padding:14px 12px 12px 0;border-top:2px solid #17213a;">
+      <div style="font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;">01</div>
+      <div style="margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;">写下内容</div>
+    </td>
+    <td style="vertical-align:top;padding:14px 12px 12px;border-top:2px solid #17213a;">
+      <div style="font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;">02</div>
+      <div style="margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;">组织阅读</div>
+    </td>
+    <td style="vertical-align:top;padding:14px 0 12px 12px;border-top:2px solid #17213a;">
+      <div style="font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;">03</div>
+      <div style="margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;">抵达读者</div>
+    </td>
+  </tr>
+</table>
 :::
 
-::: quote
-让工具处理复杂，让阅读保持简单。
+:::chapter_header
+01
+先建立秩序
+一份文稿，承载完整的编辑过程
 :::
 
-## 把细节，藏在恰好的位置
+写作、批注与修改都落在同一份 Markdown 上。正文保持可编辑，组件负责重复结构，独特画面则在自由画布中完成。
 
-::: expand
-展开看看：一篇文章如何被组织
+:::info_card
+@一份文稿，三种输出
+手机预览用于阅读确认，复制到剪贴板用于粘贴，导出 HTML 用于归档与进一步加工。
+:::
+
+:::raw
+<section style="margin:24px 0 10px;padding:10px 8px 0;background-color:#ffffff;border:1px solid #e2e5ec;line-height:0;">
+  ${PREVIEW_PROCESS}
+</section>
+<p style="margin:0;padding:0 12px 16px;background-color:#ffffff;color:#475467;font-size:13px;line-height:1.7;letter-spacing:0.5px;">从内容源到结构化排版，再到公众号成品，整条链路共享同一份文稿。</p>
+:::
+
+:::highlight
+**写作、预览与复制，共享同一份内容**
+:::
+
+:::chapter_header
+02
+让视觉服务内容
+自由画布不是装饰的堆叠
+而是信息的另一种组织方式
+:::
+
+:::raw
+<section style="margin:22px 0 14px;">
+  <section style="width:90%;padding:18px;box-sizing:border-box;background-color:#17213a;color:#ffffff;">
+    <div style="font-size:12px;line-height:1.5;letter-spacing:2px;color:#b8c7f5;">QUESTION</div>
+    <div style="margin-top:8px;font-size:19px;line-height:1.55;font-weight:750;">什么时候需要自由画布？</div>
+  </section>
+  <section style="width:90%;margin:12px 0 0 auto;padding:18px;box-sizing:border-box;background-color:#ffffff;border:1px solid #dfe3ea;">
+    <div style="font-size:12px;line-height:1.5;letter-spacing:2px;color:#2f4fc1;">ANSWER</div>
+    <div style="margin-top:8px;font-size:15px;line-height:1.85;color:#344054;">当素材、层级或交互本身就是内容的一部分。照片、标识、艺术字与 SVG 可以自由组合，正文依然保持清晰。</div>
+  </section>
+</section>
+:::
+
+:::expand
+展开看看：一篇专题稿如何被组织
 ---
-正文保持轻盈，补充说明与技术细节收进展开组件。需要时点开，阅读节奏依然由你掌握。
+**主视觉**建立主题，**章节头**划分阅读节奏，**信息卡**收拢时间与地点，**展开组件**承载补充细节。每一层都服务于阅读目标。
 :::
 
-::: progress
-100 预览与发布内容同源
+:::chapter_header
+03
+从画布到剪贴板
+同一份文稿，交给下一个编辑场景
 :::
 
-::: gradient_banner
-把复杂留给工具，把清晰留给读者
+鱼排把同一份文稿渲染为内联样式 HTML，复制到剪贴板后即可带入目标编辑器。工具处理结构，作者把精力留给内容与视觉判断。
+
+:::raw
+<section style="margin:30px -20px 0;padding:30px 20px 26px;background-color:#2f4fc1;color:#ffffff;">
+  <div style="font-size:26px;line-height:1.5;font-weight:750;letter-spacing:1px;">让工具处理复杂，<br>让阅读保持清晰。</div>
+  <div style="width:44px;height:4px;margin:20px 0;background-color:#f4d35e;"></div>
+  <div style="font-size:13px;line-height:1.8;color:#dce4ff;letter-spacing:1px;">FISHPAI · 公众号排版工作台</div>
+</section>
 :::
 
-*这篇专题稿与主视觉用于展示鱼排的正式专业渲染结果。*`
+:::credits
+文稿｜鱼排编辑部
+视觉｜原创 SVG 与品牌图形
+:::`
 
-const PREVIEW_TITLE = '让内容自成章法：鱼排排版工作台'
+const PREVIEW_TITLE = '把内容，排成作品：鱼排排版工作台'
 
 const PREVIEW_SPEC = {
+  page_bg: '#f6f5f2',
+  page_padding_x: 20,
+  page_padding_y: 0,
   title_color: '#17213a',
-  title_size: 24,
+  title_size: 30,
   title_align: 'left',
-  body_color: '#4a5365',
+  body_color: '#344054',
   body_size: 15,
+  body_align: 'left',
+  body_spacing: 0.6,
   line_height: 1.85,
-  card_bg: '#f2f5fb',
-  card_radius: 12,
-  card_padding: 16,
-  accent: '#3f63d7',
-  accent2: '#8ba8f2',
+  muted_color: '#667085',
+  card_bg: '#ffffff',
+  card_radius: 0,
+  card_padding: 20,
+  accent: '#2f4fc1',
+  accent2: '#17213a',
 }
 
 function publicBlocks(markdown) {
@@ -136,6 +173,7 @@ export function createPreviewFixture() {
     macCodeBlock: true,
     mobile: true,
     target: 'xiumi',
+    xiumiSpec: normalizeSpec(PREVIEW_SPEC),
   }
   const blocks = publicBlocks(markdown)
   const notes = []
@@ -145,7 +183,7 @@ export function createPreviewFixture() {
     { id: 'preview-r12', rev: revision, at: updatedAt, by: 'human', chars: markdown.length, label: '演示文稿' },
   ]
   const docEntry = { key, path, title: PREVIEW_TITLE, revision, updatedAt }
-  const rendered = renderXiumi(markdown, { spec: PREVIEW_SPEC })
+  const rendered = renderXiumi(markdown, { spec: meta.xiumiSpec })
 
   return {
     key,

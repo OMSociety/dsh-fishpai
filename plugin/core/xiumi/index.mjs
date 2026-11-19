@@ -28,7 +28,7 @@ function inline(markdown, spec) {
 }
 
 const DIRECTIVES = new Set([
-  'card', 'two_columns', 'quote', 'gradient_banner', 'wave_divider', 'number_steps', 'raw',
+  'card', 'two_columns', 'quote', 'gradient_banner', 'wave_divider', 'number_steps', 'info_card', 'chapter_header', 'highlight', 'credits', 'raw',
   // 交互组件（SMIL）：专业模式专属。
   ...Object.keys(INTERACTIVE_DIRECTIVES),
 ])
@@ -103,6 +103,31 @@ function markdownComponents(markdown, spec) {
 }
 
 function directiveComponent(part, spec) {
+  if (part.directive === 'info_card') {
+    if (!part.body.trim()) throw new Error('info_card 需要正文')
+    const lines = part.body.trim().split('\n')
+    const first = (lines.shift() || '').trim()
+    const title = first.startsWith('@') ? first.slice(1).trim() : ''
+    const body = title ? lines.join('\n').trim() : [first, ...lines].join('\n').trim()
+    return { type: 'info_card', title, html: renderComponents(markdownComponents(body, spec), spec) }
+  }
+  if (part.directive === 'chapter_header') {
+    const [index = '', title = '', ...rest] = part.body.trim().split('\n').map((line) => line.trim()).filter(Boolean)
+    if (!title.trim()) throw new Error('chapter_header 需要编号与主标题（每行一项）')
+    return { type: 'chapter_header', index: index.trim(), title: title.trim(), subtitle: rest.join('\n').trim() }
+  }
+  if (part.directive === 'highlight') {
+    if (!part.body.trim()) throw new Error('highlight 需要一行重点内容')
+    return { type: 'highlight', html: inline(part.body.trim(), spec) }
+  }
+  if (part.directive === 'credits') {
+    if (!part.body.trim()) throw new Error('credits 至少需要一行「角色｜姓名」')
+    const items = part.body.trim().split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+      const index = line.search(/[｜|]/)
+      return index < 0 ? { label: '', value: line } : { label: line.slice(0, index).trim(), value: line.slice(index + 1).trim() }
+    })
+    return { type: 'credits', items }
+  }
   if (part.directive === 'raw') return { type: 'raw', html: part.body }
   if (part.directive === 'wave_divider') return { type: 'wave_divider' }
   if (part.directive === 'gradient_banner') return { type: 'gradient_banner', text: part.body.trim() }
@@ -169,7 +194,7 @@ function renderComponents(components, spec) {
 export function buildPage(components, options = {}) {
   const spec = normalizeSpec(options.spec || options)
   if (!Array.isArray(components)) throw new Error('秀米 components 必须是数组')
-  return `<section style="max-width:677px;margin:0 auto;padding:24px 20px 32px;box-sizing:border-box;background-color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;letter-spacing:0.01em;">${renderComponents(components, spec)}</section>`
+  return `<section style="max-width:${spec.page_width}px;margin:0 auto;padding:${spec.page_padding_y}px ${spec.page_padding_x}px;box-sizing:border-box;background-color:${spec.page_bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;letter-spacing:${spec.body_spacing}px;">${renderComponents(components, spec)}</section>`
 }
 
 /**
@@ -195,7 +220,7 @@ function wrapTextNodes(html) {
   return wrapped.replace(/SVG(\d+)/g, (full, i) => svgs[Number(i)])
 }
 
-/** 秀米产物的「复制到公众号 / 发布」形态：内容层文本已包裹，可直接过粘贴 lint。 */
+/** 秀米产物的复制 / 导出形态：内容层文本已包裹，可直接过粘贴 lint。 */
 export function renderXiumiPublish(markdown, options = {}) {
   const out = renderXiumi(markdown, options)
   return { ...out, html: wrapTextNodes(out.html) }

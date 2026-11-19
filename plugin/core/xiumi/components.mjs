@@ -24,7 +24,7 @@ export function heading({ text = '', level = 1 }, spec = DEFAULT_SPEC) {
 
 export function paragraph({ html = '', text }, spec = DEFAULT_SPEC) {
   const content = text === undefined ? safeInline(html) : escapeHtml(text)
-  return `<p style="margin:0 0 14px;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};">${content}</p>`
+  return `<p style="margin:0 0 14px;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};text-align:${spec.body_align};">${content}</p>`
 }
 
 export function card({ html = '', title = '' }, spec = DEFAULT_SPEC) {
@@ -98,6 +98,33 @@ export function wcNumberSteps({ items = [] }, spec = DEFAULT_SPEC) {
   }).join(''))
 }
 
+export function wcInfoCard({ title = '', html = '' }, spec = DEFAULT_SPEC) {
+  const heading = title ? `<p style="margin:0;padding:12px 20px;background-color:${spec.accent};color:#ffffff;font-size:20px;line-height:1.5;font-weight:700;letter-spacing:1px;">${escapeHtml(title)}</p>` : ''
+  return section(`width:90%;margin:24px auto;background-color:${spec.card_bg};border-radius:${spec.card_radius}px;box-shadow:0 3px 3px rgba(0,0,0,0.08);overflow:hidden;`, `${heading}<section style="padding:18px 20px 6px;">${html}</section>`)
+}
+
+export function wcChapterHeader({ index = '', title = '', subtitle = '' }, spec = DEFAULT_SPEC) {
+  const number = index ? `<span style="display:inline-block;vertical-align:middle;padding:3px 12px;background-color:${spec.accent};color:#ffffff;font-size:28px;line-height:1.25;font-weight:800;letter-spacing:1px;">${escapeHtml(index)}</span>` : ''
+  const headingText = `<span style="display:inline-block;vertical-align:middle;padding:7px 12px;background-color:${spec.accent2};color:#ffffff;font-size:${Math.max(20, Math.min(spec.title_size, 24))}px;line-height:1.45;font-weight:700;letter-spacing:2px;">${escapeHtml(title)}</span>`
+  const sub = subtitle ? `<p style="margin:9px 0 0;color:${spec.muted_color};font-size:13px;line-height:1.6;letter-spacing:1px;text-align:center;white-space:pre-line;">${escapeHtml(subtitle)}</p>` : ''
+  return section(`margin:34px 0 22px;text-align:center;`, `<p style="margin:0;font-size:0;line-height:0;">${number}${headingText}</p>${sub}`)
+}
+
+export function wcHighlight({ html = '' }, spec = DEFAULT_SPEC) {
+  // 反白里的 strong 也继承白色，不能被正文的标题色覆盖。
+  const content = String(html).replaceAll(`color:${spec.title_color}`, 'color:#ffffff')
+  return section(`margin:0 0 18px;text-align:${spec.body_align};`, `<span style="display:inline-block;max-width:100%;box-sizing:border-box;padding:6px 12px;background-color:${spec.accent};color:#ffffff;font-size:${spec.body_size}px;line-height:1.5;font-weight:700;letter-spacing:${spec.body_spacing}px;">${content}</span>`)
+}
+
+export function wcCredits({ items = [] }, spec = DEFAULT_SPEC) {
+  const rows = items.map((item) => {
+    const label = escapeHtml(item.label || '')
+    const value = escapeHtml(item.value || '')
+    return `<p style="margin:0;color:${spec.muted_color};font-size:13px;line-height:1.9;letter-spacing:0.5px;text-align:center;"><strong style="color:${spec.title_color};font-weight:700;">${label}</strong>${label && value ? '　' : ''}${value}</p>`
+  }).join('')
+  return section(`margin:34px 0 0;padding-top:18px;border-top:1px solid ${spec.card_bg};`, rows)
+}
+
 export function wcQuote(props, spec) {
   return quote(props, spec)
 }
@@ -116,5 +143,5 @@ export function wcRaw({ html = '' }) {
 
 export const HTML_COMPONENTS = Object.freeze({ heading, paragraph, card, two_columns: twoColumns, quote, divider })
 export const SVG_COMPONENTS = Object.freeze({ svg_gradient_banner: svgGradientBanner, svg_wave_divider: svgWaveDivider, svg_number_icons: svgNumberIcons })
-export const WECHAT_COMPONENTS = Object.freeze({ wc_heading: wcHeading, wc_paragraph: wcParagraph, wc_card: wcCard, wc_bullet_list: wcBulletList, wc_gradient_banner: wcGradientBanner, wc_wave_divider: wcWaveDivider, wc_number_steps: wcNumberSteps, wc_quote: wcQuote, wc_two_columns: wcTwoColumns, wc_raw: wcRaw })
-export const _WECHAT_ALIAS = Object.freeze({ heading: 'wc_heading', paragraph: 'wc_paragraph', card: 'wc_card', bullet_list: 'wc_bullet_list', two_columns: 'wc_two_columns', quote: 'wc_quote', divider: 'wc_wave_divider', gradient_banner: 'wc_gradient_banner', wave_divider: 'wc_wave_divider', number_steps: 'wc_number_steps', raw: 'wc_raw', svg_gradient_banner: 'wc_gradient_banner', svg_wave_divider: 'wc_wave_divider', svg_number_icons: 'wc_number_steps', ...Object.fromEntries(Object.keys(WECHAT_COMPONENTS).map((key) => [key, key])) })
+export const WECHAT_COMPONENTS = Object.freeze({ wc_heading: wcHeading, wc_paragraph: wcParagraph, wc_card: wcCard, wc_bullet_list: wcBulletList, wc_gradient_banner: wcGradientBanner, wc_wave_divider: wcWaveDivider, wc_number_steps: wcNumberSteps, wc_info_card: wcInfoCard, wc_chapter_header: wcChapterHeader, wc_highlight: wcHighlight, wc_credits: wcCredits, wc_quote: wcQuote, wc_two_columns: wcTwoColumns, wc_raw: wcRaw })
+export const _WECHAT_ALIAS = Object.freeze({ heading: 'wc_heading', paragraph: 'wc_paragraph', card: 'wc_card', bullet_list: 'wc_bullet_list', two_columns: 'wc_two_columns', quote: 'wc_quote', divider: 'wc_wave_divider', gradient_banner: 'wc_gradient_banner', wave_divider: 'wc_wave_divider', number_steps: 'wc_number_steps', info_card: 'wc_info_card', chapter_header: 'wc_chapter_header', highlight: 'wc_highlight', credits: 'wc_credits', raw: 'wc_raw', svg_gradient_banner: 'wc_gradient_banner', svg_wave_divider: 'wc_wave_divider', svg_number_icons: 'wc_number_steps', ...Object.fromEntries(Object.keys(WECHAT_COMPONENTS).map((key) => [key, key])) })

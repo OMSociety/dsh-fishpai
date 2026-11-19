@@ -96,6 +96,7 @@ test('展开组件：零高正文随 SVG 高度展开', () => {
   const out = renderXiumi(':::expand\n点我展开\n---\n点击后可见的正文\n:::\n\n后续段落')
   assert.match(out.html, /<svg[^>]*height="56"[^>]*>/, '初始高度等于触发条高度')
   assert.match(out.html, /<section style="height:0;min-height:0;overflow:visible;display:flow-root;">[\s\S]*点击后可见的正文/, '正文位于零高容器')
+  assert.match(out.html, /margin-top:56px;padding:16px 16px 2px/, '正文顶底留白与末段间距对齐')
   assert.match(out.html, /<animate attributeName="height" from="56" to="\d+"[^>]*begin="click"/, '点击驱动根元素高度展开')
   assert.doesNotMatch(out.html, /<foreignObject\b/i, '正文使用普通内联 HTML')
   assert.ok(out.html.indexOf('height:0;min-height:0') < out.html.indexOf('<animate attributeName="height"'), '零高正文先于撑高动画')
