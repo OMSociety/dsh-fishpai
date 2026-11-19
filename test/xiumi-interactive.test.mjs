@@ -102,11 +102,14 @@ test('展开组件：零高正文随 SVG 高度展开', () => {
   assert.ok(out.html.indexOf('height:0;min-height:0') < out.html.indexOf('<animate attributeName="height"'), '零高正文先于撑高动画')
 })
 
-test('展开组件：移动正文高度包含完整的段下留白', () => {
+test('展开组件：移动正文高度包含容器留白且不重复累计末段间距', () => {
   const body = '**主视觉**建立主题，**章节头**划分阅读节奏，**信息卡**收拢时间与地点，**展开组件**承载补充细节。每一层都服务于阅读目标。'
   const out = renderXiumi(`:::expand\n展开看看：一篇专题稿如何被组织\n---\n${body}\n:::`)
   const height = Number(out.html.match(/<animate attributeName="height" from="56" to="(\d+)"/)?.[1])
-  assert.ok(height >= 184, `展开高度应容纳三行正文、段后距与容器底部留白，实际为 ${height}`)
+  const lastParagraph = out.html.match(/<p style="margin:([^;"]+)[^"]*">[\s\S]*?展开组件[\s\S]*?<\/p>/)
+  assert.match(lastParagraph?.[1] ?? '', /(^|\s)0px(?:\s|$)/, '末段不再保留额外段后距')
+  assert.ok(height >= 198, `展开高度应容纳四行正文与容器上下留白，实际为 ${height}`)
+  assert.ok(height <= 204, `展开高度不应因末段间距重复而留白过多，实际为 ${height}`)
 })
 
 test('交互组件：长封面保留完整语义并收敛可见文案', () => {

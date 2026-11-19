@@ -54,11 +54,18 @@ test('秀米：自由画布与语义组件共享同一份规格', () => {
   assert.match(html, /内容结构/)
   assert.match(html, /width:90%/)
   assert.match(html, /<strong[^>]*>Markdown<\/strong>/)
-  assert.match(html, /<strong style="color:#ffffff;font-weight:700;">重点日期<\/strong>/)
+  assert.match(html, /<strong style="color:#ffffff;font-weight:700;white-space:nowrap;">重点日期<\/strong>/)
   assert.match(html, /margin:18px 0;text-align:center/, '重点行上方与下方都保留独立间距')
   assert.match(html, /text-align:center/)
   assert.match(html, /文案<\/strong>/)
 })
+test('秀米：短强调词不拆行，长强调句子允许正常换行', () => {
+  const html = renderXiumi('**信息卡**与**展开组件**\n\n**这是一段需要允许正常换行的长强调句子**').html
+  assert.match(html, /<strong style="color:[^;]+;font-weight:700;white-space:nowrap;">信息卡<\/strong>/)
+  assert.match(html, /<strong style="color:[^;]+;font-weight:700;white-space:nowrap;">展开组件<\/strong>/)
+  assert.match(html, /<strong style="color:[^;]+;font-weight:700;">这是一段需要允许正常换行的长强调句子<\/strong>/)
+})
+
 test('秀米：raw 保留 HTML/SVG 并拒绝主动内容', () => {
   const source = '<section data-p="1">原文<svg><foreignObject><div xmlns="http://www.w3.org/1999/xhtml">叠字</div></foreignObject></svg></section>'
   const html = renderXiumi(`:::raw\n${source}\n:::`).html

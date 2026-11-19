@@ -20,7 +20,11 @@ function markdownIt() {
 
 function inline(markdown, spec) {
   return markdownIt().renderInline(String(markdown ?? ''))
-    .replace(/<strong>/g, `<strong style="color:${spec.title_color};font-weight:700;">`)
+    .replace(/<strong>([\s\S]*?)<\/strong>/g, (fragment, content) => {
+      const text = String(content).replace(/<[^>]+>/g, '')
+      const keepTogether = [...text].length <= 8 ? 'white-space:nowrap;' : ''
+      return `<strong style="color:${spec.title_color};font-weight:700;${keepTogether}">${content}</strong>`
+    })
     .replace(/<em>/g, '<em style="font-style:italic;">')
     .replace(/<code>/g, `<code style="padding:2px 4px;background-color:${spec.card_bg};border-radius:4px;font-size:0.9em;">`)
     .replace(/<a href="([^"]+)">/g, `<a href="$1" style="color:${spec.accent};text-decoration:underline;">`)
