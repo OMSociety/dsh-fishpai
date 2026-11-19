@@ -377,7 +377,11 @@ test('专业模式默认预览，文稿与预览标题保持作者视角', () =>
     /setMode\(state\.meta\.target === 'xiumi' \? 'preview' : 'side'\)/,
     '切换渲染管线时采用各自的默认视图，之后仍可由用户切换',
   )
-  assert.ok(panel.includes('<span>Markdown 文稿</span>'), '编辑区标题应说明它是可写文稿')
+  assert.match(
+    panel,
+    /<span>\{props\.target === 'xiumi' \? '文稿' : 'Markdown 文稿'\}<\/span>/,
+    '专业模式称「文稿」，快速模式称「Markdown 文稿」',
+  )
   assert.ok(!panel.includes('Markdown 源码'), '编辑区标题采用「Markdown 文稿」')
   const preview = panel.slice(panel.indexOf('function Preview'), panel.indexOf('// ── 抽屉'))
   assert.ok(preview.includes('<span>公众号预览</span>'), '预览标题保留渠道名称')
@@ -518,6 +522,20 @@ test('发布弹层与更多菜单共用 DSH 原生菜单材质', () => {
     assert.ok(surface.includes(rule), `发布弹层材质缺失：${rule}`)
   }
   assert.ok(publish.includes('<div className="fp-publish-popover" data-menu-material role="dialog"'), '发布弹层接入 DSH 菜单材质上下文')
+})
+
+test('发布弹层只在存在页头页尾片段时显示片段选择', () => {
+  const publish = fs.readFileSync(path.join(ROOT, 'client', 'publish.tsx'), 'utf8')
+  assert.match(
+    publish,
+    /\{state\.snippets\.length > 0 \? \(\s*<label className="fp-field">\s*<span>页头页尾<\/span>/,
+    '空片段库不应留下只有“不叠加片段”一项的选择框',
+  )
+  assert.match(
+    publish,
+    /state\.snippets\.length > 0 \? '片段只进入本次发布 HTML，不改正文。' : ''/,
+    '没有片段时，发布说明不应继续提片段',
+  )
 })
 
 test('快捷键提示分系统：两套文案都在产物里，而键盘处理始终 meta || ctrl', () => {

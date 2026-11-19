@@ -150,23 +150,27 @@ export function PublishControls({ store, narrow }: { store: FishpaiStore; narrow
               placeholder="作者名"
             />
           </label>
-          <label className="fp-field">
-            <span>页头页尾</span>
-            <select
-              className="fp-input"
-              value={publish.snippetId}
-              disabled={busy}
-              onChange={(event) => store.actions.setPublishDraft({ snippetId: event.target.value })}
-            >
-              <option value="">不叠加片段</option>
-              {state.snippets.map((snippet) => (
-                <option value={snippet.id} key={snippet.id}>
-                  {snippet.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="fp-publish-note">只保存草稿，不会公开发布。片段只进入本次发布 HTML，不改正文。</div>
+          {state.snippets.length > 0 ? (
+            <label className="fp-field">
+              <span>页头页尾</span>
+              <select
+                className="fp-input"
+                value={publish.snippetId}
+                disabled={busy}
+                onChange={(event) => store.actions.setPublishDraft({ snippetId: event.target.value })}
+              >
+                <option value="">不叠加片段</option>
+                {state.snippets.map((snippet) => (
+                  <option value={snippet.id} key={snippet.id}>
+                    {snippet.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <div className="fp-publish-note">
+            只保存草稿，不会公开发布。{state.snippets.length > 0 ? '片段只进入本次发布 HTML，不改正文。' : ''}
+          </div>
           {busy && (
             <div className="fp-publish-progress" role="status">
               {publish.message || PHASE_LABEL[publish.phase]}

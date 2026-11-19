@@ -1408,7 +1408,7 @@ function Editor(props: {
   return (
     <div className="fp-pane">
       <div className="fp-pane-head">
-        <span>Markdown 文稿</span>
+        <span>{props.target === 'xiumi' ? '文稿' : 'Markdown 文稿'}</span>
         <span className="fp-spacer" />
         <span className="fp-muted">
           {props.currentBlock ? `${kindLabel(props.currentBlock.kind)} · 第 ${props.currentBlock.startLine} 行` : '未在块内'}
