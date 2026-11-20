@@ -14,20 +14,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 新增
 
-- 专业管线新增 `full_bleed` 全幅容器：按文档 `page_padding_x` 计算左右出血并解除正文限宽；`fishpai_lint` 新增 `full-bleed-width` 与 `table-cell-border-reset` 检查及对应技能指引。
+- 专业管线新增 `full_bleed` 全幅容器：按文档 `page_padding_x` 计算左右出血，并以 `max-width:none !important` 保持全宽；`fishpai_lint` 新增 `full-bleed-width` 与 `table-cell-border-reset` 检查及对应技能指引。
 
 ### 修复
 
 - 专业双栏与对比卡显式清除表格单元格默认边框；正式演示文稿的全幅头图、结尾色块与三栏表格使用统一的微信安全结构。
+- 正式演示头图的 `CONTENT` / `IN ORDER` 使用 Arial Black 轮廓路径并保留 `aria-label`，展示字不再依赖手机端可能忽略的 SVG `font-family`。
 - 专业复制与导出会分别包裹粗体、链接或换行后的每个直接文本节点，候选稿可通过文本结构检查。
 
 ### Added
 
-- Added the professional `full_bleed` container, which derives horizontal bleed from the document's `page_padding_x` and opts out of content-width clamping; `fishpai_lint` now checks `full-bleed-width` and `table-cell-border-reset`, with matching skill guidance.
+- Added the professional `full_bleed` container, which derives horizontal bleed from the document's `page_padding_x` and preserves full width with `max-width:none !important`; `fishpai_lint` now checks `full-bleed-width` and `table-cell-border-reset`, with matching skill guidance.
 
 ### Fixed
 
 - Professional two-column and comparison components explicitly reset table-cell borders; the formal preview article uses consistent WeChat-safe structures for its full-bleed hero, closing color block, and three-column table.
+- The `CONTENT` and `IN ORDER` display text in the formal preview hero now uses Arial Black outlines with `aria-label`, so its glyphs no longer depend on SVG `font-family` support on mobile readers.
 - Professional copy and export now wrap every direct text node after bold text, links, or line breaks, allowing candidate articles to pass text-structure checks.
 
 ## [2.0.0] - 2026-11-18

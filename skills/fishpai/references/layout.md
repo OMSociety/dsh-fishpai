@@ -142,9 +142,10 @@
 
 ### 全幅与表格的结构约束
 
-- 头图、底部色块等需要顶到页面左右边缘的内容，用 `:::full_bleed` 包裹安全 HTML/SVG。组件读取 `page_padding_x` 并输出 `max-width:none`，不要手写 `margin:0 -20px` 之类与某份文稿留白绑定的结构。
+- 头图、底部色块等需要顶到页面左右边缘的内容，用 `:::full_bleed` 包裹安全 HTML/SVG。组件读取 `page_padding_x` 并输出 `max-width:none !important`；普通 `none` 在微信临时预览中会被高优先级规则覆盖。不要手写 `margin:0 -20px` 之类与某份文稿留白绑定的结构。
 - 全幅容器内部另设内容 padding；不要为了文字对齐去改变整幅容器宽度。
 - raw 表格的 `td` / `th` 先写 `border:0`，再写 `border-top` 等需要保留的边线。
+- SVG 展示字需要固定字体造型时，将文字转为带 `aria-label` 的矢量路径；`font-family` 与字号同时存在不代表目标手机能使用指定字体。普通正文保持 HTML 文本，不转路径、不位图化。
 - 含手写 raw 的复制或导出候选，对发布形态 HTML 运行 `fishpai_lint`。`full-bleed-width` 与 `table-cell-border-reset` 来自微信临时预览粘贴路径实测；其它规则按各自 `evidence` 理解。普通 Markdown 与语义组件不增加这道流程。
 
 ## 一次完成的工作流

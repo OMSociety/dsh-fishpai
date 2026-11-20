@@ -68,7 +68,7 @@ test('秀米：短强调词不拆行，长强调句子允许正常换行', () =>
 
 test('秀米：全幅容器按页面留白扩展，并复用 raw 安全边界', () => {
   const html = renderXiumi(':::full_bleed\n<section style="margin:0 0 30px;"><span>整幅主视觉</span></section>\n:::', { spec: { page_padding_x: 24 } }).html
-  assert.match(html, /max-width:none;margin:0 -24px;/)
+  assert.match(html, /max-width:none !important;margin:0 -24px;/)
   assert.match(html, /margin:0 0 30px;/)
   assert.throws(() => renderXiumi(':::full_bleed\n:::'), /需要 HTML\/SVG 内容/)
   assert.throws(() => renderXiumi(':::full_bleed\n<script>alert(1)</script>\n:::'), /raw 不允许/)

@@ -21,7 +21,8 @@ test('微信 lint：全幅容器必须解除正文限宽，且不误报单边定
   const fullBleed = result.errors.find((item) => item.rule === 'full-bleed-width')
   assert.ok(fullBleed)
   assert.equal(fullBleed.evidence, '微信临时预览粘贴路径实测')
-  assert.deepEqual(lintWechatHtml('<section style="max-width:none;margin:0 -20px"><span>整幅内容</span></section>').errors, [])
+  assert.deepEqual(lintWechatHtml('<section style="max-width:none !important;margin:0 -20px"><span>整幅内容</span></section>').errors, [])
+  assert.ok(lintWechatHtml('<section style="max-width:none;margin:0 -20px"><span>整幅内容</span></section>').errors.some((item) => item.rule === 'full-bleed-width'))
   assert.deepEqual(lintWechatHtml('<section style="margin-left:-20px;margin-right:auto"><span>定位内容</span></section>').errors, [])
 })
 

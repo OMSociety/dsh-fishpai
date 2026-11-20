@@ -26,6 +26,9 @@ test('README 演示文稿使用微信安全标签与品牌矢量图形', () => {
   assert.ok(brandPath && fixture.markdown.includes(`d="${brandPath}"`), '构建时从品牌图标读取同一份几何')
   assert.equal((article.match(/:::full_bleed/g) || []).length, 2, '头图与结尾使用统一全幅组件')
   assert.doesNotMatch(article, /margin:[^;\"]*-20px/, '演示源文件不手写依赖页面留白的负外边距')
+  assert.doesNotMatch(article, /<text[^>]*>CONTENT<|<text[^>]*>IN ORDER</, '展示字使用矢量轮廓')
+  assert.match(article, /aria-label="CONTENT"/, 'CONTENT 保留语义')
+  assert.match(article, /aria-label="IN ORDER"/, 'IN ORDER 保留语义')
   for (const match of article.matchAll(/<td style="([^"]+)"/g)) {
     assert.match(match[1], /(?:^|;)border:0;/, '表格单元格显式清除默认边框')
   }

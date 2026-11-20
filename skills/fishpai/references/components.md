@@ -240,7 +240,7 @@ https://example.com/3.png
 
 它可以与 Markdown 和其他组件交替出现，原样保留安全 HTML/SVG，适合独特主视觉、异形对白、固定比例画面和多层交互。脚本、事件属性、外部资源标签、表单与可执行协议会被拒绝。
 
-用于微信公众号复制时，文本与容器使用 `<section>`、`<p>`、`<span>`、`<table>`，不要依赖 `<div>`；所有视觉样式写入元素自身的 `style`，段落显式设置 `margin`。全幅内容用 `:::full_bleed`，不在 `raw` 中手写固定负外边距。表格单元格先写 `border:0`，再声明需要保留的边线。SVG 图形优先用 `<path>`、`<rect>`、`<circle>`、`<text>` 直绘，不依赖 `<image href>`、`id` 或渐变引用。含 SVG 的成品可导出为自包含 HTML；复制到目标编辑器时，结构以其粘贴处理为准。
+用于微信公众号复制时，文本与容器使用 `<section>`、`<p>`、`<span>`、`<table>`，不要依赖 `<div>`；所有视觉样式写入元素自身的 `style`，段落显式设置 `margin`。全幅内容用 `:::full_bleed`，不在 `raw` 中手写固定负外边距；组件输出 `max-width:none !important`，因为普通 `none` 会被微信临时预览的高优先级规则覆盖。表格单元格先写 `border:0`，再声明需要保留的边线。SVG 图形优先用 `<path>`、`<rect>`、`<circle>` 直绘，不依赖 `<image href>`、`id` 或渐变引用。普通 `<text>` 可用于不要求固定字形的标注；展示字、艺术字和需要指定字体的标题应转为带 `aria-label` 的矢量路径，因为手机可能忽略 `font-family` 并回退系统字形。含 SVG 的成品可导出为自包含 HTML；复制到目标编辑器时，结构以其粘贴处理为准。
 
 ## 校验
 
@@ -249,7 +249,7 @@ https://example.com/3.png
 - 检查 `id`/`class`/`display:grid`/CSS 变量等微信结构约束；
 - 标出 CSS 动画（`animation:`/`transition:`/`@keyframes`），交互动效使用 SMIL；
 - 标出 SMIL 在 `height`/`width` 上的 `repeatCount="indefinite"`，`transform`/`opacity` 循环保留；
-- 标出缺 `max-width:none` 的双向负外边距全幅容器（`full-bleed-width`）；
+- 标出未带 `max-width:none !important` 的双向负外边距全幅容器（`full-bleed-width`）；
 - 标出只写单边线、未先用 `border:0` 清除默认边框的表格单元格（`table-cell-border-reset`）。
 
 普通 Markdown 与语义组件不要求逐项运行 lint。含手写 `raw` 的复制或导出候选，用 `fishpai_lint` 检查发布形态 HTML；它是定位工具，不代替目标阅读环境验收。

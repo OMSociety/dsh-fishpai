@@ -143,8 +143,8 @@ export function wcRaw({ html = '' }) {
 
 export function wcFullBleed({ html = '' }, spec = DEFAULT_SPEC) {
   const gutter = Number(spec.page_padding_x) || 0
-  // 微信会给正文容器补 max-width:100%；显式 none 才能让负外边距真正扩展到页面边缘。
-  return section(`max-width:none;margin:0 -${gutter}px;`, wcRaw({ html }))
+  // 微信临时预览会用更高优先级覆盖普通 max-width:none。
+  return section(`max-width:none !important;margin:0 -${gutter}px;`, wcRaw({ html }))
 }
 
 export const HTML_COMPONENTS = Object.freeze({ heading, paragraph, card, two_columns: twoColumns, quote, divider })

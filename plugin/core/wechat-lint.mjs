@@ -136,8 +136,8 @@ export function lintWechatHtml(html) {
     if (/display\s*:\s*(?:inline-)?grid\b|grid-(?:template|area|column|row|gap)\s*:/i.test(style)) errors.push(issue('grid', `<${tag}> 的 style 含 grid 布局`, index, { tag }))
     // CSS 动画/过渡在公众号正文被禁用；动效应改用 SVG SMIL（见 xiumi/interactive.mjs）。
     if (/(?:^|;)\s*(?:animation|transition)(?:-[\w-]+)?\s*:/i.test(style)) errors.push(issue('css-animation', `<${tag}> 的 style 含 CSS animation/transition（公众号禁用，动效改用 SVG SMIL）`, index, { tag }))
-    if (hasNegativeHorizontalMargin(style) && String(rules['max-width'] || '').toLowerCase() !== 'none') {
-      errors.push(issue('full-bleed-width', `<${tag}> 的左右负外边距需要 max-width:none；全幅内容优先使用 :::full_bleed`, index, { tag, evidence: PASTE_MEASURED }))
+    if (hasNegativeHorizontalMargin(style) && !/^none\s*!important$/i.test(String(rules['max-width'] || '').trim())) {
+      errors.push(issue('full-bleed-width', `<${tag}> 的左右负外边距需要 max-width:none !important；全幅内容优先使用 :::full_bleed`, index, { tag, evidence: PASTE_MEASURED }))
     }
     if ((tag === 'td' || tag === 'th') && !rules.border && ['top', 'right', 'bottom', 'left'].some((side) => rules[`border-${side}`])) {
       errors.push(issue('table-cell-border-reset', `<${tag}> 先用 border:0 清除默认边框，再声明需要保留的边线`, index, { tag, evidence: PASTE_MEASURED }))
