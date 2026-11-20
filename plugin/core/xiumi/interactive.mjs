@@ -186,7 +186,7 @@ export function wcTimeline({ items = [] }, spec = DEFAULT_SPEC) {
  */
 export function wcCompare({ left = '', right = '', leftTitle = '', rightTitle = '' }, spec = DEFAULT_SPEC) {
   const head = (text) => `<p style="margin:0 0 8px;color:${spec.title_color};font-size:${spec.body_size}px;font-weight:700;">${escapeHtml(text)}</p>`
-  const cell = `width:50%;vertical-align:top;box-sizing:border-box;padding:${spec.card_padding}px;font-size:${spec.body_size}px;line-height:${spec.line_height};overflow-wrap:break-word;`
+  const cell = `width:50%;vertical-align:top;box-sizing:border-box;border:0;padding:${spec.card_padding}px;font-size:${spec.body_size}px;line-height:${spec.line_height};overflow-wrap:break-word;`
   return `<table style="width:100%;border-collapse:collapse;margin:0 0 18px;table-layout:fixed;" role="presentation"><tbody><tr>`
     + `<td style="${cell}border-right:1px solid ${spec.card_bg};color:${spec.body_color};">${leftTitle ? head(leftTitle) : ''}${contentBlock(left, spec)}</td>`
     + `<td style="${cell}color:${spec.body_color};">${rightTitle ? head(rightTitle) : ''}${contentBlock(right, spec)}</td>`

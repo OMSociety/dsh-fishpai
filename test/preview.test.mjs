@@ -24,6 +24,11 @@ test('README 演示文稿使用微信安全标签与品牌矢量图形', () => {
   const brandPath = icon.match(/<path d="([^"]+)"/)?.[1]
   assert.match(article, /<!-- FISHPAI_BRAND -->/, '演示源文件只保留品牌占位')
   assert.ok(brandPath && fixture.markdown.includes(`d="${brandPath}"`), '构建时从品牌图标读取同一份几何')
+  assert.equal((article.match(/:::full_bleed/g) || []).length, 2, '头图与结尾使用统一全幅组件')
+  assert.doesNotMatch(article, /margin:[^;\"]*-20px/, '演示源文件不手写依赖页面留白的负外边距')
+  for (const match of article.matchAll(/<td style="([^"]+)"/g)) {
+    assert.match(match[1], /(?:^|;)border:0;/, '表格单元格显式清除默认边框')
+  }
 })
 
 test('README 预览运行正式面板、store 与样式，并验收展开交互', () => {

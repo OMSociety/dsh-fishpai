@@ -85,7 +85,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 
 规格键分组：
 
-- 画布：`page_bg` `page_width` `page_padding_x` `page_padding_y`。需要整页视觉时设置背景与留白，raw 主视觉可配合零水平留白。
+- 画布：`page_bg` `page_width` `page_padding_x` `page_padding_y`。需要整页视觉时设置背景与留白；跨出正文左右留白的主视觉用 `full_bleed`，不手写负外边距。
 - 标题：`title_color` `title_size` `title_align`。
 - 正文：`body_color` `body_size` `body_align` `body_spacing` `line_height` `muted_color`。
 - 卡片：`card_bg` `card_radius` `card_padding`。
@@ -106,6 +106,24 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 ```
 
 `raw` 原样保留安全 HTML/SVG，适合独特主视觉、复杂对白、素材分层和固定比例交互。它与 Markdown、语义组件可交替出现，不要求整篇位图化。脚本、事件处理器、iframe、外链样式与危险 URL 会被插件拒绝。
+
+### 全幅内容用 `full_bleed`
+
+需要让头图、色块或 SVG 顶到页面左右边缘时，用 `full_bleed` 包裹安全 HTML/SVG：
+
+```markdown
+:::full_bleed
+<section style="margin:0 0 30px;background-color:#17213a;">
+  <svg viewBox="0 0 700 360" role="img" aria-label="整幅主视觉" style="display:block;width:100%;height:auto;">
+    <rect width="700" height="360" fill="#17213a"/>
+  </svg>
+</section>
+:::
+```
+
+组件会按当前文稿的 `page_padding_x` 自动计算左右出血，并显式设置 `max-width:none`。不要在 `raw` 里手写依赖某个固定留白值的负外边距。raw 表格的 `td` / `th` 先写 `border:0`，再写需要保留的 `border-top` 等边线。
+
+含手写 `raw` 的复制或导出候选，用 `fishpai_lint` 检查发布形态 HTML，处理 `full-bleed-width`、`table-cell-border-reset` 及其它被检出的结构问题；不能只凭侧栏预览判断粘贴结果。普通 Markdown 与语义组件不增加这套流程。
 
 正文使用系统默认字体。艺术字、特殊字形与图中文字应使用图片或矢量路径，不配置网页字体。文章是一套明确配色；深色适配由微信阅读端处理，不使用 `prefers-color-scheme` 假设编辑端会生成双主题，最终候选在目标阅读环境检查即可。
 

@@ -15,6 +15,25 @@ test('微信 lint：禁标签、属性、position、CSS 变量与 grid', () => {
   assert.ok(lintWechatHtml(html).errors.every((item) => item.evidence.includes('粘贴路径推论')))
 })
 
+test('微信 lint：全幅容器必须解除正文限宽，且不误报单边定位', () => {
+  const source = '<section style="margin:0 -20px;max-width:100%"><span>整幅内容</span></section>'
+  const result = lintWechatHtml(source)
+  const fullBleed = result.errors.find((item) => item.rule === 'full-bleed-width')
+  assert.ok(fullBleed)
+  assert.equal(fullBleed.evidence, '微信临时预览粘贴路径实测')
+  assert.deepEqual(lintWechatHtml('<section style="max-width:none;margin:0 -20px"><span>整幅内容</span></section>').errors, [])
+  assert.deepEqual(lintWechatHtml('<section style="margin-left:-20px;margin-right:auto"><span>定位内容</span></section>').errors, [])
+})
+
+test('微信 lint：表格单元格先清默认边框再保留指定边线', () => {
+  const source = '<table><tbody><tr><td style="border-top:2px solid #17213a"><span>栏目</span></td></tr></tbody></table>'
+  const result = lintWechatHtml(source)
+  const border = result.errors.find((item) => item.rule === 'table-cell-border-reset')
+  assert.ok(border)
+  assert.equal(border.evidence, '微信临时预览粘贴路径实测')
+  assert.deepEqual(lintWechatHtml('<table><tbody><tr><td style="border:0;border-top:2px solid #17213a"><span>栏目</span></td></tr></tbody></table>').errors, [])
+})
+
 test('微信 lint：直接文本节点必须包裹', () => {
   const result = lintWechatHtml('<p>直接文字<strong>粗体</strong></p>')
   assert.equal(result.ok, false)

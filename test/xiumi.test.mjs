@@ -19,7 +19,7 @@ test('秀米：规格十八键与静态组件、交互组件注册表', () => {
   assert.deepEqual(Object.keys(DEFAULT_SPEC).sort(), ['title_color','title_size','title_align','body_color','body_size','body_align','body_spacing','line_height','muted_color','page_bg','page_width','page_padding_x','page_padding_y','card_bg','card_radius','card_padding','accent','accent2'].sort())
   assert.deepEqual(Object.keys(HTML_COMPONENTS), ['heading','paragraph','card','two_columns','quote','divider'])
   assert.deepEqual(Object.keys(SVG_COMPONENTS), ['svg_gradient_banner','svg_wave_divider','svg_number_icons'])
-  assert.deepEqual(Object.keys(WECHAT_COMPONENTS), ['wc_heading','wc_paragraph','wc_card','wc_bullet_list','wc_gradient_banner','wc_wave_divider','wc_number_steps','wc_info_card','wc_chapter_header','wc_highlight','wc_credits','wc_quote','wc_two_columns','wc_raw'])
+  assert.deepEqual(Object.keys(WECHAT_COMPONENTS), ['wc_heading','wc_paragraph','wc_card','wc_bullet_list','wc_gradient_banner','wc_wave_divider','wc_number_steps','wc_info_card','wc_chapter_header','wc_highlight','wc_credits','wc_quote','wc_two_columns','wc_raw','wc_full_bleed'])
 })
 test('秀米：Markdown 与指令经 wc 别名组成页面', () => {
   const components = componentsFromMarkdown('# 标题\n\n正文\n\n:::card\n卡片\n:::\n\n:::gradient_banner\n渐变\n:::')
@@ -64,6 +64,14 @@ test('秀米：短强调词不拆行，长强调句子允许正常换行', () =>
   assert.match(html, /<strong style="color:[^;]+;font-weight:700;white-space:nowrap;">信息卡<\/strong>/)
   assert.match(html, /<strong style="color:[^;]+;font-weight:700;white-space:nowrap;">展开组件<\/strong>/)
   assert.match(html, /<strong style="color:[^;]+;font-weight:700;">这是一段需要允许正常换行的长强调句子<\/strong>/)
+})
+
+test('秀米：全幅容器按页面留白扩展，并复用 raw 安全边界', () => {
+  const html = renderXiumi(':::full_bleed\n<section style="margin:0 0 30px;"><span>整幅主视觉</span></section>\n:::', { spec: { page_padding_x: 24 } }).html
+  assert.match(html, /max-width:none;margin:0 -24px;/)
+  assert.match(html, /margin:0 0 30px;/)
+  assert.throws(() => renderXiumi(':::full_bleed\n:::'), /需要 HTML\/SVG 内容/)
+  assert.throws(() => renderXiumi(':::full_bleed\n<script>alert(1)</script>\n:::'), /raw 不允许/)
 })
 
 test('秀米：raw 保留 HTML/SVG 并拒绝主动内容', () => {

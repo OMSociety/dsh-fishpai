@@ -57,6 +57,14 @@ test('交互组件：预览不包 span，发布形态包裹文本节点', () => 
   assert.ok(!/<text[^>]*><span>/.test(publish.html), 'SVG <text> 不包 span')
 })
 
+test('发布形态包裹行内元素后的每一个直接文本节点', () => {
+  const publish = renderXiumiPublish('前文**重点**后文  \n下一行')
+  assert.match(publish.html, /<strong[^>]*>重点<\/strong><span>后文<\/span>/, '粗体后的文字也被包裹')
+  assert.match(publish.html, /<br\s*\/?><span>\s*下一行<\/span>/, '换行后的文字也被包裹')
+  const wrapping = lintWechatHtml(publish.html).errors.filter((error) => error.rule === 'text-wrapping')
+  assert.deepEqual(wrapping, [], `不应有 text-wrapping：${JSON.stringify(wrapping)}`)
+})
+
 test('交互组件：发布形态 lint 无 text-wrapping 错误', () => {
   const md = '# 标题\n\n正文\n\n:::expand\n点\n---\n内容\n:::\n\n:::timeline\n2024 · 甲\n:::\n\n:::progress\n60\n:::'
   const lint = lintWechatHtml(renderXiumiPublish(md).html)
@@ -124,5 +132,6 @@ test('交互组件：对比卡与时间线使用内联与 table 布局', () => {
   const out = renderXiumi(':::compare\n左\n---\n右\n:::\n\n:::timeline\n2024 · 甲\n:::')
   assert.ok(!/display\s*:\s*(?:inline-)?grid/.test(out.html), '布局采用内联与 table')
   assert.match(out.html, /<table/, '对比卡用 table 布局')
+  assert.match(out.html, /border:0;padding:/, '单元格先清除默认边框')
   assert.match(out.html, /border-right:1px solid #f5f6f8/, '对比栏采用细分隔线')
 })

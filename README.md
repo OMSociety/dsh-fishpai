@@ -37,8 +37,8 @@
 | **复制与导出** | 复制为 `text/html` + `text/plain` 双格式；本地图片内嵌 base64，粘过去**不用手动重传**；也能导出成自包含 `.html` |
 | **写作风格学习** | 从定稿 / HTML / 公开网页反推九字段写作风格，经暂存预览与你确认后入库；附写作规范参考（风格卡、AI 味指纹、五维自评、文末收束） |
 | **页头页尾片段库** | 页头首图、可配置页尾锚点片段经预览确认后入库，渲染时按 `snippetId` 装配 |
-| **微信约束检查** | `fishpai_lint` 检查全内联、禁用标签 / 属性、position、CSS 变量、grid、文本包裹与正文对比度 |
-| **专业自由画布** | 18 项文档级 `xiumi_spec` 控制画布、字阶与组件配色；章节头、信息卡、重点行、制作名单与 8 个交互组件可同自由 HTML / SVG 混排，本地素材在预览、复制与导出间同源使用 |
+| **微信约束检查** | `fishpai_lint` 检查全内联、禁用标签 / 属性、position、CSS 变量、grid、文本包裹、正文对比度、全幅限宽与表格默认边框 |
+| **专业自由画布** | 18 项文档级 `xiumi_spec` 控制画布、字阶与组件配色；`full_bleed` 处理整幅出血，章节头、信息卡、重点行、制作名单与 8 个交互组件可同自由 HTML / SVG 混排，本地素材在预览、复制与导出间同源使用 |
 | **八个模型工具** | `fishpai_open` / `read` / `write` / `render` / `theme` / `learn` / `snippets` / `lint`，配一份教模型怎么用的技能 |
 
 ## 效果
@@ -79,7 +79,7 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 7. 点「复制到剪贴板」→ 粘进公众号编辑器，版式正确（标题 / 列表 / 引用 / 表格 / 信息卡片）
 8. 微信编辑器弹出「内容结构检测」时，点**「继续插入」**即可——它对 SVG 包裹层的 `line-height:0` 报「行高异常」，这是 SVG 排版的正常写法，不影响正文阅读
 
-> **提示**：微信的 HTML 清洗比浏览器严格。实测会把 `:::raw` 里的 `<div>` 转成不带内联样式的 `<p>`（字号、颜色等随样式一起丢失），也会剥离 SVG `<image>` 的 `href`。因此 raw 区块请使用 `<section>` / `<p>` / `<span>` / `<table>` / `<svg>` 并写内联样式，SVG 图形用 `path` / `rect` 等形状直绘。`expand` / `swap` 的折叠态可以正常显示；点击展开依赖 SMIL 动画，请在目标账号上实测后再依赖。需要严格一致的场景，把补充内容写成普通段落或 `:::raw` 静态结构。
+> **提示**：微信的 HTML 清洗比浏览器严格。实测会把 `:::raw` 里的 `<div>` 转成不带内联样式的 `<p>`（字号、颜色等随样式一起丢失），也会剥离 SVG `<image>` 的 `href`。因此 raw 区块请使用 `<section>` / `<p>` / `<span>` / `<table>` / `<svg>` 并写内联样式，SVG 图形用 `path` / `rect` 等形状直绘。需要顶到页面左右边缘的内容用 `:::full_bleed`，不要手写固定负外边距；表格单元格先写 `border:0`，再保留指定边线。含手写 raw 的复制或导出候选，可用 `fishpai_lint` 检查发布形态。`expand` / `swap` 的折叠态可以正常显示；点击展开依赖 SMIL 动画，请在目标账号上实测后再依赖。需要严格一致的场景，把补充内容写成普通段落或 `:::raw` 静态结构。
 
 ## 模型工具
 
@@ -92,7 +92,7 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 | `fishpai_theme` | 用户级**「命名主题库」**（多套，`set` / `show` / `clear` / `list`）：模型在某套内置主题上只覆盖想改的槽位，存为 `custom:<id>` 命名主题 | `action`、`theme_id`、`theme_spec` |
 | `fishpai_learn` | 写作风格学习：反推九字段风格，暂存预览后确认入库 | `action`（`preview` / `commit` / `list` / `delete`）、`markdown` / `html` / `url` / `path`、`pending_id`、`confirm` |
 | `fishpai_snippets` | 页头页尾片段库：预览确认后入库，渲染时按名装配 | `action`、`name`、`headerHtml` / `footerHtml` / `footerImg`、`footerAnchors`、`pending_id`、`confirm` |
-| `fishpai_lint` | 微信约束检查：全内联、禁用标签 / 属性、position、CSS 变量、grid、文本包裹与正文对比度 | `html` |
+| `fishpai_lint` | 微信约束检查：全内联、禁用标签 / 属性、position、CSS 变量、grid、文本包裹、正文对比度、全幅限宽与表格默认边框 | `html` |
 
 模型的标准动作顺序是 **`open` → 等你改 → `read` → `write` → 你点复制**；技能 `fishpai`
 （随插件注册）里写明了这套纪律与排版口径，模型会在需要时自己读。

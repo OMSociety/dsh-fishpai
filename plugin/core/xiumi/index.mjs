@@ -32,7 +32,7 @@ function inline(markdown, spec) {
 }
 
 const DIRECTIVES = new Set([
-  'card', 'two_columns', 'quote', 'gradient_banner', 'wave_divider', 'number_steps', 'info_card', 'chapter_header', 'highlight', 'credits', 'raw',
+  'card', 'two_columns', 'quote', 'gradient_banner', 'wave_divider', 'number_steps', 'info_card', 'chapter_header', 'highlight', 'credits', 'raw', 'full_bleed',
   // 交互组件（SMIL）：专业模式专属。
   ...Object.keys(INTERACTIVE_DIRECTIVES),
 ])
@@ -133,6 +133,10 @@ function directiveComponent(part, spec) {
     return { type: 'credits', items }
   }
   if (part.directive === 'raw') return { type: 'raw', html: part.body }
+  if (part.directive === 'full_bleed') {
+    if (!part.body.trim()) throw new Error('full_bleed 需要 HTML/SVG 内容')
+    return { type: 'full_bleed', html: part.body }
+  }
   if (part.directive === 'wave_divider') return { type: 'wave_divider' }
   if (part.directive === 'gradient_banner') return { type: 'gradient_banner', text: part.body.trim() }
   if (part.directive === 'number_steps') {
@@ -208,7 +212,8 @@ export function buildPage(components, options = {}) {
  * 文字必须放在 span 等行内元素中，裸文本节点会被降级。秀米管线的组件直接产出
  * 裸文本，这里在出口统一包裹；`<svg>…</svg>` 整块跳过——SVG 的 <text> 不能包 span。
  */
-const TEXT_WRAP_TAGS = 'section|p|li|blockquote|h[1-6]|td|th'
+const TEXT_WRAP_TAGS = new Set(['section', 'p', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'td', 'th'])
+const VOID_TAGS = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'])
 function wrapTextNodes(html) {
   // 先把 SVG 整块摘出来占位，处理完再换回去，避免碰到动画层。
   const svgs = []
@@ -217,10 +222,21 @@ function wrapTextNodes(html) {
     svgs.push(block)
     return placeholder(svgs.length - 1)
   })
-  const wrapped = withoutSvg.replace(
-    new RegExp(`(<(?:${TEXT_WRAP_TAGS})\\b[^>]*>)([^<]+)`, 'g'),
-    (full, open, text) => (text.trim() ? `${open}<span>${text}</span>` : full),
-  )
+  const stack = []
+  const wrapped = (withoutSvg.match(/<[^>]+>|[^<]+/g) || []).map((token) => {
+    if (token[0] !== '<') {
+      return TEXT_WRAP_TAGS.has(stack.at(-1)) && token.trim() ? `<span>${token}</span>` : token
+    }
+    const closing = token.match(/^<\/\s*([a-z0-9]+)/i)
+    if (closing) {
+      const index = stack.lastIndexOf(closing[1].toLowerCase())
+      if (index >= 0) stack.length = index
+      return token
+    }
+    const opening = token.match(/^<\s*([a-z0-9]+)/i)
+    if (opening && !/\/\s*>$/.test(token) && !VOID_TAGS.has(opening[1].toLowerCase())) stack.push(opening[1].toLowerCase())
+    return token
+  }).join('')
   return wrapped.replace(/SVG(\d+)/g, (full, i) => svgs[Number(i)])
 }
 

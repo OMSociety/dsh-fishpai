@@ -1,5 +1,5 @@
-:::raw
-<section style="margin:0 -20px 30px;line-height:0;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 480" width="700" height="480" role="img" aria-label="鱼排专题主视觉：让内容有秩序地呈现" style="display:block;width:100%;height:auto;">
+:::full_bleed
+<section style="margin:0 0 30px;line-height:0;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 480" width="700" height="480" role="img" aria-label="鱼排专题主视觉：让内容有秩序地呈现" style="display:block;width:100%;height:auto;">
   <rect x="0" y="0" width="700" height="480" fill="#2f4fc1"/>
   <g fill="none" stroke="#ffffff" stroke-width="1" opacity="0.09">
     <path d="M40 0V480M140 0V480M240 0V480M340 0V480M440 0V480M540 0V480M640 0V480"/>
@@ -34,15 +34,15 @@
 :::raw
 <table style="width:100%;border-collapse:collapse;table-layout:fixed;margin:26px 0 34px;">
   <tr>
-    <td style="vertical-align:top;padding:14px 12px 12px 0;border-top:2px solid #17213a;">
+    <td style="vertical-align:top;padding:14px 12px 12px 0;border:0;border-top:2px solid #17213a;">
       <p style="margin:0;font-size:24px;line-height:1.2;font-weight:700;color:#2f4fc1;">01</p>
       <p style="margin:8px 0 0;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;">写下内容</p>
     </td>
-    <td style="vertical-align:top;padding:14px 12px 12px;border-top:2px solid #17213a;">
+    <td style="vertical-align:top;padding:14px 12px 12px;border:0;border-top:2px solid #17213a;">
       <p style="margin:0;font-size:24px;line-height:1.2;font-weight:700;color:#2f4fc1;">02</p>
       <p style="margin:8px 0 0;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;">组织阅读</p>
     </td>
-    <td style="vertical-align:top;padding:14px 0 12px 12px;border-top:2px solid #17213a;">
+    <td style="vertical-align:top;padding:14px 0 12px 12px;border:0;border-top:2px solid #17213a;">
       <p style="margin:0;font-size:24px;line-height:1.2;font-weight:700;color:#2f4fc1;">03</p>
       <p style="margin:8px 0 0;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;">抵达读者</p>
     </td>
@@ -139,8 +139,8 @@
 
 鱼排把同一份文稿渲染为内联样式 HTML，复制到剪贴板后即可带入目标编辑器。工具处理结构，作者把精力留给内容与视觉判断。
 
-:::raw
-<section style="margin:30px -20px 0;padding:30px 20px 26px;background-color:#2f4fc1;color:#ffffff;">
+:::full_bleed
+<section style="margin:30px 0 0;padding:30px 20px 26px;background-color:#2f4fc1;color:#ffffff;">
   <p style="margin:0;font-size:26px;line-height:1.5;font-weight:700;letter-spacing:1px;">让工具处理复杂，<br>让阅读保持清晰。</p>
   <p style="width:44px;height:4px;margin:20px 0;background-color:#f4d35e;"></p>
   <p style="margin:0;font-size:13px;line-height:1.8;color:#dce4ff;letter-spacing:1px;">FISHPAI · 公众号排版工作台</p>

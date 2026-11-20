@@ -2,6 +2,7 @@ const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'meta', 'link', 'base', '
 const TEXT_CONTAINERS = new Set(['section', 'p', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'td', 'th'])
 const BLOCKED_TAGS = new Set(['style', 'link', 'div'])
 const PASTE_BASIS = '粘贴路径推论；同类约束的既有实测来自微信草稿 API 路径，不能当作粘贴路径实测'
+const PASTE_MEASURED = '微信临时预览粘贴路径实测'
 
 function issue(rule, message, index, extra = {}) {
   return { rule, severity: 'error', message, index, evidence: PASTE_BASIS, ...extra }
@@ -22,6 +23,26 @@ function declarations(style) {
     result[part.slice(0, colon).trim().toLowerCase()] = part.slice(colon + 1).trim()
   }
   return result
+}
+
+function hasNegativeHorizontalMargin(style) {
+  let left = ''
+  let right = ''
+  for (const part of String(style || '').split(';')) {
+    const colon = part.indexOf(':')
+    if (colon < 1) continue
+    const name = part.slice(0, colon).trim().toLowerCase()
+    const value = part.slice(colon + 1).trim()
+    if (name === 'margin') {
+      const shorthand = value.split(/\s+/).filter(Boolean)
+      if (!shorthand.length) continue
+      right = shorthand[1] || shorthand[0]
+      left = shorthand[3] || right
+    } else if (name === 'margin-left') left = value
+    else if (name === 'margin-right') right = value
+  }
+  const negative = (value) => /^-(?:\d|\.\d)/.test(value)
+  return negative(left) && negative(right)
 }
 
 function luminance([r, g, b]) {
@@ -115,6 +136,12 @@ export function lintWechatHtml(html) {
     if (/display\s*:\s*(?:inline-)?grid\b|grid-(?:template|area|column|row|gap)\s*:/i.test(style)) errors.push(issue('grid', `<${tag}> 的 style 含 grid 布局`, index, { tag }))
     // CSS 动画/过渡在公众号正文被禁用；动效应改用 SVG SMIL（见 xiumi/interactive.mjs）。
     if (/(?:^|;)\s*(?:animation|transition)(?:-[\w-]+)?\s*:/i.test(style)) errors.push(issue('css-animation', `<${tag}> 的 style 含 CSS animation/transition（公众号禁用，动效改用 SVG SMIL）`, index, { tag }))
+    if (hasNegativeHorizontalMargin(style) && String(rules['max-width'] || '').toLowerCase() !== 'none') {
+      errors.push(issue('full-bleed-width', `<${tag}> 的左右负外边距需要 max-width:none；全幅内容优先使用 :::full_bleed`, index, { tag, evidence: PASTE_MEASURED }))
+    }
+    if ((tag === 'td' || tag === 'th') && !rules.border && ['top', 'right', 'bottom', 'left'].some((side) => rules[`border-${side}`])) {
+      errors.push(issue('table-cell-border-reset', `<${tag}> 先用 border:0 清除默认边框，再声明需要保留的边线`, index, { tag, evidence: PASTE_MEASURED }))
+    }
 
     const parent = stack.at(-1)
     const foreground = parseColor(rules.color) || parent?.foreground || null
@@ -126,6 +153,6 @@ export function lintWechatHtml(html) {
     ok: errors.length === 0,
     errors,
     summary: errors.length ? `${errors.length} 项粘贴约束未通过` : '微信粘贴约束检查通过',
-    evidence: { ruleObservations: '微信草稿 API 路径', pastePath: '推论，需以实际粘贴结果复核' },
+    evidence: { ruleObservations: '微信草稿 API 路径', pastePath: '逐条 evidence 标注；未标注规则仍需以实际粘贴结果复核', measuredRules: ['full-bleed-width', 'table-cell-border-reset'] },
   }
 }

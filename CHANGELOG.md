@@ -10,6 +10,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 新增
+
+- 专业管线新增 `full_bleed` 全幅容器：按文档 `page_padding_x` 计算左右出血并解除正文限宽；`fishpai_lint` 新增 `full-bleed-width` 与 `table-cell-border-reset` 检查及对应技能指引。
+
+### 修复
+
+- 专业双栏与对比卡显式清除表格单元格默认边框；正式演示文稿的全幅头图、结尾色块与三栏表格使用统一的微信安全结构。
+- 专业复制与导出会分别包裹粗体、链接或换行后的每个直接文本节点，候选稿可通过文本结构检查。
+
+### Added
+
+- Added the professional `full_bleed` container, which derives horizontal bleed from the document's `page_padding_x` and opts out of content-width clamping; `fishpai_lint` now checks `full-bleed-width` and `table-cell-border-reset`, with matching skill guidance.
+
+### Fixed
+
+- Professional two-column and comparison components explicitly reset table-cell borders; the formal preview article uses consistent WeChat-safe structures for its full-bleed hero, closing color block, and three-column table.
+- Professional copy and export now wrap every direct text node after bold text, links, or line breaks, allowing candidate articles to pass text-structure checks.
+
 ## [2.0.0] - 2026-11-18
 
 ### 新增

@@ -140,11 +140,18 @@
 
 鱼排拒绝脚本、事件处理器、iframe、外链样式、表单与危险 URL。不要把绕过校验当作排版能力；需要的效果用安全 HTML、内联样式、SVG 和用户素材实现。
 
+### 全幅与表格的结构约束
+
+- 头图、底部色块等需要顶到页面左右边缘的内容，用 `:::full_bleed` 包裹安全 HTML/SVG。组件读取 `page_padding_x` 并输出 `max-width:none`，不要手写 `margin:0 -20px` 之类与某份文稿留白绑定的结构。
+- 全幅容器内部另设内容 padding；不要为了文字对齐去改变整幅容器宽度。
+- raw 表格的 `td` / `th` 先写 `border:0`，再写 `border-top` 等需要保留的边线。
+- 含手写 raw 的复制或导出候选，对发布形态 HTML 运行 `fishpai_lint`。`full-bleed-width` 与 `table-cell-border-reset` 来自微信临时预览粘贴路径实测；其它规则按各自 `evidence` 理解。普通 Markdown 与语义组件不增加这道流程。
+
 ## 一次完成的工作流
 
 1. `fishpai_open`：正文与画布规格一起建立。
 2. 写 Markdown、语义组件和必要的 raw。
-3. 面板复制或 `fishpai_render` 导出。
-4. 工具报出具体规格、组件或素材错误时，只修对应问题。
+3. 面板复制或 `fishpai_render` 导出；含手写 raw 时先检查发布形态的 lint 结果。
+4. 工具报出具体规格、组件、素材或结构错误时，只修对应问题。
 
 只有用户明确要求深度视觉复刻、维护渲染组件或更新仓库预览图时，才进入截图比对与浏览器排障；普通写作 Agent 不承担这部分工作。

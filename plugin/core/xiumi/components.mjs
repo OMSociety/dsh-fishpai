@@ -33,7 +33,7 @@ export function card({ html = '', title = '' }, spec = DEFAULT_SPEC) {
 }
 
 export function twoColumns({ left = '', right = '' }, spec = DEFAULT_SPEC) {
-  const cell = `width:50%;vertical-align:top;box-sizing:border-box;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};`
+  const cell = `width:50%;vertical-align:top;box-sizing:border-box;border:0;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};`
   return `<table style="width:100%;border-collapse:collapse;margin:0 0 16px;table-layout:fixed;" role="presentation"><tbody><tr><td style="${cell}padding-right:8px;">${safeInline(left)}</td><td style="${cell}padding-left:8px;">${safeInline(right)}</td></tr></tbody></table>`
 }
 
@@ -141,7 +141,13 @@ export function wcRaw({ html = '' }) {
   return source
 }
 
+export function wcFullBleed({ html = '' }, spec = DEFAULT_SPEC) {
+  const gutter = Number(spec.page_padding_x) || 0
+  // 微信会给正文容器补 max-width:100%；显式 none 才能让负外边距真正扩展到页面边缘。
+  return section(`max-width:none;margin:0 -${gutter}px;`, wcRaw({ html }))
+}
+
 export const HTML_COMPONENTS = Object.freeze({ heading, paragraph, card, two_columns: twoColumns, quote, divider })
 export const SVG_COMPONENTS = Object.freeze({ svg_gradient_banner: svgGradientBanner, svg_wave_divider: svgWaveDivider, svg_number_icons: svgNumberIcons })
-export const WECHAT_COMPONENTS = Object.freeze({ wc_heading: wcHeading, wc_paragraph: wcParagraph, wc_card: wcCard, wc_bullet_list: wcBulletList, wc_gradient_banner: wcGradientBanner, wc_wave_divider: wcWaveDivider, wc_number_steps: wcNumberSteps, wc_info_card: wcInfoCard, wc_chapter_header: wcChapterHeader, wc_highlight: wcHighlight, wc_credits: wcCredits, wc_quote: wcQuote, wc_two_columns: wcTwoColumns, wc_raw: wcRaw })
-export const _WECHAT_ALIAS = Object.freeze({ heading: 'wc_heading', paragraph: 'wc_paragraph', card: 'wc_card', bullet_list: 'wc_bullet_list', two_columns: 'wc_two_columns', quote: 'wc_quote', divider: 'wc_wave_divider', gradient_banner: 'wc_gradient_banner', wave_divider: 'wc_wave_divider', number_steps: 'wc_number_steps', info_card: 'wc_info_card', chapter_header: 'wc_chapter_header', highlight: 'wc_highlight', credits: 'wc_credits', raw: 'wc_raw', svg_gradient_banner: 'wc_gradient_banner', svg_wave_divider: 'wc_wave_divider', svg_number_icons: 'wc_number_steps', ...Object.fromEntries(Object.keys(WECHAT_COMPONENTS).map((key) => [key, key])) })
+export const WECHAT_COMPONENTS = Object.freeze({ wc_heading: wcHeading, wc_paragraph: wcParagraph, wc_card: wcCard, wc_bullet_list: wcBulletList, wc_gradient_banner: wcGradientBanner, wc_wave_divider: wcWaveDivider, wc_number_steps: wcNumberSteps, wc_info_card: wcInfoCard, wc_chapter_header: wcChapterHeader, wc_highlight: wcHighlight, wc_credits: wcCredits, wc_quote: wcQuote, wc_two_columns: wcTwoColumns, wc_raw: wcRaw, wc_full_bleed: wcFullBleed })
+export const _WECHAT_ALIAS = Object.freeze({ heading: 'wc_heading', paragraph: 'wc_paragraph', card: 'wc_card', bullet_list: 'wc_bullet_list', two_columns: 'wc_two_columns', quote: 'wc_quote', divider: 'wc_wave_divider', gradient_banner: 'wc_gradient_banner', wave_divider: 'wc_wave_divider', number_steps: 'wc_number_steps', info_card: 'wc_info_card', chapter_header: 'wc_chapter_header', highlight: 'wc_highlight', credits: 'wc_credits', raw: 'wc_raw', full_bleed: 'wc_full_bleed', svg_gradient_banner: 'wc_gradient_banner', svg_wave_divider: 'wc_wave_divider', svg_number_icons: 'wc_number_steps', ...Object.fromEntries(Object.keys(WECHAT_COMPONENTS).map((key) => [key, key])) })
