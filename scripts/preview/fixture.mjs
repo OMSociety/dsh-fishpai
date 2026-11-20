@@ -15,10 +15,22 @@ export const PREVIEW_PATH = '/workspace/.fishpai/docs/preview.md'
 export const PREVIEW_REVISION = 12
 export const PREVIEW_UPDATED_AT = Date.parse('2026-11-18T08:00:00.000Z')
 
-export const PREVIEW_MARKDOWN = readFileSync(
+const PREVIEW_ARTICLE = readFileSync(
   new URL('../../docs/preview/preview-article.md', import.meta.url),
   'utf8',
-).trimEnd()
+)
+
+// 品牌几何只从 icon.svg 读取；微信复制形态直接内联矢量形状。
+function previewBrandMark() {
+  const icon = readFileSync(new URL('../../icon.svg', import.meta.url), 'utf8')
+  const shapes = ['path', 'circle'].map((tag) => icon.match(new RegExp(`^\\s*<${tag}\\b.*\\/>$`, 'm'))?.[0].trim())
+  if (shapes.some((shape) => !shape)) throw new Error('icon.svg 缺少品牌鱼标 path 或 circle')
+  return `<g transform="translate(40,26)">${shapes.join('').replaceAll('url(#paint0_linear_fishpai)', '#3B54C9')}</g>`
+}
+
+const BRAND_PLACEHOLDER = '<!-- FISHPAI_BRAND -->'
+if (!PREVIEW_ARTICLE.includes(BRAND_PLACEHOLDER)) throw new Error('演示文稿缺少品牌鱼标占位')
+export const PREVIEW_MARKDOWN = PREVIEW_ARTICLE.replace(BRAND_PLACEHOLDER, previewBrandMark()).trimEnd()
 
 const PREVIEW_TITLE = '把内容，排成作品：鱼排排版工作台'
 

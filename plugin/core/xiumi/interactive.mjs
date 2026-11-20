@@ -69,12 +69,15 @@ function expandable({ coverText, fallback, body, coverHeight }, spec) {
   const label = svgTextLabel(coverText, fallback)
   const expandedBody = trimTrailingBlockSpacing(body)
   const text = String(expandedBody).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-  const charsPerLine = Math.max(12, Math.floor(320 / (spec.body_size + spec.body_spacing)))
+  // 以 320px 视口估算：页面两侧留白 40px，正文容器两侧 padding 32px。
+  // 微信窄屏的真实换行比桌面预览更密集，宁可为宽屏多留一行，也不能裁掉最后一行。
+  const charsPerLine = Math.max(12, Math.floor(248 / (spec.body_size + spec.body_spacing)))
   const lines = Math.max(1, Math.ceil([...text].length / charsPerLine))
   const blocks = (String(body).match(/<(?:p|h[1-6]|section|table)\b/g) || []).length
-  // 为移动画布估算行数；最后一个块已去掉重复段后距，容器上下留白共 30px。
+  // 最后一个块已去掉重复段后距，容器上下留白共 30px。
   const contentHeight = Math.min(1200, Math.max(86, Math.ceil(lines * spec.body_size * spec.line_height + Math.max(0, blocks - 1) * 14 + 30)))
-  const totalHeight = coverHeight + contentHeight
+  // 小数行高与边框在移动端会产生亚像素取整，额外保留 1px 防止裁到底边。
+  const totalHeight = coverHeight + contentHeight + 1
   return section('margin:0 0 20px;overflow:hidden;line-height:0;',
     `<section style="height:0;min-height:0;overflow:visible;display:flow-root;">`
     + `<section style="margin-top:${coverHeight}px;padding:16px 16px 14px;box-sizing:border-box;background-color:${spec.card_bg};border-top:1px solid ${spec.page_bg};border-radius:${spec.card_radius}px;color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};">${safeInline(expandedBody)}</section>`

@@ -6,7 +6,7 @@
     <path d="M0 80H700M0 160H700M0 240H700M0 320H700M0 400H700"/>
   </g>
   <rect x="34" y="20" width="48" height="48" rx="12" fill="#ffffff"/>
-  <image x="40" y="26" width="36" height="36" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHZpZXdCb3g9IjAgMCAzNiAzNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQwX2xpbmVhcl9maXNocGFpIiB4MT0iNyIgeTE9IjEwIiB4Mj0iMjkiIHkyPSIyNiIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjN0ZBMEZGIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzNCNTRDOSIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHBhdGggZD0iTTcuNSAxOEM5LjM0OCAxMy41NiAxMy4wNDQgMTAuNzg1IDE3Ljc0OCAxMC43ODVDMjAuOTQgMTAuNzg1IDIzLjI5MiAxMi40NSAyNC44MDQgMTQuNjdMMjguNSAxMS4zNEwyNi4zMTYgMThMMjguNSAyNC42NkwyNC44MDQgMjEuMzNDMjMuMjkyIDIzLjU1IDIwLjk0IDI1LjIxNSAxNy43NDggMjUuMjE1QzEzLjA0NCAyNS4yMTUgOS4zNDggMjIuNDQgNy41IDE4WiIgc3Ryb2tlPSJ1cmwoI3BhaW50MF9saW5lYXJfZmlzaHBhaSkiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPGNpcmNsZSBjeD0iMTIuMiIgY3k9IjE2LjUiIHI9IjEuMyIgZmlsbD0idXJsKCNwYWludDBfbGluZWFyX2Zpc2hwYWkpIi8+Cjwvc3ZnPgo="/>
+  <!-- FISHPAI_BRAND -->
   <text x="90" y="57" fill="#ffffff" font-family="Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="4">FISHPAI</text>
   <text x="654" y="55" text-anchor="end" fill="#dce4ff" font-family="Arial, sans-serif" font-size="16" letter-spacing="1.5">ISSUE 01 / EDITORIAL</text>
   <text x="36" y="210" fill="#ffffff" font-family="Arial, sans-serif" font-size="94" font-weight="800" letter-spacing="-4">CONTENT</text>
@@ -35,16 +35,16 @@
 <table style="width:100%;border-collapse:collapse;table-layout:fixed;margin:26px 0 34px;">
   <tr>
     <td style="vertical-align:top;padding:14px 12px 12px 0;border-top:2px solid #17213a;">
-      <div style="font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;">01</div>
-      <div style="margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;">写下内容</div>
+      <p style="margin:0;font-size:24px;line-height:1.2;font-weight:700;color:#2f4fc1;">01</p>
+      <p style="margin:8px 0 0;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;">写下内容</p>
     </td>
     <td style="vertical-align:top;padding:14px 12px 12px;border-top:2px solid #17213a;">
-      <div style="font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;">02</div>
-      <div style="margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;">组织阅读</div>
+      <p style="margin:0;font-size:24px;line-height:1.2;font-weight:700;color:#2f4fc1;">02</p>
+      <p style="margin:8px 0 0;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;">组织阅读</p>
     </td>
     <td style="vertical-align:top;padding:14px 0 12px 12px;border-top:2px solid #17213a;">
-      <div style="font-size:24px;line-height:1.2;font-weight:750;color:#2f4fc1;">03</div>
-      <div style="margin-top:8px;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;">抵达读者</div>
+      <p style="margin:0;font-size:24px;line-height:1.2;font-weight:700;color:#2f4fc1;">03</p>
+      <p style="margin:8px 0 0;font-size:14px;line-height:1.6;font-weight:700;color:#17213a;">抵达读者</p>
     </td>
   </tr>
 </table>
@@ -115,12 +115,12 @@
 :::raw
 <section style="margin:22px 0 14px;">
   <section style="width:90%;padding:18px;box-sizing:border-box;background-color:#17213a;color:#ffffff;">
-    <div style="font-size:12px;line-height:1.5;letter-spacing:2px;color:#b8c7f5;">QUESTION</div>
-    <div style="margin-top:8px;font-size:19px;line-height:1.55;font-weight:750;">什么时候需要自由画布？</div>
+    <p style="margin:0;font-size:12px;line-height:1.5;letter-spacing:2px;color:#b8c7f5;">QUESTION</p>
+    <p style="margin:8px 0 0;font-size:19px;line-height:1.55;font-weight:700;">什么时候需要自由画布？</p>
   </section>
   <section style="width:90%;margin:12px 0 0 auto;padding:18px;box-sizing:border-box;background-color:#ffffff;border:1px solid #dfe3ea;">
-    <div style="font-size:12px;line-height:1.5;letter-spacing:2px;color:#2f4fc1;">ANSWER</div>
-    <div style="margin-top:8px;font-size:15px;line-height:1.85;color:#344054;">当素材、层级或交互本身就是内容的一部分。照片、标识、艺术字与 SVG 可以自由组合，正文依然保持清晰。</div>
+    <p style="margin:0;font-size:12px;line-height:1.5;letter-spacing:2px;color:#2f4fc1;">ANSWER</p>
+    <p style="margin:8px 0 0;font-size:15px;line-height:1.85;color:#344054;">当素材、层级或交互本身就是内容的一部分。照片、标识、艺术字与 SVG 可以自由组合，正文依然保持清晰。</p>
   </section>
 </section>
 :::
@@ -141,9 +141,9 @@
 
 :::raw
 <section style="margin:30px -20px 0;padding:30px 20px 26px;background-color:#2f4fc1;color:#ffffff;">
-  <div style="font-size:26px;line-height:1.5;font-weight:750;letter-spacing:1px;">让工具处理复杂，<br>让阅读保持清晰。</div>
-  <div style="width:44px;height:4px;margin:20px 0;background-color:#f4d35e;"></div>
-  <div style="font-size:13px;line-height:1.8;color:#dce4ff;letter-spacing:1px;">FISHPAI · 公众号排版工作台</div>
+  <p style="margin:0;font-size:26px;line-height:1.5;font-weight:700;letter-spacing:1px;">让工具处理复杂，<br>让阅读保持清晰。</p>
+  <p style="width:44px;height:4px;margin:20px 0;background-color:#f4d35e;"></p>
+  <p style="margin:0;font-size:13px;line-height:1.8;color:#dce4ff;letter-spacing:1px;">FISHPAI · 公众号排版工作台</p>
 </section>
 :::
 

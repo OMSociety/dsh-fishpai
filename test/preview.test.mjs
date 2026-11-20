@@ -14,6 +14,18 @@ test('README 预览 fixture 与正式专业渲染保持一致', () => {
   assert.equal(actual.meta.mobile, true)
 })
 
+test('README 演示文稿使用微信安全标签与品牌矢量图形', () => {
+  const article = read('docs/preview/preview-article.md')
+  const fixture = createPreviewFixture()
+  assert.doesNotMatch(article, /<div\b/i, 'raw 文本容器不使用会被清洗的 div')
+  assert.doesNotMatch(fixture.markdown, /<image\b|data:image\/svg\+xml;base64/i, 'SVG 不依赖会被剥离的 image href')
+  assert.doesNotMatch(article, /font-weight:750/, '字重使用目标环境支持的档位')
+  const icon = read('icon.svg')
+  const brandPath = icon.match(/<path d="([^"]+)"/)?.[1]
+  assert.match(article, /<!-- FISHPAI_BRAND -->/, '演示源文件只保留品牌占位')
+  assert.ok(brandPath && fixture.markdown.includes(`d="${brandPath}"`), '构建时从品牌图标读取同一份几何')
+})
+
 test('README 预览运行正式面板、store 与样式，并验收展开交互', () => {
   const entry = read('scripts/preview/main.tsx')
   const build = read('scripts/build-preview.mjs')
