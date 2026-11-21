@@ -10,60 +10,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] - 2026-11-22
 
 ### 新增
 
-- 专业管线新增 `full_bleed` 全幅容器：按文档 `page_padding_x` 计算左右出血，并以 `max-width:none !important` 保持全宽；`fishpai_lint` 新增 `full-bleed-width` 与 `table-cell-border-reset` 检查及对应技能指引。
-- 新增 `fishpai_import`：从公开公众号 URL、粘贴 HTML 或工作区 HTML 新建专业文档。复杂 SVG / 表格 / 微信专用节点保留为可编辑 raw，高置信标题、段落、列表与图片提升为原生 Markdown；公开图片下载到文档旁 `assets/`，并返回分块、素材、18 键规格证据与 lint 报告。导入不覆盖已有文档，临时 URL 查询凭据不进入文稿或报告。
-
-### 变更
-
-- 公众号预览固定采用 375px 手机阅读宽度（栏位不足时随可用宽度收缩），不再提供独立宽度开关与预览外框；文档元数据同步移除 `mobile` 字段。
-
-### 移除
-
-- 移除 `fishpai_learn`、写作风格存储与独立写作规范；技能仅保留当次改稿指令、事实与引用保护边界。
-
-### 修复
-
-- 专业双栏与对比卡显式清除表格单元格默认边框；正式演示文稿的全幅头图、结尾色块与三栏表格使用统一的微信安全结构。
-- 正式演示头图的 `CONTENT` / `IN ORDER` 使用 Arial Black 轮廓路径并保留 `aria-label`，展示字不再依赖手机端可能忽略的 SVG `font-family`。
-- 专业复制与导出会分别包裹粗体、链接或换行后的每个直接文本节点，候选稿可通过文本结构检查。
-
-### Added
-
-- Added the professional `full_bleed` container, which derives horizontal bleed from the document's `page_padding_x` and preserves full width with `max-width:none !important`; `fishpai_lint` now checks `full-bleed-width` and `table-cell-border-reset`, with matching skill guidance.
-- Added `fishpai_import` for creating professional documents from public WeChat article URLs, pasted HTML, or workspace HTML. Complex SVG, tables, and WeChat-specific nodes remain editable raw blocks, while high-confidence headings, paragraphs, lists, and images become native Markdown. Public images are saved beside the document in `assets/`; the report covers blocks, assets, 18-key spec evidence, and lint results. Import never overwrites an existing document, and temporary URL credentials are excluded from documents and reports.
-
-### Changed
-
-- The article preview now uses a fixed 375px mobile reading width, shrinking only when the pane is narrower. The separate width toggle and preview outline are gone, and the `mobile` field has been removed from document metadata.
-
-### Removed
-
-- Removed `fishpai_learn`, writing-style storage, and the standalone writing guide; the skill retains only the boundaries for current editing instructions, facts, and citation preservation.
-
-### Fixed
-
-- Professional two-column and comparison components explicitly reset table-cell borders; the formal preview article uses consistent WeChat-safe structures for its full-bleed hero, closing color block, and three-column table.
-- The `CONTENT` and `IN ORDER` display text in the formal preview hero now uses Arial Black outlines with `aria-label`, so its glyphs no longer depend on SVG `font-family` support on mobile readers.
-- Professional copy and export now wrap every direct text node after bold text, links, or line breaks, allowing candidate articles to pass text-structure checks.
-
-## [2.0.0] - 2026-11-18
-
-### 新增
-
-- 新增写作规范技能参考 `skills/fishpai/references/writing.md`：九字段风格卡、AI 味指纹库、五维质量自评与文末收束规范，起草与润色时按需读取。
-- 新增 `fishpai_lint` 与 `POST /lint`：检查微信粘贴结构、内联样式与正文对比度，并明确区分 API 路径观察与粘贴路径推论。
-- 新增 `fishpai_learn` 与 `POST /learn`：从定稿、HTML 或公开网页反推写作风格九字段，经 pending 候选与用户确认后写入 storageDomain writing 表。
-- 新增 `fishpai_snippets` 与 `POST /snippets`：页头首图、可配置页尾锚点片段经预览确认后入库；`fishpai_render` 与 `POST /render` 可用 `snippetId` 在渲染前装配。
-- 新增独立专业渲染目标与 SVG 组件库；`fishpai_render` 和 `POST /render` 接受 `target:'professional'`，微信渲染管线保持独立。
+- 新增专业模式与专业渲染管线：`fishpai_render` 与 `POST /render` 使用 `target:'professional'`，微信渲染管线保持独立；Markdown、语义组件与 `:::raw` 可混合，组成自由排版画布，raw 承载安全 HTML / SVG 原创与同等素材复刻，拒绝脚本、事件属性与主动内容；本地 `<img>` 与 `<image>` 素材纳入统一素材清单，预览可读取，复制与导出默认内嵌 base64。
 - 新增文档级专业画布规格（18 项）：`fishpai_open({professional_spec})` 校验并持久化，预览、复制与导出共用；`fishpai_render({professional_spec})` 仅覆盖当次。
 - 新增章节头、信息卡、重点行与制作名单四个语义组件，以及版式设计指南 `skills/fishpai/references/layout.md`。
 - 新增专业组件手册 `skills/fishpai/references/components.md`，含 8 个 SMIL 交互组件（点击展开 `expand`、点击换图 `swap`、滑动图集 `swiper`、探照灯 `spotlight`、弹幕 `danmaku`、进度条 `progress`、时间线 `timeline`、对比卡 `compare`）与静态版式组件；`fishpai_lint` 补 CSS 动画禁令与 SMIL 循环校验。
-- 专业管线升级为自由排版画布：Markdown、语义组件与 `:::raw` 可混合，raw 承载安全 HTML / SVG 原创与同等素材复刻，并拒绝脚本、事件属性与主动内容。
-- raw HTML / SVG 的本地 `<img>` 与 `<image>` 素材纳入统一素材清单，预览可读取，复制与导出默认内嵌 base64。
+- 新增 `fishpai_lint` 与 `POST /lint`：检查微信粘贴结构、内联样式与正文对比度，并明确区分 API 路径观察与粘贴路径推论。
+- 新增 `fishpai_snippets` 与 `POST /snippets`：页头首图、可配置页尾锚点片段经预览确认后入库；`fishpai_render` 与 `POST /render` 可用 `snippetId` 在渲染前装配。
+- 专业管线新增 `full_bleed` 全幅容器：按文档 `page_padding_x` 计算左右出血，并以 `max-width:none !important` 保持全宽；`fishpai_lint` 新增 `full-bleed-width` 与 `table-cell-border-reset` 检查及对应技能指引。
+- 新增 `fishpai_import`：从公开公众号 URL、粘贴 HTML 或工作区 HTML 新建专业文档。复杂 SVG / 表格 / 微信专用节点保留为可编辑 raw，高置信标题、段落、列表与图片提升为原生 Markdown；公开图片下载到文档旁 `assets/`，并返回分块、素材、18 键规格证据与 lint 报告。导入不覆盖已有文档，临时 URL 查询凭据不进入文稿或报告。
 
 ### 变更
 
@@ -72,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**：命名自定义主题改为用户级多主题库，存入 storageDomain themes 表，主题 key 使用 `custom:<id>`；`fishpai_theme` 支持 `set` / `show` / `clear` / `list`，并可用 `theme_id` 指定主题。不再读取 `.fishpai/theme.json` 或主题名 `custom`。
 - 渲染 golden 改为当前核心自产 snapshot，`scripts/regen-golden.mjs` 只从 `plugin/core/render.mjs` 生成；站点样本 parity 由 `FISHPAI_SITE_PARITY=1` 显式启用。
 - 项目说明、代码注释与技能文档统一以本仓库为行为依据；MoPai 保留为早期设计参考与许可证出处。
+- 公众号预览固定采用 375px 手机阅读宽度（栏位不足时随可用宽度收缩），不再提供独立宽度开关与预览外框；文档元数据同步移除 `mobile` 字段。
 
 ### 移除
 
@@ -80,19 +39,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 修复
 
 - 会话工作目录在启动阶段尚未就绪时，面板在首次成功轮询后自动恢复文档初始化。
+- 专业双栏与对比卡显式清除表格单元格默认边框；正式演示文稿的全幅头图、结尾色块与三栏表格使用统一的微信安全结构。
+- 正式演示头图的 `CONTENT` / `IN ORDER` 使用 Arial Black 轮廓路径并保留 `aria-label`，展示字不再依赖手机端可能忽略的 SVG `font-family`。
+- 专业复制与导出会分别包裹粗体、链接或换行后的每个直接文本节点，候选稿可通过文本结构检查。
 
 ### Added
 
-- Added the writing-guide reference `skills/fishpai/references/writing.md`: nine-field style cards, AI-flavor fingerprint library, five-dimension quality self-review, and closing conventions, read on demand while drafting or polishing.
-- Added `fishpai_lint` and `POST /lint` for WeChat paste-structure, inline-style, and text-contrast checks with explicit evidence boundaries.
-- Added `fishpai_learn` and `POST /learn`: infer nine writing-style fields from drafts, HTML, or public pages, then persist confirmed candidates to the storageDomain writing table.
-- Added `fishpai_snippets` and `POST /snippets`: confirm header/footer fragments before storage, then compose them by `snippetId` before rendering.
-- Added an independent professional rendering target and SVG component library; `fishpai_render` and `POST /render` accept `target:'professional'`, while the WeChat rendering pipeline remains independent.
+- Added the professional mode and rendering pipeline: `fishpai_render` and `POST /render` accept `target:'professional'` while the WeChat pipeline remains independent; Markdown, semantic components, and `:::raw` can be mixed into a free-form canvas, with raw carrying safe HTML / SVG original designs and same-material recreations while rejecting scripts, event handlers, and active content; local `<img>` and `<image>` assets join the unified asset inventory, readable in previews and embedded as base64 by default for copy and export.
 - Added an 18-key document-level professional canvas spec: `fishpai_open({professional_spec})` validates and persists it for preview, copy, and export; `fishpai_render({professional_spec})` overrides only the current render.
 - Added four semantic components (chapter headers, info cards, highlight lines, and credits) plus the layout guide `skills/fishpai/references/layout.md`.
 - Added the component reference `skills/fishpai/references/components.md` with 8 SMIL interactive components plus static layout components; `fishpai_lint` now flags CSS animations and risky SMIL loops.
-- Upgraded the professional pipeline into a free-form canvas: Markdown, semantic components, and `:::raw` can be mixed, with raw supporting safe HTML / SVG original designs and same-material recreations while rejecting scripts, event handlers, and active content.
-- Local `<img>` and `<image>` assets in raw HTML / SVG now share the unified asset inventory: previews can read them, and copy and export embed them as base64 by default.
+- Added `fishpai_lint` and `POST /lint` for WeChat paste-structure, inline-style, and text-contrast checks with explicit evidence boundaries.
+- Added `fishpai_snippets` and `POST /snippets`: confirm header/footer fragments before storage, then compose them by `snippetId` before rendering.
+- Added the professional `full_bleed` container, which derives horizontal bleed from the document's `page_padding_x` and preserves full width with `max-width:none !important`; `fishpai_lint` now checks `full-bleed-width` and `table-cell-border-reset`, with matching skill guidance.
+- Added `fishpai_import` for creating professional documents from public WeChat article URLs, pasted HTML, or workspace HTML. Complex SVG, tables, and WeChat-specific nodes remain editable raw blocks, while high-confidence headings, paragraphs, lists, and images become native Markdown. Public images are saved beside the document in `assets/`; the report covers blocks, assets, 18-key spec evidence, and lint results. Import never overwrites an existing document, and temporary URL credentials are excluded from documents and reports.
 
 ### Changed
 
@@ -101,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: Named custom themes now live in the user-level storageDomain themes table and use `custom:<id>` keys. `fishpai_theme` supports `set` / `show` / `clear` / `list` with an optional `theme_id`. `.fishpai/theme.json` and the bare `custom` theme name are no longer read.
 - Rendering goldens are now snapshots produced by the current core, with `scripts/regen-golden.mjs` using only `plugin/core/render.mjs`; site parity is an opt-in soft reference via `FISHPAI_SITE_PARITY=1`.
 - Project guides, code comments, and skill documentation now use this repository as the behavioral source of truth; MoPai remains credited as an early design reference and license origin.
+- The article preview now uses a fixed 375px mobile reading width, shrinking only when the pane is narrower. The separate width toggle and preview outline are gone, and the `mobile` field has been removed from document metadata.
 
 ### Removed
 
@@ -109,6 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - When the session working directory is not ready during startup, the panel automatically resumes document initialization after the first successful poll.
+- Professional two-column and comparison components explicitly reset table-cell borders; the formal preview article uses consistent WeChat-safe structures for its full-bleed hero, closing color block, and three-column table.
+- The `CONTENT` and `IN ORDER` display text in the formal preview hero now uses Arial Black outlines with `aria-label`, so its glyphs no longer depend on SVG `font-family` support on mobile readers.
+- Professional copy and export now wrap every direct text node after bold text, links, or line breaks, allowing candidate articles to pass text-structure checks.
 
 ## [1.2.1] - 2026-11-02
 
