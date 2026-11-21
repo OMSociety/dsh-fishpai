@@ -142,6 +142,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 | `wechatsync/Wechatsync` 及其派生的 `article-syncjs` | 上游为 GPL-3.0，派生物**没有**许可证文件（默认保留全部权利）。鱼排不做多平台分发。 |
 | `DOMPurify` | 许可为 `(MPL-2.0 OR Apache-2.0)`。导入解析使用 cheerio，主动内容、事件属性与危险 URL 由本仓库规则清理，以保留微信兼容的 HTML / SVG / SMIL 结构。 |
 
-## 5. 本仓库维护部分的许可
+## 5. 鱼排自身代码的许可
 
-维护代码同样以 MIT 发布，版权归 [@OMSociety](https://github.com/OMSociety)。完整条款见 `LICENSE`。
+鱼排自身的代码以 MIT 许可证发布，版权归 [@OMSociety](https://github.com/OMSociety) 所有，完整条款见 `LICENSE`。第三方组件的许可与版权归属见前文。

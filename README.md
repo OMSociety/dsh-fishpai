@@ -160,4 +160,4 @@ npx tsx src/index.ts /path/to/article.html --json
 
 ## 许可证与作者
 
-[MIT](LICENSE)。第三方许可与署名见 [`NOTICE.md`](NOTICE.md)；本仓库维护部分的代码 © 2026 [@OMSociety](https://github.com/OMSociety)。
+本项目以 [MIT 许可证](LICENSE)发布，由 [@OMSociety](https://github.com/OMSociety) 维护。第三方组件的许可与署名见 [`NOTICE.md`](NOTICE.md)。
