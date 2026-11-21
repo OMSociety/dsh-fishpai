@@ -14,7 +14,6 @@ export interface DocMeta {
   fontSize: string
   footnotes: boolean
   macCodeBlock: boolean
-  mobile: boolean
   target: RenderTarget
   xiumiSpec: Record<string, string | number>
 }

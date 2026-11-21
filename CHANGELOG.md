@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 专业管线新增 `full_bleed` 全幅容器：按文档 `page_padding_x` 计算左右出血，并以 `max-width:none !important` 保持全宽；`fishpai_lint` 新增 `full-bleed-width` 与 `table-cell-border-reset` 检查及对应技能指引。
 - 新增 `fishpai_import`：从公开公众号 URL、粘贴 HTML 或工作区 HTML 新建专业文档。复杂 SVG / 表格 / 微信专用节点保留为可编辑 raw，高置信标题、段落、列表与图片提升为原生 Markdown；公开图片下载到文档旁 `assets/`，并返回分块、素材、18 键规格证据与 lint 报告。导入不覆盖已有文档，临时 URL 查询凭据不进入文稿或报告。
 
+### 变更
+
+- 公众号预览固定采用 375px 手机阅读宽度（栏位不足时随可用宽度收缩），不再提供独立宽度开关与预览外框；文档元数据同步移除 `mobile` 字段。
+
 ### 移除
 
 - 移除 `fishpai_learn`、写作风格存储与独立写作规范；技能仅保留当次改稿指令、事实与引用保护边界。
@@ -31,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added the professional `full_bleed` container, which derives horizontal bleed from the document's `page_padding_x` and preserves full width with `max-width:none !important`; `fishpai_lint` now checks `full-bleed-width` and `table-cell-border-reset`, with matching skill guidance.
 - Added `fishpai_import` for creating professional documents from public WeChat article URLs, pasted HTML, or workspace HTML. Complex SVG, tables, and WeChat-specific nodes remain editable raw blocks, while high-confidence headings, paragraphs, lists, and images become native Markdown. Public images are saved beside the document in `assets/`; the report covers blocks, assets, 18-key spec evidence, and lint results. Import never overwrites an existing document, and temporary URL credentials are excluded from documents and reports.
+
+### Changed
+
+- The article preview now uses a fixed 375px mobile reading width, shrinking only when the pane is narrower. The separate width toggle and preview outline are gone, and the `mobile` field has been removed from document metadata.
 
 ### Removed
 

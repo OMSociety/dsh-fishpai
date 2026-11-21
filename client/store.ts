@@ -100,7 +100,6 @@ const DEFAULT_META: DocMeta = {
   fontSize: '16px',
   footnotes: true,
   macCodeBlock: true,
-  mobile: false,
   target: 'xiumi',
   xiumiSpec: {},
 }

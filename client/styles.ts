@@ -145,8 +145,7 @@ export const CSS = `
   tab-size:2;
 }
 .fp-preview-wrap{flex:1 1 auto;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base);display:flex;justify-content:center}
-.fp-preview{width:100%;height:100%;border:0;background:#fff}
-.fp-preview[data-mobile="true"]{width:375px;max-width:100%;box-shadow:0 0 0 1px var(--dsw-alias-border-l2)}
+.fp-preview{width:375px;max-width:100%;height:100%;border:0;background:#fff}
 .fp-preview-empty{color:var(--dsw-alias-label-secondary);padding:16px;text-align:center}
 
 .fp-drawer{flex:none;border-top:1px solid var(--dsw-alias-border-l2);display:flex;flex-direction:column;max-height:46%;min-height:0}

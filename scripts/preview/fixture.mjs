@@ -25,7 +25,7 @@ function previewBrandMark() {
   const icon = readFileSync(new URL('../../icon.svg', import.meta.url), 'utf8')
   const shapes = ['path', 'circle'].map((tag) => icon.match(new RegExp(`^\\s*<${tag}\\b.*\\/>$`, 'm'))?.[0].trim())
   if (shapes.some((shape) => !shape)) throw new Error('icon.svg 缺少品牌鱼标 path 或 circle')
-  return `<g transform="translate(40,26)">${shapes.join('').replaceAll('url(#paint0_linear_fishpai)', '#3B54C9')}</g>`
+  return `<g transform="translate(28 14) scale(1.55)">${shapes.join('').replaceAll('url(#paint0_linear_fishpai)', '#ffffff')}</g>`
 }
 
 const BRAND_PLACEHOLDER = '<!-- FISHPAI_BRAND -->'
@@ -83,7 +83,6 @@ export function createPreviewFixture() {
     fontSize: '16px',
     footnotes: true,
     macCodeBlock: true,
-    mobile: true,
     target: 'xiumi',
     xiumiSpec: normalizeSpec(PREVIEW_SPEC),
   }

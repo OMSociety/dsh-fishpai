@@ -236,7 +236,6 @@ function defaultState(absPath) {
     fontSize: '16px',
     footnotes: true,
     macCodeBlock: true,
-    mobile: false,
     target: 'xiumi',
     xiumiSpec: {},
     baseline: null,
@@ -573,7 +572,7 @@ export function rebase({ cwd, docPath, by = 'human' }) {
  * （`color` 替换主题里的 `{{PRIMARY}}` 占位符，`fontSize` 拼进 `font-size: …;`），
  * 两者都在这里过一道形态校验；秀米画布规格另经 normalizeSpec 合并与校验，其余字段只当开关/枚举用。
  */
-const META_FIELDS = ['theme', 'color', 'font', 'fontSize', 'footnotes', 'macCodeBlock', 'mobile', 'target', 'xiumiSpec']
+const META_FIELDS = ['theme', 'color', 'font', 'fontSize', 'footnotes', 'macCodeBlock', 'target', 'xiumiSpec']
 
 /**
  * 主题色只认 `#` + 3~8 位十六进制。

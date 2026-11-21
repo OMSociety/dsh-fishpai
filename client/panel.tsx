@@ -798,18 +798,6 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
                 并排
               </Btn>
             </div>
-            <Btn
-              on={state.meta.mobile}
-              disabled={mode === 'edit'}
-              onClick={() => store.actions.setMeta({ mobile: !state.meta.mobile })}
-              title={
-                mode === 'edit'
-                  ? '手机宽度效果可在「预览」或「并排」视图查看'
-                  : '按手机宽度预览（375px）'
-              }
-            >
-              手机
-            </Btn>
             <button
               type="button"
               className="fp-btn fp-icon-btn"
@@ -1007,7 +995,6 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             html={state.previewHtml}
             imageMap={state.imageMap}
             hljsCss={state.hljsCss}
-            mobile={state.meta.mobile}
             previewing={state.previewing}
             onLoad={restoreScroll}
           />
@@ -1482,7 +1469,6 @@ function Preview(props: {
   imageMap: Record<string, string>
   /** hljs 配色（宿主从 hljs-map.json 生成）：srcdoc 里没有 highlight.js 样式表，不注入代码块是黑的 */
   hljsCss: string
-  mobile: boolean
   previewing: boolean
   onLoad: () => void
 }) {
@@ -1500,7 +1486,6 @@ function Preview(props: {
             className="fp-preview"
             title="公众号预览"
             sandbox="allow-scripts"
-            data-mobile={props.mobile ? 'true' : 'false'}
             srcDoc={buildSrcdoc(props.html, props.imageMap, props.hljsCss)}
             onLoad={props.onLoad}
           />

@@ -5,9 +5,8 @@
     <path d="M40 0V480M140 0V480M240 0V480M340 0V480M440 0V480M540 0V480M640 0V480"/>
     <path d="M0 80H700M0 160H700M0 240H700M0 320H700M0 400H700"/>
   </g>
-  <rect x="34" y="20" width="48" height="48" rx="12" fill="#ffffff"/>
   <!-- FISHPAI_BRAND -->
-  <text x="90" y="57" fill="#ffffff" font-family="Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="4">FISHPAI</text>
+  <text x="86" y="57" fill="#ffffff" font-family="Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="4">FISHPAI</text>
   <text x="654" y="55" text-anchor="end" fill="#dce4ff" font-family="Arial, sans-serif" font-size="16" letter-spacing="1.5">ISSUE 01 / EDITORIAL</text>
   <g fill="#ffffff" transform="translate(36 210) scale(0.04589844 -0.04589844)" aria-label="CONTENT">
   <path d="M1126.0 599 1523.0 479Q1483.0 312 1397.0 200.0Q1311.0 88 1183.5 31.0Q1056.0 -26 859.0 -26Q620.0 -26 468.5 43.5Q317.0 113 207.0 288.0Q97.0 463 97.0 736Q97.0 1100 290.5 1295.5Q484.0 1491 838.0 1491Q1115.0 1491 1273.5 1379.0Q1432.0 1267 1509.0 1035L1109.0 946Q1088.0 1013 1065.0 1044Q1027.0 1096 972.0 1124.0Q917.0 1152 849.0 1152Q695.0 1152 613.0 1028Q551.0 936 551.0 739Q551.0 495 625.0 404.5Q699.0 314 833.0 314Q963.0 314 1029.5 387.0Q1096.0 460 1126.0 599Z"/>
@@ -76,7 +75,7 @@
 
 :::info_card
 @一份文稿，三种输出
-手机预览用于阅读确认，复制到剪贴板用于粘贴，导出 HTML 用于归档与进一步加工。
+预览用于阅读确认，复制到剪贴板用于粘贴，导出 HTML 用于归档与进一步加工。
 :::
 
 :::raw

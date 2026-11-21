@@ -78,7 +78,7 @@ const stub = (methods) => {
 
 const docPayload = (key, markdown, revision) => ({
   doc: { key, path: `${key}.md`, title: '测试文档', markdown, revision, updatedAt: 1, updatedBy: 'human', baseline: null },
-  meta: { theme: 'default', color: null, font: 'sans', fontSize: '16px', footnotes: true, macCodeBlock: true, mobile: false, target: 'xiumi', xiumiSpec: {} },
+  meta: { theme: 'default', color: null, font: 'sans', fontSize: '16px', footnotes: true, macCodeBlock: true, target: 'xiumi', xiumiSpec: {} },
   blocks: [],
   notes: [],
   placeholders: [],

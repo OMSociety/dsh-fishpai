@@ -1373,10 +1373,10 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
 
   // 8) POST /meta —— 样式开关与渲染目标
   assert.equal(doc.json.meta.target, 'xiumi', '文档默认走秀米专业管线')
-  const meta = await callRoute(handler, { method: 'POST', url: '/fishpai/api/meta', body: { sessionId: session, docKey, meta: { mobile: true, color: '#10b981', target: 'wechat' } } })
+  const meta = await callRoute(handler, { method: 'POST', url: '/fishpai/api/meta', body: { sessionId: session, docKey, meta: { color: '#10b981', target: 'wechat' } } })
   assert.equal(meta.status, 200)
   const after = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=${session}&docKey=${docKey}` })
-  assert.equal(after.json.meta.mobile, true)
+  assert.equal('mobile' in after.json.meta, false)
   assert.equal(after.json.meta.color, '#10b981')
   assert.equal(after.json.meta.target, 'wechat', '渲染目标要随其它 meta 一起持久化')
 

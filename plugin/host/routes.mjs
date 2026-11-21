@@ -218,7 +218,6 @@ function docPayload({ cwd, key, domain }) {
       fontSize: state.fontSize,
       footnotes: state.footnotes !== false,
       macCodeBlock: state.macCodeBlock !== false,
-      mobile: !!state.mobile,
       target: state.target,
       xiumiSpec: state.xiumiSpec || {},
     },
