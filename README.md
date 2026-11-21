@@ -31,8 +31,8 @@
 <td width="36%" align="center"><a href="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.png"><img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/wechat-fishpai.png" alt="发布到公众号后的实机效果" width="235"></a></td>
 </tr>
 <tr>
-<td align="center">正式面板：专业模式默认展示公众号预览，文稿编辑、组件插入与文档辅助栏可按需展开</td>
-<td align="center">发布到公众号后的实机截图</td>
+<td align="center">鱼排编辑器工作台预览</td>
+<td align="center">产出文章的微信实机截图</td>
 </tr>
 </table>
 
