@@ -20,12 +20,13 @@ const PREVIEW_ARTICLE = readFileSync(
   'utf8',
 )
 
-// 品牌几何只从 icon.svg 读取；微信复制形态直接内联矢量形状。
+// 头图品牌标直接内嵌 icon.svg 的渐变定义与 path / circle，只按文字高度做整体缩放与对位。
 function previewBrandMark() {
   const icon = readFileSync(new URL('../../icon.svg', import.meta.url), 'utf8')
+  const defs = icon.match(/^\s*<defs>[\s\S]*?<\/defs>\s*$/m)?.[0].trim()
   const shapes = ['path', 'circle'].map((tag) => icon.match(new RegExp(`^\\s*<${tag}\\b.*\\/>$`, 'm'))?.[0].trim())
-  if (shapes.some((shape) => !shape)) throw new Error('icon.svg 缺少品牌鱼标 path 或 circle')
-  return `<g transform="translate(28 14) scale(1.55)">${shapes.join('').replaceAll('url(#paint0_linear_fishpai)', '#ffffff')}</g>`
+  if (!defs || shapes.some((shape) => !shape)) throw new Error('icon.svg 缺少品牌渐变或鱼标 path / circle')
+  return `${defs}<g fill="none" transform="translate(30 17) scale(1.8)">${shapes.join('')}</g>`
 }
 
 const BRAND_PLACEHOLDER = '<!-- FISHPAI_BRAND -->'
