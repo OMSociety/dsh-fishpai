@@ -15,10 +15,11 @@ export const PREVIEW_PATH = '/workspace/.fishpai/docs/preview.md'
 export const PREVIEW_REVISION = 12
 export const PREVIEW_UPDATED_AT = Date.parse('2026-11-18T08:00:00.000Z')
 
+// 演示 Markdown 统一使用 LF，保证 Windows 与 CI 生成同一份 fixture。
 const PREVIEW_ARTICLE = readFileSync(
   new URL('../../docs/preview/preview-article.md', import.meta.url),
   'utf8',
-)
+).replace(/\r\n/g, '\n')
 
 // 头图品牌标直接内嵌 icon.svg 的渐变定义与 path / circle，只按文字高度做整体缩放与对位。
 function previewBrandMark() {

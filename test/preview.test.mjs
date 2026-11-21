@@ -10,6 +10,7 @@ const read = (name) => readFileSync(path.join(ROOT, name), 'utf8')
 
 test('README 预览 fixture 与正式专业渲染保持一致', () => {
   const actual = JSON.parse(read('docs/preview/fixture.json'))
+  assert.doesNotMatch(actual.markdown, /\r/, '演示 fixture 统一使用 LF')
   assert.equal(JSON.stringify(actual), JSON.stringify(createPreviewFixture()))
   assert.equal('mobile' in actual.meta, false)
 })
