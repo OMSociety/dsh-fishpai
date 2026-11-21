@@ -6,21 +6,23 @@ Markdown 管线的 8 个兼容性约束不许"修好"、以及"绝不静默覆�
 
 ## 本地跑起来
 
+项目使用 Node ≥ 20（CI 用 22）与 npm。`cheerio@1.0.0` 承担导入解析；`playwright-core` 用于维护者构建正式 README 预览；`@deepseek-ai/dsh-storage-domain` 是宿主可选提供的 peer。
+
 ```powershell
-npm install          # 只有 devDependencies
+npm install
 npm test             # 全量回归（golden + 核心单测 + 宿主红线 + 客户端时序）
 npm run typecheck    # 客户端 TSX 类型检查
 npm run build        # 改过 client/ 就必须跑，并把 lib/client.js 一起提交
-npm run check:build  # 确认 lib/ 与源码同步（CI 也跑这条）
+npm run check:build  # 确认 lib/ 与源码同步
+npm run check:pack   # 核对 npm 发布物清单
 ```
 
-CI（`.github/workflows/ci.yml`）跑的是 `npm ci` 加三条核对：`npm test`、`npm run typecheck`、
-`npm run check:build`。最后一条自己会先构建再比对，所以本地不必单独跑 `npm run build`——
-但改过 `client/` 记得把重新生成的 `lib/client.js` 一起提交（见下条）。
+CI（`.github/workflows/ci.yml`）在 Ubuntu 与 Windows 上运行 `npm ci`，随后执行 `npm test`、`npm run typecheck`、
+`npm run check:build`、`npm run check:pack`。改过 `client/` 时，把重新生成的 `lib/client.js` 一起提交。
 
 ## 提 PR 的硬要求
 
-1. **`npm test` / `npm run typecheck` / `npm run check:build` 三条全绿**。
+1. **`npm test` / `npm run typecheck` / `npm run check:build` / `npm run check:pack` 四条全绿**。
 2. **改过 `client/` 就必须提交重新构建的 `lib/client.js`**：`dsh plugin add` 不做构建，
    产物不同步 = 用户装到的还是旧界面。
 3. **不要为了让测试变绿去动 `test/golden/**`**。golden 只能用 `npm run test:golden:regen`
@@ -32,9 +34,9 @@ CI（`.github/workflows/ci.yml`）跑的是 `npm ci` 加三条核对：`npm test
 
 ## 改渲染内核时
 
-`plugin/core/` 是纯函数、零依赖，`plugin/vendor/` 是数据（内置主题定义与两个压缩库）。
+`plugin/core/` 的渲染与文档处理保持纯函数；仅 `plugin/core/import/` 使用 `cheerio`，其余 core 模块无运行时 npm 依赖。`plugin/vendor/` 是数据（内置主题定义与两个压缩库）。
 "预览看起来不对"绝大多数不是内核 bug——预览与发布是两条渲染路径，
-判据见 `AGENTS.md` 硬约束 18。
+判据见 `AGENTS.md` 硬约束 17。
 
 ## 安全问题
 

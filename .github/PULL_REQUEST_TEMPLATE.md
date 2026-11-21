@@ -4,9 +4,9 @@
 
 ## 自查
 
-- [ ] `npm test` / `npm run typecheck` / `npm run check:build` 三条本地全绿
+- [ ] `npm test` / `npm run typecheck` / `npm run check:build` / `npm run check:pack` 四条本地全绿
 - [ ] 改过 `client/` 的话，已跑 `npm run build` 并把 `lib/client.js` 一起提交
-- [ ] 没有为了让测试变绿去动 `test/golden/**`（如确有需要，下面说明了"上游行为为什么变了"）
+- [ ] 没有为了让测试变绿去动 `test/golden/**`（如确有需要，下面说明了"渲染行为为什么变了"）
 - [ ] 没有改 `package.json` 的 `version`（version bump 单独提交）
 - [ ] 没有引入 GPL / 无证 / MPL 依赖
 

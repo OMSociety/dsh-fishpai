@@ -2,6 +2,8 @@
 
 适用范围：本仓库全部目录（`OMSociety/dsh-fishpai`）。
 
+使用顺序：先在「修改契约」定位任务，再读对应硬约束，最后按「验收标准」执行。引用规则时使用硬约束编号，编号保持稳定。
+
 ## 项目概览
 
 - 一句话定位：DSH 插件——把 Markdown 排成可直接粘进微信公众号编辑器的内联样式 HTML；宿主侧（Node ESM）与客户端侧（浏览器 TSX）在同一个包里，面板长在 DSH 右侧栏，人与模型协同改稿。
@@ -23,16 +25,19 @@
 | 类型检查（只覆盖 `client/`） | `npm run typecheck` |
 | 打包客户端 bundle | `npm run build` |
 | 构建并核对 lib/ 无漂移 | `npm run check:build` |
-| 重建正式 README 预览 | `npm run build:preview` |
+| 核对 npm 发布物清单 | `npm run check:pack` |
+| 重建正式 README 预览（需本机 Chrome；`CHROME_PATH` 可指定可执行文件） | `npm run build:preview` |
 | 重生成渲染 golden | `npm run test:golden:regen` |
+| 只核对 golden 漂移、不写文件 | `node scripts/regen-golden.mjs --check` |
 
 ```powershell
 npm test
 npm run typecheck
 npm run check:build
+npm run check:pack
 ```
 
-本地安装验证需要**用户自己**停 / 起 `dsh web`（node-pty 文件锁，宿主一停会话即断）；agent 不自行停启主服务。
+需要重启 DSH 宿主做安装验证时，由用户操作；宿主一停当前会话即断，agent 不自行停启主服务。
 
 ## 架构边界
 
@@ -72,16 +77,19 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 
 ## 修改契约
 
-- 改 `client/`：跑 `npm run build` 并把 `lib/client.js` 一起提交。`dsh plugin add` 只安装不构建，产物不同步 = 用户装到旧界面；`npm run check:build` 与 CI 会拦。
-- 改渲染默认路径：先 `npm test` 确认绿；`test/golden/**` 是当前核心的自产 snapshot，只能用 `npm run test:golden:regen` 重生成，且必须在 PR 里说清预期行为变化。`node scripts/regen-golden.mjs --check` 只核对漂移、不写文件。
-- 改 `plugin/vendor/themes.js`：同上重生成 snapshot，并核对主题清单与全部 fixture。
-- 改 `client/theme-icons.tsx` 的几何：先回到 rc2 的 `@deepseek-ai/dsh-client-ui-primitives` 逐字比对（来源记录见 NOTICE.md），再 `npm run build` 提交产物。`test/theme-icons.test.mjs` 只守结构与接线，守不住几何内容。
-- 改包根 `icon.svg`：同步改 `client/icons.tsx` 里 `FishMark` 的同一份 36 画板几何；别处没有第二份。
-- 改 README 效果图：运行 `npm run build:preview`。构建链直接运行正式 `Panel`、`createFishpaiStore` 与面板 CSS，由 `docs/preview/fixture.json` 应答接口，输出 `docs/preview/panel.html` 与 `docs/panel-preview.png`，并在 Chrome 中验收展开交互；改 client、专业渲染或演示文稿后同步重出预览。
-- 加主题：`plugin/vendor/themes.js` 加定义（仿 `default` 主题那套 19 个槽位），往 `client/icons.tsx` 的 `THEME_GLYPH` 补一行（仿现有行；新几何走 `client/theme-icons.tsx` 的复制流程），再重生成 golden。`test/theme-info.test.mjs` 查漏；README / 技能里写死的「11 套主题」计数同步改。
-- 改快捷键 / 键位文案 / 格式化动作：只改 `client/mdedit.ts` + `test/mdedit.test.mjs`，别处不抄第二份。
-- 改依赖：用 `npm install <pkg>`，锁文件随改动一起提交；新增依赖先查许可证（见硬约束 3）。
-- 改 `package.json` 的 `version`：不许顺手改。版本号与 CHANGELOG 条目同属一次发版提交，且 bump 前必须先报备用户。
+| 改动 | 必须动作 | 通过标准 |
+|---|---|---|
+| `client/` | 跑 `npm run build`，把 `lib/client.js` 与源码一起提交 | `npm run check:build`；安装器只安装不构建，漏交产物会装到旧界面 |
+| 默认渲染路径或 `plugin/vendor/themes.js` | 先跑 `npm test`；只用 `npm run test:golden:regen` 重生成 snapshot，审阅全部 fixture 与主题差异 | 测试通过，PR 说清预期行为变化 |
+| 专业渲染或演示文稿 | 跑 `npm run build:preview`，核对手机文章区与展开交互 | `test/preview.test.mjs` 通过，并人工查看 PNG |
+| 包根 `icon.svg` | 同步 `client/icons.tsx` 的 `FishMark`；跑 `npm run build` 与 `npm run build:preview` | 品牌几何一致；预览保留原始渐变与根节点 `fill="none"` 的透明区域 |
+| `client/theme-icons.tsx` 几何 | 按 NOTICE.md 记录的 `@deepseek-ai/dsh-client-ui-primitives` 原版逐字比对，再构建 | `test/theme-icons.test.mjs` 通过；该测试只守结构，不替代几何比对 |
+| 新增主题 | 在 `plugin/vendor/themes.js` 补齐 19 槽位，在 `client/icons.tsx` 的 `THEME_GLYPH` 补图标，重生成 golden，同步 README / 技能中的主题计数 | `test/theme-info.test.mjs` 与 golden 测试通过 |
+| 快捷键或格式化动作 | 只改 `client/mdedit.ts` 与 `test/mdedit.test.mjs`，不复制第二份实现 | `node --test test/mdedit.test.mjs` 通过 |
+| 依赖 | 用 `npm install <pkg>` 并提交锁文件；先查许可证（硬约束 3） | 安装、测试与打包检查通过 |
+| `package.json` 的 `version` | bump 前向用户报备；与 CHANGELOG 条目同属一次发版提交 | 用户确认，发版检查通过 |
+
+`docs/preview/preview-article.md` 与 `scripts/preview/` 是预览输入；`docs/preview/{fixture.json,panel.html}` 和 `docs/panel-preview.png` 由 `npm run build:preview` 生成。构建链运行正式 `Panel`、`createFishpaiStore` 与面板 CSS，不另写静态界面替身。改 client 后也必须重出预览并提交生成物。
 
 ## 硬约束
 
@@ -100,7 +108,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 9. **面板块 id 一律来自 `splitBlocks`**（`plugin/host/routes.mjs` 的 `liveSurface`）：批注锚点与 `fishpai_write` 的 `block_id` 用的就是它。渲染器 HTML 里的 `<fp-block data-b>` 锚点随 `macCodeBlock` 等渲染选项变化，**不能**当成面板的块清单。
 10. **图标全部内联在本包里**：14 支主题/控件图标几何在 `client/theme-icons.tsx`（复制自宿主 rc2 图标包，MIT，见 NOTICE.md）；品牌鱼只有一份几何——`icon.svg`（36 画板、自带渐变）与 `FishMark` 必须同步。除品牌标外颜色只走 `currentColor` 与 `--dsw-alias-*`。
 11. **编辑器的快捷键与格式化动作只有一份实现**（`client/mdedit.ts`，纯函数）：`SHORTCUTS` 一张表同时喂键盘匹配、界面速查表与测试。编辑动作必须走 `document.execCommand('insertText')`——直接改 `value` 会让 `Ctrl+Z` 的原生撤销栈作废。
-12. **自定义主题是数据，不是代码**：`plugin/core/theme-spec.mjs` 只做校验 + 合并，绝不求值模型给的代码。属性白名单统计自 11 套内置主题（它们实测能在公众号里活）；规格只认 `name` / `base` / `styles`，多写的键报错而不是默默忽略；必须在内置主题上做增量覆盖（缺槽位 = 不加 style 属性）；`wrapper` 必含 `font-family` / `font-size`（漏了面板字体/字号控件变死控件）。命名主题存 storageDomain themes 表，主题 key 为 `custom:<id>`，同一 id 的 `set` 即覆盖；损坏或非法记录在读取时给出错误，缺失 id 回默认并标记 `missing`。临时 `theme_spec` 仍只用于本次渲染。规格里**没有图标字段**。换主题**不动 revision**——面板靠 `/state` 的 `active.theme` 发现，只换 meta、不重载正文，别让用户正在打的字被换掉。
+12. **自定义主题是数据，不是代码**：`plugin/core/theme-spec.mjs` 只做校验 + 合并，绝不求值模型给的代码。属性白名单统计自 11 套内置主题（它们实测能在公众号里活）；规格只认 `name` / `base` / `styles`，多写的键报错而不是默默忽略；必须在内置主题上做增量覆盖（缺槽位 = 不加 style 属性）；`wrapper` 最终必须含 `font-family` / `font-size`（面板控件靠替换它们生效）；输入漏写时从 `base` 继承补齐，base 也缺才报错。命名主题存 storageDomain themes 表，主题 key 为 `custom:<id>`，同一 id 的 `set` 即覆盖；损坏或非法记录在读取时给出错误，缺失 id 回默认并标记 `missing`。临时 `theme_spec` 仍只用于本次渲染。规格里**没有图标字段**。换主题**不动 revision**——面板靠 `/state` 的 `active.theme` 发现，只换 meta、不重载正文，别让用户正在打的字被换掉。
 13. **页头页尾片段是预览确认后的用户资产**：`POST /snippets` 与 `fishpai_snippets` 走 preview→commit；页头取正文首个 mmbiz 图，页尾锚点关键词必须由用户显式配置。渲染通过 `snippetId` 在 render 前拼 Markdown，不改源文档；片段存 storageDomain snippets 表。
 14. **微信 lint 必须标明证据边界**：`fishpai_lint` 与 `POST /lint` 检查全内联、禁 position/class/id/div/CSS 变量/grid、文本节点包裹、正文 4.5:1 对比度、全幅限宽与表格默认边框。既有规则观察来自草稿 API 路径；用于鱼排粘贴路径时默认标为推论。只有 `full-bleed-width` 与 `table-cell-border-reset` 等逐条标注 `微信临时预览粘贴路径实测` 的规则可按实测引用，不把单条实测扩大为整套规则的背书。
 15. **秀米是独立渲染目标与自由排版画布**：组件与 Markdown 映射只放 `plugin/core/xiumi/`，接入点是 `fishpai_render.target` 与 `POST /render.target`；微信 `render()` 不加 target。静态组件与 8 个交互组件分别由 components.mjs、interactive.mjs 注册，DEFAULT_SPEC 的 18 个键按模块常量校验；文档级 `xiumiSpec` 由 store 持久化，预览、复制与导出共用。`raw` 承载安全 HTML / SVG，素材经 assets.mjs 统一收集与内嵌；`full_bleed` 复用 raw 安全校验，按 `page_padding_x` 输出左右负外边距并显式设置 `max-width:none !important`，专业表格单元格先写 `border:0` 再保留指定边线。未知组件、非法规格和主动内容必须报错。微信复制形态不用 `div`，SVG 不依赖 `image href`；需要固定字形的 SVG 展示字转成带 `aria-label` 的矢量路径，不依赖手机字体，普通正文保留 HTML 文本；复制与导出出口包裹文本容器中的全部直接文本节点（含行内元素与换行后的文本），SVG 内部除外。展开组件使用零高正文与 SVG 高度动画，不依赖 foreignObject；高度按 320px 视口扣除页面与正文容器留白后的可用宽度估算，不能为压缩宽屏留白而裁掉窄屏末行。复制到目标编辑器后的结构与交互以该编辑器的粘贴处理为准。
@@ -122,6 +130,9 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 1. `npm test`
 2. `npm run typecheck`
 3. `npm run check:build`
+4. `npm run check:pack`
+
+改动命中「修改契约」的预览或品牌任务时，还必须完成对应的 `npm run build:preview` 与视觉核对；只跑通用测试不算完成。
 
 ## 提交与协作
 
@@ -154,4 +165,8 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 
 ## 维护
 
-本文件与触发它的代码改动进同一个 PR。改动验收命令、架构边界、硬约束、风险区、发版流程时必须同步本文件；发现与代码不符，先改本文件再继续。
+本文件与触发它的代码改动进同一个 PR。发现与代码不符，先改本文件再继续。
+
+- 改验收命令：同步 `CONTRIBUTING.md` 与 `.github/PULL_REQUEST_TEMPLATE.md`。
+- 改硬约束：新增规则只追加编号，不重排旧编号；检查仓库内所有硬约束引用。
+- 改架构边界、关键路径、风险区或发版流程：同步对应章节，保留规则背后的真实原因。
