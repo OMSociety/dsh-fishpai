@@ -36,8 +36,6 @@
 </tr>
 </table>
 
-[打开面板预览](docs/preview/panel.html)
-
 ## 安装方式
 
 **从 npm 安装**
