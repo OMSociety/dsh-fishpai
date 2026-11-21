@@ -151,7 +151,6 @@ npx tsx src/index.ts /path/to/article.html --json
 ## 支持与致谢
 
 - 如果这个插件对你有帮助，欢迎点亮 Star，有问题和建议请提交 [Issue](https://github.com/OMSociety/dsh-fishpai/issues) 或 [Pull Request](https://github.com/OMSociety/dsh-fishpai/pulls)；动手前请读 [`CONTRIBUTING.md`](CONTRIBUTING.md)，安全相关问题走 [`SECURITY.md`](SECURITY.md) 的私密渠道。
-- 想改主题或加一套自己的：主题定义集中在 `plugin/vendor/themes.js`，加完跑 `npm run test:golden:regen` 重生成 golden
 
 - [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)（MIT）：快速管线的早期设计参考
 - [markdown-it](https://github.com/markdown-it/markdown-it)（MIT）与 [highlight.js](https://github.com/highlightjs/highlight.js)（BSD-3-Clause）：随包内嵌的 vendor 资产
