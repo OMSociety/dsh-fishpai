@@ -96,7 +96,7 @@
 
 ## 画布参数
 
-通过 `fishpai_open({ xiumi_spec })` 保存到文档；预览、复制和导出读取同一份配置。`fishpai_render({ xiumi_spec })` 只覆盖当次。
+通过 `fishpai_open({ professional_spec })` 保存到文档；预览、复制和导出读取同一份配置。`fishpai_render({ professional_spec })` 只覆盖当次。
 
 | 分组 | 键 | 用途 |
 | --- | --- | --- |

@@ -13,7 +13,7 @@ import { render as renderCore, safeThemeKey } from '../core/render.mjs'
 import { themes } from '../core/runtime.mjs'
 import { buildCustomTheme, describeThemeSpec } from '../core/theme-spec.mjs'
 import { lintWechatHtml } from '../core/wechat-lint.mjs'
-import { renderXiumi, renderXiumiPublish } from '../core/xiumi/index.mjs'
+import { renderProfessional, renderProfessionalPublish } from '../core/professional/index.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
 import { diffBlocks } from '../core/diff.mjs'
 import { applyPatches } from '../core/patch.mjs'
@@ -177,7 +177,7 @@ export function registerTools(ctx, deps) {
         path: { type: 'string', description: '工作目录内的 .md 路径（可省略扩展名，会自动补 .md）；省略则在 <工作目录>/.fishpai/docs/ 下按标题新建' },
         markdown: { type: 'string', description: '初始 Markdown。目标文件已存在时不会覆盖，只打开现状' },
         theme: { type: 'string', description: '主题 key 或中文名；省略则用 default（默认公众号，最适合粘进微信）。tech / gradient / dark_night 等风格更适合导出 HTML' },
-        xiumi_spec: { type: 'object', additionalProperties: true, description: '秀米画布的 DEFAULT_SPEC 增量配置；打开或新建文档时校验并保存为该文档的持久设置' },
+        professional_spec: { type: 'object', additionalProperties: true, description: '专业画布的 DEFAULT_SPEC 增量配置；打开或新建文档时校验并保存为该文档的持久设置' },
       },
       required: [],
       additionalProperties: false,
@@ -194,7 +194,7 @@ export function registerTools(ctx, deps) {
           docPath,
           markdown: args.markdown === undefined ? undefined : String(args.markdown),
           theme: args.theme ? String(args.theme) : undefined,
-          meta: args.xiumi_spec === undefined ? undefined : { xiumiSpec: args.xiumi_spec },
+          meta: args.professional_spec === undefined ? undefined : { professionalSpec: args.professional_spec },
           by: 'ai',
         })
         store.setActive(cwd, sessionId, opened.key)
@@ -206,7 +206,7 @@ export function registerTools(ctx, deps) {
           `revision = ${opened.state.revision}，主题 = ${opened.state.theme}`,
           '右侧栏的「鱼排编辑器」面板已弹出（若没看到请点右侧栏顶部的鱼排图标）。',
         ]
-        if (args.xiumi_spec !== undefined) lines.push('秀米画布参数已校验并保存到该文档。')
+        if (args.professional_spec !== undefined) lines.push('专业画布参数已校验并保存到该文档。')
         if (opened.markdownIgnored && !opened.created) {
           lines.push('注意：该文件已存在，你传入的 markdown 没有写入，避免覆盖用户内容。要改内容请用 fishpai_write。')
         }
@@ -473,8 +473,8 @@ export function registerTools(ctx, deps) {
         embed_images: { type: 'boolean', description: '是否把本地图片内嵌成 base64，默认 true' },
         publish: { type: 'boolean', description: 'true（默认）=「复制到剪贴板」形态；false = 预览原样 HTML' },
         snippetId: { type: 'string', description: '已确认的页头页尾片段名；渲染前拼入 Markdown，不改源文件' },
-        target: { type: 'string', enum: ['wechat', 'xiumi'], description: '渲染目标；省略则跟随文档的专业/快速模式（默认专业 xiumi），wechat 走内置主题快速管线' },
-        xiumi_spec: { type: 'object', additionalProperties: true, description: 'target=xiumi 时当次使用的 DEFAULT_SPEC 增量覆盖；省略则读文档设置，不隐式保存' },
+        target: { type: 'string', enum: ['quick', 'professional'], description: '渲染目标；省略则跟随文档的专业/快速模式（默认 professional），quick 走内置主题快速管线' },
+        professional_spec: { type: 'object', additionalProperties: true, description: 'target=professional 时当次使用的 DEFAULT_SPEC 增量覆盖；省略则读文档设置，不隐式保存' },
       },
       required: [],
       additionalProperties: false,
@@ -487,18 +487,19 @@ export function registerTools(ctx, deps) {
         const markdown = args.snippetId ? await deps.snippets.compose(sourceMarkdown, args.snippetId) : sourceMarkdown
         // 自定义主题（模型给的规格）：校验成数据再合并到 base 上，**不求值任何模型给的代码**。
         // 校验不过就直接失败——错误文案是写给模型看的，让它自己改对再来一次。
-        const targetName = args.target || state.target || 'xiumi'
-        if (!['wechat', 'xiumi'].includes(targetName)) throw new Error(`未知渲染目标：${targetName}`)
-        const xiumiSpec = args.xiumi_spec || state.xiumiSpec || {}
-        const custom = targetName === 'wechat' && args.theme_spec ? buildCustomTheme(args.theme_spec, themes()) : null
-        const stores = targetName === 'wechat' && deps.getStores ? await deps.getStores() : null
-        const theme = targetName === 'xiumi'
+        const targetName = args.target || state.target || 'professional'
+        if (!['quick', 'professional'].includes(targetName)) throw new Error(`未知渲染目标：${targetName}`)
+        if (targetName !== 'quick' && args.theme_spec !== undefined) throw new Error('theme_spec 仅可用于 target=quick；专业目标请使用 professional_spec')
+        const professionalSpec = args.professional_spec || state.professionalSpec || {}
+        const custom = targetName === 'quick' && args.theme_spec ? buildCustomTheme(args.theme_spec, themes()) : null
+        const stores = targetName === 'quick' && deps.getStores ? await deps.getStores() : null
+        const theme = targetName === 'professional'
           ? null
           : custom
             ? custom.theme
             : themeFor({ domain: stores?.themes, name: args.theme ? String(args.theme) : state.theme }).theme
-        const out = targetName === 'xiumi'
-          ? (args.publish !== false ? renderXiumiPublish(markdown, { spec: xiumiSpec }) : renderXiumi(markdown, { spec: xiumiSpec }))
+        const out = targetName === 'professional'
+          ? (args.publish !== false ? renderProfessionalPublish(markdown, { spec: professionalSpec }) : renderProfessional(markdown, { spec: professionalSpec }))
           : renderCore(markdown, {
           theme,
           color: state.color || undefined,
@@ -517,7 +518,7 @@ export function registerTools(ctx, deps) {
           promoteFontSize: args.publish !== false,
           imageResolver: args.embed_images === false ? undefined : makeImageResolver({ cwd, docPath: abs }),
         })
-        if (targetName === 'xiumi' && args.publish !== false && args.embed_images !== false) {
+        if (targetName === 'professional' && args.publish !== false && args.embed_images !== false) {
           out.html = inlineHtmlImages(out.html, { cwd, docPath: abs })
         }
         const target = args.out_path
@@ -526,9 +527,9 @@ export function registerTools(ctx, deps) {
         fs.mkdirSync(path.dirname(target), { recursive: true })
         fs.writeFileSync(target, out.html, 'utf8')
         const lines = [
-          `${targetName === 'xiumi' ? '已导出秀米 HTML' : '已导出 HTML'}：${path.relative(cwd, target).replace(/\\/g, '/')}`,
+          `${targetName === 'professional' ? '已导出专业 HTML' : '已导出 HTML'}：${path.relative(cwd, target).replace(/\\/g, '/')}`,
           `主题「${out.themeName}」　${out.html.length} 字符（约 ${Math.round(Buffer.byteLength(out.html, 'utf8') / 1024)} KB）`,
-          args.embed_images !== false && (targetName === 'wechat' || args.publish !== false) ? '本地图片已内嵌 base64。' : '本地图片保留原始引用。',
+          args.embed_images !== false && (targetName === 'quick' || args.publish !== false) ? '本地图片已内嵌 base64。' : '本地图片保留原始引用。',
         ]
         if (custom) {
           lines.push(describeThemeSpec(custom.spec))

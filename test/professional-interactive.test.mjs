@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { INTERACTIVE_COMPONENTS, INTERACTIVE_DIRECTIVES } from '../plugin/core/xiumi/interactive.mjs'
-import { renderXiumi, renderXiumiPublish, componentsFromMarkdown } from '../plugin/core/xiumi/index.mjs'
+import { INTERACTIVE_COMPONENTS, INTERACTIVE_DIRECTIVES } from '../plugin/core/professional/interactive.mjs'
+import { renderProfessional, renderProfessionalPublish, componentsFromMarkdown } from '../plugin/core/professional/index.mjs'
 import { lintWechatHtml } from '../plugin/core/wechat-lint.mjs'
 
 test('交互组件：8 个 wc_* 组件与指令映射齐备', () => {
@@ -30,7 +30,7 @@ test('交互组件：::: 指令解析成各自 props', () => {
 })
 
 test('交互组件：SMIL 用 begin="click" 触发，无 id/class/CSS 动画', () => {
-  const out = renderXiumi(':::expand\n点\n---\n内容\n:::\n\n:::danmaku\n弹幕\n:::')
+  const out = renderProfessional(':::expand\n点\n---\n内容\n:::\n\n:::danmaku\n弹幕\n:::')
   assert.match(out.html, /begin="click"/)
   assert.match(out.html, /animateTransform/)
   assert.ok(!/\sid=/.test(out.html), '不得含 id 属性')
@@ -41,7 +41,7 @@ test('交互组件：SMIL 用 begin="click" 触发，无 id/class/CSS 动画', (
 })
 
 test('交互组件：渐变横幅使用内联线性渐变', () => {
-  const out = renderXiumi(':::gradient_banner\n标题\n:::')
+  const out = renderProfessional(':::gradient_banner\n标题\n:::')
   assert.ok(out.html.includes('background:linear-gradient(135deg, #3f63d7 0%, #5b7cdb 100%)'), '横幅使用规格中的两个主题色')
   assert.ok(!/url\(#/.test(out.html), '横幅不依赖 SVG 引用')
   assert.ok(!/<defs>/.test(out.html), '横幅使用内联背景')
@@ -49,8 +49,8 @@ test('交互组件：渐变横幅使用内联线性渐变', () => {
 
 test('交互组件：预览不包 span，发布形态包裹文本节点', () => {
   const md = '# 标题\n\n正文文字\n\n:::expand\n点\n---\n内容\n:::'
-  const preview = renderXiumi(md)
-  const publish = renderXiumiPublish(md)
+  const preview = renderProfessional(md)
+  const publish = renderProfessionalPublish(md)
   assert.ok(!/<h1[^>]*><span>/.test(preview.html), '预览保持原始产物')
   assert.match(publish.html, /<h1[^>]*><span>标题<\/span>/, '发布形态包裹标题文本')
   // SVG 的 <text> 不得被包进 span。
@@ -58,7 +58,7 @@ test('交互组件：预览不包 span，发布形态包裹文本节点', () => 
 })
 
 test('发布形态包裹行内元素后的每一个直接文本节点', () => {
-  const publish = renderXiumiPublish('前文**重点**后文  \n下一行')
+  const publish = renderProfessionalPublish('前文**重点**后文  \n下一行')
   assert.match(publish.html, /<strong[^>]*>重点<\/strong><span>后文<\/span>/, '粗体后的文字也被包裹')
   assert.match(publish.html, /<br\s*\/?><span>\s*下一行<\/span>/, '换行后的文字也被包裹')
   const wrapping = lintWechatHtml(publish.html).errors.filter((error) => error.rule === 'text-wrapping')
@@ -67,7 +67,7 @@ test('发布形态包裹行内元素后的每一个直接文本节点', () => {
 
 test('交互组件：发布形态 lint 无 text-wrapping 错误', () => {
   const md = '# 标题\n\n正文\n\n:::expand\n点\n---\n内容\n:::\n\n:::timeline\n2024 · 甲\n:::\n\n:::progress\n60\n:::'
-  const lint = lintWechatHtml(renderXiumiPublish(md).html)
+  const lint = lintWechatHtml(renderProfessionalPublish(md).html)
   const wrapping = lint.errors.filter((e) => e.rule === 'text-wrapping')
   assert.equal(wrapping.length, 0, `不应有 text-wrapping：${JSON.stringify(wrapping)}`)
 })
@@ -86,13 +86,13 @@ test('lint：SMIL 在 height/width 上的 indefinite 循环被告警', () => {
 })
 
 test('交互组件：进度条百分比收敛到 0–100', () => {
-  assert.match(renderXiumi(':::progress\n70\n:::').html, /width:70%/)
-  assert.match(renderXiumi(':::progress\n250\n:::').html, /width:100%/)
-  assert.match(renderXiumi(':::progress\n-5\n:::').html, /width:0%/)
+  assert.match(renderProfessional(':::progress\n70\n:::').html, /width:70%/)
+  assert.match(renderProfessional(':::progress\n250\n:::').html, /width:100%/)
+  assert.match(renderProfessional(':::progress\n-5\n:::').html, /width:0%/)
 })
 
 test('专业默认视觉：中性标题、轻量展开条与单色细进度条', () => {
-  const out = renderXiumi('# 标题\n\n:::expand\n点我展开\n---\n正文\n:::\n\n:::progress\n70 文档完成度\n:::')
+  const out = renderProfessional('# 标题\n\n:::expand\n点我展开\n---\n正文\n:::\n\n:::progress\n70 文档完成度\n:::')
   assert.match(out.html, /color:#1f2329;font-size:24px/, '标题使用中性正文色与清晰层级')
   assert.match(out.html, /<svg[^>]*height="56"/, '展开触发条保持紧凑')
   assert.match(out.html, /<rect[^>]*height="56"[^>]*fill="#f5f6f8"/, '展开条使用浅底')
@@ -101,7 +101,7 @@ test('专业默认视觉：中性标题、轻量展开条与单色细进度条',
 })
 
 test('展开组件：零高正文随 SVG 高度展开', () => {
-  const out = renderXiumi(':::expand\n点我展开\n---\n点击后可见的正文\n:::\n\n后续段落')
+  const out = renderProfessional(':::expand\n点我展开\n---\n点击后可见的正文\n:::\n\n后续段落')
   assert.match(out.html, /<svg[^>]*height="56"[^>]*>/, '初始高度等于触发条高度')
   assert.match(out.html, /<section style="height:0;min-height:0;overflow:visible;display:flow-root;">[\s\S]*点击后可见的正文/, '正文位于零高容器')
   assert.match(out.html, /margin-top:56px;padding:16px 16px 14px/, '正文顶底留白与末段间距对齐')
@@ -112,7 +112,7 @@ test('展开组件：零高正文随 SVG 高度展开', () => {
 
 test('展开组件：移动正文高度包含容器留白且不重复累计末段间距', () => {
   const body = '**主视觉**建立主题，**章节头**划分阅读节奏，**信息卡**收拢时间与地点，**展开组件**承载补充细节。每一层都服务于阅读目标。'
-  const out = renderXiumi(`:::expand\n展开看看：一篇专题稿如何被组织\n---\n${body}\n:::`)
+  const out = renderProfessional(`:::expand\n展开看看：一篇专题稿如何被组织\n---\n${body}\n:::`)
   const height = Number(out.html.match(/<animate attributeName="height" from="56" to="(\d+)"/)?.[1])
   const lastParagraph = out.html.match(/<p style="margin:([^;"]+)[^"]*">[\s\S]*?展开组件[\s\S]*?<\/p>/)
   assert.match(lastParagraph?.[1] ?? '', /(^|\s)0px(?:\s|$)/, '末段不再保留额外段后距')
@@ -122,14 +122,14 @@ test('展开组件：移动正文高度包含容器留白且不重复累计末�
 
 test('交互组件：长封面保留完整语义并收敛可见文案', () => {
   const cover = '这是一段用于检查封面提示长度与完整语义的文字内容'
-  const out = renderXiumi(`:::expand\n${cover}\n---\n正文\n:::\n\n:::swiper\n:::`)
+  const out = renderProfessional(`:::expand\n${cover}\n---\n正文\n:::\n\n:::swiper\n:::`)
   assert.ok(out.html.includes(`aria-label="${cover}"`), '封面完整文本进入 aria-label')
   assert.match(out.html, />[^<]*…<\/text>/, '封面可见文本采用省略号收尾')
   assert.match(out.html, /待补图片 1/, '图集提供清晰的图片占位提示')
 })
 
 test('交互组件：对比卡与时间线使用内联与 table 布局', () => {
-  const out = renderXiumi(':::compare\n左\n---\n右\n:::\n\n:::timeline\n2024 · 甲\n:::')
+  const out = renderProfessional(':::compare\n左\n---\n右\n:::\n\n:::timeline\n2024 · 甲\n:::')
   assert.ok(!/display\s*:\s*(?:inline-)?grid/.test(out.html), '布局采用内联与 table')
   assert.match(out.html, /<table/, '对比卡用 table 布局')
   assert.match(out.html, /border:0;padding:/, '单元格先清除默认边框')

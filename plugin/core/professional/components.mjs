@@ -37,6 +37,16 @@ export function twoColumns({ left = '', right = '' }, spec = DEFAULT_SPEC) {
   return `<table style="width:100%;border-collapse:collapse;margin:0 0 16px;table-layout:fixed;" role="presentation"><tbody><tr><td style="${cell}padding-right:8px;">${safeInline(left)}</td><td style="${cell}padding-left:8px;">${safeInline(right)}</td></tr></tbody></table>`
 }
 
+export function wcTable({ headers = [], rows = [], aligns = [] }, spec = DEFAULT_SPEC) {
+  const alignAt = (index) => ['left', 'center', 'right'].includes(aligns[index]) ? aligns[index] : 'left'
+  const cellStyle = (index, header = false) => `border:0;border-bottom:1px solid ${spec.card_bg};padding:10px 12px;text-align:${alignAt(index)};color:${header ? spec.title_color : spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};${header ? `background-color:${spec.card_bg};font-weight:700;` : ''}`
+  const head = headers.length
+    ? `<thead><tr>${headers.map((content, index) => `<th style="${cellStyle(index, true)}">${safeInline(content)}</th>`).join('')}</tr></thead>`
+    : ''
+  const body = rows.map((row) => `<tr>${row.map((content, index) => `<td style="${cellStyle(index)}">${safeInline(content)}</td>`).join('')}</tr>`).join('')
+  return `<table style="width:100%;border-collapse:collapse;margin:0 0 16px;table-layout:fixed;border-top:2px solid ${spec.accent};">${head}<tbody>${body}</tbody></table>`
+}
+
 export function quote({ html = '', text }, spec = DEFAULT_SPEC) {
   const content = text === undefined ? safeInline(html) : escapeHtml(text)
   return section(`margin:0 0 16px;padding:12px 14px;border-left:1px solid ${spec.accent};background-color:${spec.card_bg};color:${spec.body_color};font-size:${spec.body_size}px;line-height:${spec.line_height};`, content)
@@ -133,11 +143,42 @@ export function wcTwoColumns(props, spec) {
   return twoColumns(props, spec)
 }
 
+const RAW_URL_ATTRIBUTES = new Set(['href', 'src', 'xlink:href', 'action', 'formaction', 'poster'])
+const RAW_NAMED_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", colon: ':', sol: '/', Tab: '\t', NewLine: '\n', nbsp: '\u00a0' }
+
+function decodeRawEntities(value) {
+  const codePoint = (number) => Number.isFinite(number) && number >= 0 && number <= 0x10ffff ? String.fromCodePoint(number) : '\ufffd'
+  return String(value ?? '')
+    .replace(/&#[xX]([0-9a-fA-F]+);?/g, (_, hex) => codePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);?/g, (_, decimal) => codePoint(parseInt(decimal, 10)))
+    .replace(/&([a-zA-Z]+);/g, (entity, name) => Object.hasOwn(RAW_NAMED_ENTITIES, name) ? RAW_NAMED_ENTITIES[name] : entity)
+}
+
+function rawUrlAllowed(value) {
+  const url = decodeRawEntities(value).replace(/[\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200f\u2028\u2029\u202f\u205f\u3000\ufeff]+/g, '').toLowerCase()
+  if (!url || url.startsWith('#')) return true
+  const scheme = url.match(/^([a-z][a-z0-9+.-]*):/)?.[1]
+  if (!scheme) return true
+  if (['http', 'https', 'mailto', 'tel'].includes(scheme)) return true
+  return scheme === 'data' && /^data:image\/(?:png|gif|jpe?g|webp);base64,/.test(url)
+}
+
+function validateRawUrls(source) {
+  for (const tag of source.matchAll(/<[A-Za-z][^>]*>/g)) {
+    const attributes = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/g
+    for (const attribute of tag[0].matchAll(attributes)) {
+      if (!RAW_URL_ATTRIBUTES.has(attribute[1].toLowerCase())) continue
+      const value = attribute[2] ?? attribute[3] ?? attribute[4] ?? ''
+      if (!rawUrlAllowed(value)) throw new Error('raw 不允许可执行或不支持协议的 URL')
+    }
+  }
+}
+
 export function wcRaw({ html = '' }) {
   const source = String(html ?? '')
   if (/<\s*\/?\s*(?:script|style|iframe|object|embed|link|meta|base|form)\b/i.test(source)) throw new Error('raw 不允许脚本、样式表、表单或嵌入文档标签')
   if (/\s+on[a-z-]+\s*=|\s+srcdoc\s*=/i.test(source)) throw new Error('raw 不允许事件处理器或 srcdoc')
-  if (/(?:href|src|xlink:href|action|formaction|poster)\s*=\s*(?:"|'|)?\s*(?:javascript:|data:text\/html)/i.test(source)) throw new Error('raw 不允许可执行 URL')
+  validateRawUrls(source)
   return source
 }
 
@@ -147,7 +188,7 @@ export function wcFullBleed({ html = '' }, spec = DEFAULT_SPEC) {
   return section(`max-width:none !important;margin:0 -${gutter}px;`, wcRaw({ html }))
 }
 
-export const HTML_COMPONENTS = Object.freeze({ heading, paragraph, card, two_columns: twoColumns, quote, divider })
+export const HTML_COMPONENTS = Object.freeze({ heading, paragraph, card, two_columns: twoColumns, table: wcTable, quote, divider })
 export const SVG_COMPONENTS = Object.freeze({ svg_gradient_banner: svgGradientBanner, svg_wave_divider: svgWaveDivider, svg_number_icons: svgNumberIcons })
-export const WECHAT_COMPONENTS = Object.freeze({ wc_heading: wcHeading, wc_paragraph: wcParagraph, wc_card: wcCard, wc_bullet_list: wcBulletList, wc_gradient_banner: wcGradientBanner, wc_wave_divider: wcWaveDivider, wc_number_steps: wcNumberSteps, wc_info_card: wcInfoCard, wc_chapter_header: wcChapterHeader, wc_highlight: wcHighlight, wc_credits: wcCredits, wc_quote: wcQuote, wc_two_columns: wcTwoColumns, wc_raw: wcRaw, wc_full_bleed: wcFullBleed })
-export const _WECHAT_ALIAS = Object.freeze({ heading: 'wc_heading', paragraph: 'wc_paragraph', card: 'wc_card', bullet_list: 'wc_bullet_list', two_columns: 'wc_two_columns', quote: 'wc_quote', divider: 'wc_wave_divider', gradient_banner: 'wc_gradient_banner', wave_divider: 'wc_wave_divider', number_steps: 'wc_number_steps', info_card: 'wc_info_card', chapter_header: 'wc_chapter_header', highlight: 'wc_highlight', credits: 'wc_credits', raw: 'wc_raw', full_bleed: 'wc_full_bleed', svg_gradient_banner: 'wc_gradient_banner', svg_wave_divider: 'wc_wave_divider', svg_number_icons: 'wc_number_steps', ...Object.fromEntries(Object.keys(WECHAT_COMPONENTS).map((key) => [key, key])) })
+export const WECHAT_COMPONENTS = Object.freeze({ wc_heading: wcHeading, wc_paragraph: wcParagraph, wc_card: wcCard, wc_bullet_list: wcBulletList, wc_gradient_banner: wcGradientBanner, wc_wave_divider: wcWaveDivider, wc_number_steps: wcNumberSteps, wc_info_card: wcInfoCard, wc_chapter_header: wcChapterHeader, wc_highlight: wcHighlight, wc_credits: wcCredits, wc_quote: wcQuote, wc_two_columns: wcTwoColumns, wc_table: wcTable, wc_raw: wcRaw, wc_full_bleed: wcFullBleed })
+export const _WECHAT_ALIAS = Object.freeze({ heading: 'wc_heading', paragraph: 'wc_paragraph', card: 'wc_card', bullet_list: 'wc_bullet_list', two_columns: 'wc_two_columns', table: 'wc_table', quote: 'wc_quote', divider: 'wc_wave_divider', gradient_banner: 'wc_gradient_banner', wave_divider: 'wc_wave_divider', number_steps: 'wc_number_steps', info_card: 'wc_info_card', chapter_header: 'wc_chapter_header', highlight: 'wc_highlight', credits: 'wc_credits', raw: 'wc_raw', full_bleed: 'wc_full_bleed', svg_gradient_banner: 'wc_gradient_banner', svg_wave_divider: 'wc_wave_divider', svg_number_icons: 'wc_number_steps', ...Object.fromEntries(Object.keys(WECHAT_COMPONENTS).map((key) => [key, key])) })

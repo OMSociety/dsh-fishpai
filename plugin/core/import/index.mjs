@@ -1,11 +1,28 @@
 import * as cheerio from 'cheerio'
-import { DEFAULT_SPEC } from '../xiumi/spec.mjs'
+import { DEFAULT_SPEC } from '../professional/spec.mjs'
 
 const BLOCKED_TAGS = 'script,style,iframe,object,embed,link,meta,base,form'
 const URL_ATTRIBUTES = new Set(['href', 'src', 'data-src', 'xlink:href', 'action', 'formaction', 'poster'])
 const HEADINGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
 const SEMANTIC_TAGS = new Set([...HEADINGS, 'p', 'ul', 'ol', 'img', 'svg', 'table', 'pre', 'blockquote', 'hr'])
-const INLINE_TAGS = new Set(['strong', 'b', 'em', 'i', 'a', 'code', 'br'])
+const INLINE_TAGS = new Set(['strong', 'b', 'em', 'i', 'a', 'code', 'br', 'span', 'img'])
+const BASE_TEXT_STYLES = [
+  'font', 'font-family', 'font-size', 'font-style', 'font-weight', 'line-height', 'letter-spacing',
+  'text-align', 'text-decoration', 'text-decoration-line', 'text-decoration-color', 'text-decoration-style',
+  'text-transform', 'word-break', 'overflow-wrap',
+]
+const BOX_STYLES = [
+  'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+  'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+]
+const PARAGRAPH_STYLES = new Set([...BASE_TEXT_STYLES, ...BOX_STYLES])
+const HEADING_STYLES = new Set([
+  ...PARAGRAPH_STYLES, 'color', 'background', 'background-color', 'border', 'border-top', 'border-right',
+  'border-bottom', 'border-left', 'border-radius', 'box-shadow',
+])
+const INLINE_SEMANTIC_STYLES = new Set(['font-weight', 'font-style'])
+const IMAGE_STYLES = new Set([...BOX_STYLES, 'display', 'width', 'height', 'max-width', 'border', 'border-radius'])
+const WRAPPER_STYLES = new Set([...PARAGRAPH_STYLES, 'color', 'max-width', 'width', 'box-sizing', 'white-space'])
 const SPEC_KEYS = Object.keys(DEFAULT_SPEC)
 
 function tagName(node) {
@@ -129,6 +146,18 @@ function negativeHorizontalMargin(style) {
   return negative(left) || negative(right)
 }
 
+function hasOnlyStyles($, node, allowed) {
+  const declarations = parseDeclarations($(node).attr('style'))
+  return declarations.every(({ name, value }) => allowed.has(name) && (name !== 'display' || /^(?:inline|inline-block|block)$/i.test(value)))
+}
+
+function imageMarkdown($, node) {
+  const src = $(node).attr('src')
+  if (!src) return null
+  const alt = escapeText($(node).attr('alt') || '').replace(/]/g, '\\]')
+  return `![${alt}](${String(src).replace(/[()\s]/g, (char) => encodeURIComponent(char))})`
+}
+
 function prepareRaw($, node) {
   const clone = $(node).clone()
   clone.find('*').addBack().each((_, element) => {
@@ -145,51 +174,92 @@ function escapeText(text) {
   return String(text).replace(/\\/g, '\\\\').replace(/([`*_[\]<>])/g, '\\$1').replace(/\r?\n/g, ' ')
 }
 
+function inlineEmphasis($, node, tag) {
+  const style = declarationsObject($(node).attr('style'))
+  const boldTag = tag === 'strong' || tag === 'b'
+  const italicTag = tag === 'em' || tag === 'i'
+  let bold = boldTag
+  let italic = italicTag
+  if (style['font-weight']) {
+    const value = style['font-weight'].toLowerCase()
+    if (/^(?:bold|bolder|[6-9]00)$/.test(value)) bold = true
+    else if (!boldTag && /^(?:normal|400)$/.test(value)) bold = false
+    else return null
+  }
+  if (style['font-style']) {
+    const value = style['font-style'].toLowerCase()
+    if (value === 'italic' || value === 'oblique') italic = true
+    else if (!italicTag && value === 'normal') italic = false
+    else return null
+  }
+  return { bold, italic }
+}
+
 function inlineMarkdown($, node) {
   if (node.type === 'text') return escapeText(node.data || '')
   if (node.type !== 'tag') return ''
   const tag = tagName(node)
-  if (!INLINE_TAGS.has(tag) || $(node).attr('style')) return null
+  const emphasisTag = ['strong', 'b', 'em', 'i', 'span'].includes(tag)
+  if (!INLINE_TAGS.has(tag) || (tag !== 'img' && !emphasisTag && $(node).attr('style'))) return null
+  if (!hasOnlyStyles($, node, tag === 'img' ? IMAGE_STYLES : INLINE_SEMANTIC_STYLES) || negativeHorizontalMargin($(node).attr('style'))) return null
   if (tag === 'br') return '  \n'
+  if (tag === 'img') return imageMarkdown($, node)
   const content = $(node).contents().toArray().map((child) => inlineMarkdown($, child))
   if (content.some((part) => part === null)) return null
   const joined = content.join('')
-  if (tag === 'strong' || tag === 'b') return `**${joined}**`
-  if (tag === 'em' || tag === 'i') return `*${joined}*`
   if (tag === 'code') return `\`${joined.replace(/`/g, '\\`')}\``
   if (tag === 'a') {
     const href = $(node).attr('href')
     if (!href || executableUrl(href)) return null
     return `[${joined}](${String(href).replace(/[()\s]/g, (char) => encodeURIComponent(char))})`
   }
+  if (emphasisTag) {
+    const emphasis = inlineEmphasis($, node, tag)
+    if (!emphasis) return null
+    const bold = emphasis.bold ? `**${joined}**` : joined
+    return emphasis.italic ? `*${bold}*` : bold
+  }
   return joined
 }
 
-function simpleInline($, node) {
-  if (!$(node).attr('style') && !$(node).find('[style]').length) {
-    const content = $(node).contents().toArray().map((child) => inlineMarkdown($, child))
-    if (!content.some((part) => part === null)) return content.join('').trim()
-  }
+function simpleInline($, node, blockStyles = PARAGRAPH_STYLES) {
+  if (!hasOnlyStyles($, node, blockStyles) || negativeHorizontalMargin($(node).attr('style'))) return null
+  const content = $(node).contents().toArray().map((child) => inlineMarkdown($, child))
+  if (!content.some((part) => part === null)) return content.join('').trim()
   return null
 }
 
 function listMarkdown($, node) {
-  if ($(node).attr('style') || $(node).find('[style]').length) return null
+  if (!hasOnlyStyles($, node, PARAGRAPH_STYLES) || negativeHorizontalMargin($(node).attr('style'))) return null
   const items = $(node).children('li').toArray()
   if (!items.length || $(node).children().length !== items.length) return null
   const ordered = tagName(node) === 'ol'
-  return items.map((item, index) => {
-    if ($(item).children().not('strong,b,em,i,a,code,br').length) return null
-    const content = simpleInline($, item)
-    if (content === null || !content) return null
-    return `${ordered ? `${index + 1}.` : '-'} ${content}`
-  }).every((line) => line !== null) ? items.map((item, index) => `${ordered ? `${index + 1}.` : '-'} ${simpleInline($, item)}`).join('\n') : null
+  const lines = []
+  for (const [index, item] of items.entries()) {
+    if (!hasOnlyStyles($, item, PARAGRAPH_STYLES) || negativeHorizontalMargin($(item).attr('style'))) return null
+    const contents = $(item).contents().toArray()
+    const nested = contents.filter((child) => child.type === 'tag' && ['ul', 'ol'].includes(tagName(child)))
+    const inline = contents.filter((child) => !nested.includes(child))
+    if (inline.some((child) => child.type === 'tag' && !INLINE_TAGS.has(tagName(child)))) return null
+    const parts = inline.map((child) => inlineMarkdown($, child))
+    if (parts.some((part) => part === null)) return null
+    const content = parts.join('').trim()
+    if (!content && !nested.length) return null
+    let line = `${ordered ? `${index + 1}.` : '-'} ${content}`
+    for (const child of nested) {
+      const markdown = listMarkdown($, child)
+      if (!markdown) return null
+      line += `\n${markdown.split('\n').map((nestedLine) => `  ${nestedLine}`).join('\n')}`
+    }
+    lines.push(line)
+  }
+  return lines.join('\n')
 }
 
 function promote($, node) {
   const tag = tagName(node)
   if (HEADINGS.has(tag)) {
-    const content = simpleInline($, node)
+    const content = simpleInline($, node, HEADING_STYLES)
     if (content) return { markdown: `${'#'.repeat(Number(tag.slice(1)))} ${content}`, component: 'heading', confidence: 0.98, reason: '简单标题可无损转为 Markdown' }
   }
   if (tag === 'p') {
@@ -200,12 +270,9 @@ function promote($, node) {
     const content = listMarkdown($, node)
     if (content) return { markdown: content, component: tag === 'ol' ? 'number_steps' : 'bullet_list', confidence: 0.96, reason: '简单列表可无损转为 Markdown' }
   }
-  if (tag === 'img' && !$(node).attr('style')) {
-    const src = $(node).attr('src')
-    if (src) {
-      const alt = escapeText($(node).attr('alt') || '').replace(/]/g, '\\]')
-      return { markdown: `![${alt}](${String(src).replace(/[()\s]/g, (char) => encodeURIComponent(char))})`, component: 'image', confidence: 0.98, reason: '独立图片可无损转为 Markdown' }
-    }
+  if (tag === 'img' && hasOnlyStyles($, node, IMAGE_STYLES) && !negativeHorizontalMargin($(node).attr('style'))) {
+    const markdown = imageMarkdown($, node)
+    if (markdown) return { markdown, component: 'image', confidence: 0.98, reason: '独立图片可无损转为 Markdown' }
   }
   return null
 }
@@ -221,8 +288,9 @@ function collectBlocks($, node, blocks) {
     return
   }
   const tag = tagName(node)
-  const complexContainer = ['div', 'section', 'article', 'main', 'body'].includes(tag) && ($(node).attr('style') || $(node).find('svg,table').length && !semanticChildren($, node).some((child) => ['svg', 'table'].includes(tagName(child))))
-  if (!SEMANTIC_TAGS.has(tag) && !complexContainer && tag !== 'mp-common-profile' && !tag.startsWith('mp-')) {
+  const container = ['div', 'section', 'article', 'main', 'body'].includes(tag)
+  const transparentContainer = container && hasOnlyStyles($, node, WRAPPER_STYLES) && !negativeHorizontalMargin($(node).attr('style'))
+  if (!SEMANTIC_TAGS.has(tag) && (!container || transparentContainer) && tag !== 'mp-common-profile' && !tag.startsWith('mp-')) {
     for (const child of semanticChildren($, node)) collectBlocks($, child, blocks)
     return
   }
@@ -301,7 +369,7 @@ function inferSpec($, root) {
     accent: dominant(links, 'color', normalizeColor),
     accent2: null,
   }
-  const xiumiSpec = { ...DEFAULT_SPEC }
+  const professionalSpec = { ...DEFAULT_SPEC }
   const specEvidence = {}
   for (const key of SPEC_KEYS) {
     let candidate = candidates[key]
@@ -318,18 +386,18 @@ function inferSpec($, root) {
       const confidence = Math.min(0.95, 0.65 + ratio * 0.25 + Math.min(candidate.count - 1, 2) * 0.025)
       const inRange = typeof value !== 'number' || !({ title_size: [10, 80], body_size: [10, 40], body_spacing: [0, 20], line_height: [1, 4], page_width: [280, 1200], page_padding_x: [0, 120], page_padding_y: [0, 120], card_radius: [0, 80], card_padding: [0, 100] }[key] || []).length || (value >= ({ title_size: [10, 80], body_size: [10, 40], body_spacing: [0, 20], line_height: [1, 4], page_width: [280, 1200], page_padding_x: [0, 120], page_padding_y: [0, 120], card_radius: [0, 80], card_padding: [0, 100] }[key][0]) && value <= ({ title_size: [10, 80], body_size: [10, 40], body_spacing: [0, 20], line_height: [1, 4], page_width: [280, 1200], page_padding_x: [0, 120], page_padding_y: [0, 120], card_radius: [0, 80], card_padding: [0, 100] }[key][1]))
       if (inRange) {
-        xiumiSpec[key] = value
+        professionalSpec[key] = value
         specEvidence[key] = { value, confidence: Number(confidence.toFixed(2)), evidence: [`内联样式匹配 ${candidate.count}/${candidate.total} 次`] }
         continue
       }
     }
     specEvidence[key] = { value: DEFAULT_SPEC[key], confidence: 0, evidence: ['未检测到足够的一致内联样式证据，使用默认值'] }
   }
-  return { xiumiSpec, specEvidence }
+  return { professionalSpec, specEvidence }
 }
 
 /**
- * 把外部 HTML 转为秀米 Markdown；输入解析、素材解析与输出均不访问文件系统或网络。
+ * 把外部 HTML 转为专业 Markdown；输入解析、素材解析与输出均不访问文件系统或网络。
  */
 export async function importArticle({ html, baseUrl = '', resolveAsset } = {}) {
   if (typeof html !== 'string' || !html.trim()) throw new Error('html 必须是非空字符串')
@@ -347,12 +415,12 @@ export async function importArticle({ html, baseUrl = '', resolveAsset } = {}) {
     const id = `import-${String(index + 1).padStart(3, '0')}`
     return { ...block, id, sourceIndex: index, markdown: block.kind === 'raw' ? `:::raw\n${block.html}\n:::` : block.markdown }
   })
-  const { xiumiSpec, specEvidence } = inferSpec($, root)
+  const { professionalSpec, specEvidence } = inferSpec($, root)
   const markdown = normalizedBlocks.map((block) => block.markdown).join('\n\n')
   return {
     title,
     markdown,
-    xiumiSpec,
+    professionalSpec,
     specEvidence,
     blocks: normalizedBlocks,
     assets,

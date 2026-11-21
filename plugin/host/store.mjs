@@ -15,7 +15,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 // 字号的形态规则只有一份，放在渲染层（它是那个字段的消费方，渲染层自己也必须兜底）
 import { isFontSize } from '../core/render.mjs'
-import { normalizeSpec } from '../core/xiumi/spec.mjs'
+import { normalizeSpec } from '../core/professional/spec.mjs'
 
 export const DOC_EXTS = ['.md', '.markdown', '.txt']
 export const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp']
@@ -236,8 +236,8 @@ function defaultState(absPath) {
     fontSize: '16px',
     footnotes: true,
     macCodeBlock: true,
-    target: 'xiumi',
-    xiumiSpec: {},
+    target: 'professional',
+    professionalSpec: {},
     baseline: null,
     notes: [],
     history: [],
@@ -252,14 +252,14 @@ export function readState(cwd, key) {
   st.notes = Array.isArray(st.notes) ? st.notes : []
   st.history = Array.isArray(st.history) ? st.history : []
   st.openRequests = st.openRequests && typeof st.openRequests === 'object' ? st.openRequests : {}
-  if (st.target !== 'wechat' && st.target !== 'xiumi') st.target = 'xiumi'
-  if (st.xiumiSpec === undefined) {
-    st.xiumiSpec = {}
+  if (st.target !== 'quick' && st.target !== 'professional') st.target = 'professional'
+  if (st.professionalSpec === undefined) {
+    st.professionalSpec = {}
   } else {
     try {
-      st.xiumiSpec = normalizeSpec(st.xiumiSpec)
+      st.professionalSpec = normalizeSpec(st.professionalSpec)
     } catch {
-      st.xiumiSpec = {}
+      st.professionalSpec = {}
     }
   }
   return st
@@ -333,6 +333,16 @@ function pushHistory(cwd, key, state, content, rev, by) {
   return entry
 }
 
+function stateSnapshotPath(cwd, file, label) {
+  try {
+    return resolveInCwd(cwd, file)
+  } catch (cause) {
+    const error = new Error(`${label}路径越界或非法，状态损坏：${String(file || '')}`)
+    error.cause = cause
+    throw error
+  }
+}
+
 /**
  * 取回某一版历史内容。
  * @param {string|number} ref 历史条目 id 或数值 revision
@@ -343,7 +353,7 @@ export function readHistoryEntry(cwd, key, ref) {
   const byId = state.history.find((h) => h.id === String(ref))
   const entry = byId || state.history.find((h) => h.rev === Number(ref))
   if (!entry) return null
-  const abs = path.join(cwd, entry.file)
+  const abs = stateSnapshotPath(cwd, entry.file, '历史快照')
   if (!fs.existsSync(abs)) return null
   return { entry, content: fs.readFileSync(abs, 'utf8') }
 }
@@ -396,26 +406,42 @@ export function readDocText(abs, what) {
  */
 export function baselineContent(cwd, state) {
   if (!state || !state.baseline) return ''
-  const abs = path.join(cwd, state.baseline.file)
+  const abs = stateSnapshotPath(cwd, state.baseline.file, '基线快照')
   return readDocText(abs, '基线快照')
+}
+
+export class DocConflictError extends Error {
+  constructor(abs) {
+    super(`目标文档已存在，为避免覆盖未写入：${abs}`)
+    this.name = 'DocConflictError'
+    this.code = 'CONFLICT'
+    this.statusCode = 409
+    this.docPath = abs
+  }
 }
 
 // ── 文档读写 ───────────────────────────────────────────────────
 
-/** 打开/新建文档。已存在就不覆盖——把"你没写进去"明确告诉模型。 */
-export function openDoc({ cwd, docPath, markdown, theme, meta, by = 'ai' }) {
+/** 打开/新建文档。exclusive 只用于要求新建成功的调用方，已存在时明确报冲突。 */
+export function openDoc({ cwd, docPath, markdown, theme, meta, by = 'ai', exclusive = false }) {
   // 先校验再落盘，避免非法画布参数已经报错，文档却被建了一半。
   const metaPatch = meta ? applyMeta({}, meta) : {}
   ensureFishpaiLayout(cwd)
   const abs = resolveInCwd(cwd, docPath)
   const key = docKey(abs)
   const exists = fs.existsSync(abs)
+  if (exclusive && exists) throw new DocConflictError(abs)
   let state = readState(cwd, key)
 
   if (!exists) {
     fs.mkdirSync(path.dirname(abs), { recursive: true })
     const content = String(markdown ?? '')
-    fs.writeFileSync(abs, content, 'utf8')
+    try {
+      fs.writeFileSync(abs, content, { encoding: 'utf8', flag: exclusive ? 'wx' : 'w' })
+    } catch (error) {
+      if (exclusive && error.code === 'EEXIST') throw new DocConflictError(abs)
+      throw error
+    }
     state = { ...defaultState(abs), ...metaPatch }
     state.revision = 1
     state.updatedBy = by
@@ -570,9 +596,9 @@ export function rebase({ cwd, docPath, by = 'human' }) {
  *
  * 其中 `color` 与 `fontSize` 是**仅有的两个原样插值进 HTML** 的字段
  * （`color` 替换主题里的 `{{PRIMARY}}` 占位符，`fontSize` 拼进 `font-size: …;`），
- * 两者都在这里过一道形态校验；秀米画布规格另经 normalizeSpec 合并与校验，其余字段只当开关/枚举用。
+ * 两者都在这里过一道形态校验；专业画布规格另经 normalizeSpec 合并与校验，其余字段只当开关/枚举用。
  */
-const META_FIELDS = ['theme', 'color', 'font', 'fontSize', 'footnotes', 'macCodeBlock', 'target', 'xiumiSpec']
+const META_FIELDS = ['theme', 'color', 'font', 'fontSize', 'footnotes', 'macCodeBlock', 'target', 'professionalSpec']
 
 /**
  * 主题色只认 `#` + 3~8 位十六进制。
@@ -593,8 +619,8 @@ function applyMeta(target, meta) {
     if (field === 'color' && meta[field] !== null && !isThemeColor(meta[field])) continue
     // 字号与主题色同一条规矩：它是原样拼进 style 的第二个字段，形态不对就当没写
     if (field === 'fontSize' && !isFontSize(meta[field])) continue
-    if (field === 'target' && meta[field] !== 'wechat' && meta[field] !== 'xiumi') continue
-    if (field === 'xiumiSpec') {
+    if (field === 'target' && meta[field] !== 'quick' && meta[field] !== 'professional') continue
+    if (field === 'professionalSpec') {
       // 画布规格要让模型立刻看到校验错误，不能出现“工具说成功、渲染却没采用”的假生效。
       target[field] = normalizeSpec(meta[field] || {})
       continue
@@ -633,6 +659,30 @@ const ASSET_MIME_EXT = {
  */
 const UPLOAD_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']
 
+function decodeUploadBase64(value) {
+  const text = String(value || '')
+  const invalid = () => new Error('图片 data 必须是规范的 base64 编码')
+  if (text.length % 4 !== 0) throw invalid()
+  const padding = text.endsWith('==') ? 2 : text.endsWith('=') ? 1 : 0
+  for (let i = 0; i < text.length - padding; i++) {
+    const code = text.charCodeAt(i)
+    const valid = (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || (code >= 48 && code <= 57) || code === 43 || code === 47
+    if (!valid) throw invalid()
+  }
+  const bytes = Buffer.from(text, 'base64')
+  if (bytes.toString('base64') !== text) throw invalid()
+  return bytes
+}
+
+function matchesImageMagic(bytes, ext) {
+  if (ext === '.png') return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  if (ext === '.jpg' || ext === '.jpeg') return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+  if (ext === '.gif') return bytes.length >= 6 && ['GIF87a', 'GIF89a'].includes(bytes.subarray(0, 6).toString('ascii'))
+  if (ext === '.webp') return bytes.length >= 12 && bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP'
+  if (ext === '.bmp') return bytes.length >= 2 && bytes.subarray(0, 2).toString('ascii') === 'BM'
+  return false
+}
+
 function stamp(at = new Date()) {
   const p = (n) => String(n).padStart(2, '0')
   return `${at.getFullYear()}${p(at.getMonth() + 1)}${p(at.getDate())}-${p(at.getHours())}${p(at.getMinutes())}${p(at.getSeconds())}`
@@ -669,7 +719,8 @@ function assetStem(name) {
  */
 export function saveAsset({ cwd, docPath, name, mime, data, maxBytes = MAX_ASSET_BYTES }) {
   const abs = resolveInCwd(cwd, docPath)
-  const buf = Buffer.from(String(data || ''), 'base64')
+  if (!String(data || '')) throw new Error('图片内容为空')
+  const buf = decodeUploadBase64(data)
   if (!buf.length) throw new Error('图片内容为空')
   if (buf.length > maxBytes) {
     throw new Error(`图片 ${(buf.length / 1024 / 1024).toFixed(1)}MB，超过 ${Math.round(maxBytes / 1024 / 1024)}MB 上限`)
@@ -678,6 +729,7 @@ export function saveAsset({ cwd, docPath, name, mime, data, maxBytes = MAX_ASSET
     ASSET_MIME_EXT[String(mime || '').toLowerCase()] ||
     UPLOAD_EXTS.find((e) => e === path.extname(String(name || '')).toLowerCase())
   if (!ext) throw new Error('只支持 PNG / JPEG / GIF / WebP / BMP 图片')
+  if (!matchesImageMagic(buf, ext)) throw new Error(`图片内容与声明格式 ${ext} 不符`)
 
   const dir = path.join(path.dirname(abs), ASSET_DIR)
   const stem = assetStem(name)

@@ -5,7 +5,7 @@
  * 并且把 409 冲突当成**正常返回值**而不是异常——冲突是要给用户看的界面状态。
  */
 
-export type RenderTarget = 'wechat' | 'xiumi'
+export type RenderTarget = 'quick' | 'professional'
 
 export interface DocMeta {
   theme: string
@@ -15,7 +15,7 @@ export interface DocMeta {
   footnotes: boolean
   macCodeBlock: boolean
   target: RenderTarget
-  xiumiSpec: Record<string, string | number>
+  professionalSpec: Record<string, string | number>
 }
 
 export interface Block {

@@ -60,7 +60,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   if (method === 'POST' && route === '/render') {
     const body = JSON.parse(String(init?.body || '{}')) as { docKey?: string; target?: string; mode?: string }
     if (body.docKey !== data.key) return json({ ok: false, error: '演示文档不存在' }, 404)
-    if (body.mode !== 'preview' || body.target !== 'xiumi') {
+    if (body.mode !== 'preview' || body.target !== 'professional') {
       return json({ ok: false, error: '演示传输层只提供公众号专业预览' }, 400)
     }
     return json({ ok: true, ...data.render })

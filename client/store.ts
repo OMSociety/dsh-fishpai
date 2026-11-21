@@ -100,8 +100,8 @@ const DEFAULT_META: DocMeta = {
   fontSize: '16px',
   footnotes: true,
   macCodeBlock: true,
-  target: 'xiumi',
-  xiumiSpec: {},
+  target: 'professional',
+  professionalSpec: {},
 }
 
 function initialState(sessionId: string): FishpaiState {
@@ -342,15 +342,15 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
   // 串行化：并发保存会拿着同一个 baseRevision 撞出 409，在界面上表现为"莫名冲突"。
   let saveInFlight = false
 
-  async function saveNow() {
-    if (!state.docKey || !state.dirty) return
+  async function saveNow(): Promise<boolean> {
+    if (!state.docKey || !state.dirty) return false
     // 冲突未决时暂停自动保存，避免每次输入重复触发 409
-    if (state.conflict) return
+    if (state.conflict) return false
     // 「外部更新」提示在场时同样不自动保存：本地 revision 已过期，写出去必然 409，
     // 只会把这条提示替换成语义重叠的「冲突」提示。用户的输入留在编辑器里，
     // 等他点横幅上的按钮（flush 会采用服务端版本号去写，正是「保留我的」）。
-    if (state.external) return
-    if (saveInFlight) return // 在飞的那次结束后会因 dirty 自动再排一次
+    if (state.external) return false
+    if (saveInFlight) return false // 在飞的那次结束后会因 dirty 自动再排一次
     const snapshotMarkdown = state.markdown
     saveInFlight = true
     patch({ saving: true })
@@ -369,13 +369,17 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     } catch (error) {
       if (error instanceof ConflictError) {
         patch({ saving: false, conflict: { revision: error.revision, markdown: error.markdown } })
-        return
+        return false
       }
-      patch({ saving: false, error: `保存失败：${(error as Error).message}` })
+      const message = `保存失败：${(error as Error).message}　草稿仍在编辑器里，可重试保存`
+      patch({ saving: false, error: message })
+      toast(message, 'error')
+      return false
     } finally {
       saveInFlight = false
+      if (state.dirty && !state.conflict) scheduleSave()
     }
-    if (state.dirty && !state.conflict) scheduleSave()
+    return true
   }
 
   const scheduleSave = () => {
@@ -763,8 +767,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         return
       }
       patch({ revision: conflict.revision, conflict: null })
-      await saveNow()
-      toast('已用你的版本覆盖，AI 的版本留在历史里')
+      if (await saveNow()) toast('已用你的版本覆盖，AI 的版本留在历史里')
     },
 
     /** 复制用：生成可粘贴到目标编辑器的 HTML（本地图片已内嵌 base64）。 */
@@ -840,10 +843,20 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       }
     },
 
-    /** 采用外部版本（放弃自己的未保存改动）——换文档时切到新文档。 */
+    /** 采用外部版本；当前未保存草稿先存进历史，换文档时切到新文档。 */
     async acceptExternal() {
-      const target = state.external?.key || state.docKey
+      const external = state.external
+      const source = state.docKey
+      const target = external?.key || source
       if (!target) return
+      if (external && state.dirty && source) {
+        try {
+          await api.history(state.sessionId, source, { action: 'stash', markdown: state.markdown, label: '采用外部版本前我的草稿' })
+        } catch (error) {
+          toast(`先把你的稿子存进历史失败：${(error as Error).message}　已取消切换，草稿仍在编辑器里`, 'error')
+          return
+        }
+      }
       // 不在这里清 `external`：载入成功时 `loadDoc` 自己会清；载入失败就把横幅留着，
       // 用户还能再点一次，而不是"横幅没了、文档也没切过去"。
       await switchTo(target)

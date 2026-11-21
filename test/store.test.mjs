@@ -26,6 +26,7 @@ export class ConflictError extends Error {
     this.markdown = markdown
   }
 }
+globalThis.__fpConflictError = ConflictError
 const need = (name) => (...args) => {
   const h = globalThis.__fpStub
   if (!h || typeof h[name] !== 'function') throw new Error('测试桩没有准备 ' + name)
@@ -78,7 +79,7 @@ const stub = (methods) => {
 
 const docPayload = (key, markdown, revision) => ({
   doc: { key, path: `${key}.md`, title: '测试文档', markdown, revision, updatedAt: 1, updatedBy: 'human', baseline: null },
-  meta: { theme: 'default', color: null, font: 'sans', fontSize: '16px', footnotes: true, macCodeBlock: true, target: 'xiumi', xiumiSpec: {} },
+  meta: { theme: 'default', color: null, font: 'sans', fontSize: '16px', footnotes: true, macCodeBlock: true, target: 'professional', professionalSpec: {} },
   blocks: [],
   notes: [],
   placeholders: [],
@@ -353,7 +354,7 @@ test('预览：缺省的面板字段按空集合处理', async () => {
   await store.actions.openDocByKey('k1')
   assert.equal(typeof releasePreview, 'function', '前置条件：载入后应发起预览')
 
-  releasePreview({ html: '<p>正文</p>', themeName: '秀米', linkCount: 0, hasCode: false })
+  releasePreview({ html: '<p>正文</p>', themeName: '专业', linkCount: 0, hasCode: false })
   for (let i = 0; i < 20; i++) await Promise.resolve()
 
   const st = store.getSnapshot()
@@ -383,10 +384,129 @@ test('复制 HTML：先保存当前正文，再按文档目标生成复制形态
   assert.equal(html, '<section>待复制的正文</section>')
   assert.deepEqual(calls, [
     ['save', 's-copy', 'k1', '待复制的正文', 3],
-    ['render', 's-copy', 'k1', '待复制的正文', 'xiumi', { target: 'xiumi' }],
+    ['render', 's-copy', 'k1', '待复制的正文', 'professional', { target: 'professional' }],
   ])
   assert.equal(store.getSnapshot().savedMarkdown, '待复制的正文')
   assert.equal(store.getSnapshot().dirty, false)
+  store.dispose()
+})
+
+test('acceptExternal：采用外部版本前先把未保存草稿存进历史', async (t) => {
+  const store = await readyStore('s-external', 'k1', '服务端的旧正文', 3)
+  t.after(() => store.dispose())
+  store.actions.setMarkdown('还没保存的草稿')
+  await store.actions.onActiveDoc('k1', 5)
+  assert.notEqual(store.getSnapshot().external, null, '前置条件：外部更新横幅已出现')
+
+  const calls = []
+  stub({
+    history: async (sid, key, options) => {
+      calls.push(['stash', sid, key, options])
+      return { ok: true }
+    },
+    activate: async () => ({ ok: true }),
+    doc: async (sid, key) => {
+      calls.push(['doc', sid, key])
+      return docPayload(key, 'AI 的新正文', 5)
+    },
+    renderPreview: async () => emptyPreview(),
+  })
+
+  await store.actions.acceptExternal()
+
+  assert.equal(calls[0][0], 'stash', '必须先留历史快照，再读取并采用外部正文')
+  assert.deepEqual(calls[0].slice(1, 3), ['s-external', 'k1'])
+  assert.equal(calls[0][3].action, 'stash')
+  assert.equal(calls[0][3].markdown, '还没保存的草稿')
+  assert.ok(calls.some(([name]) => name === 'doc'), '快照成功后才会载入外部正文')
+  assert.equal(store.getSnapshot().markdown, 'AI 的新正文')
+  assert.equal(store.getSnapshot().dirty, false)
+  store.dispose()
+})
+
+test('acceptExternal：历史快照失败就中止切换，草稿和横幅都保留', async (t) => {
+  const store = await readyStore('s-stash-fail', 'k1', '服务端的旧正文', 3)
+  t.after(() => store.dispose())
+  store.actions.setMarkdown('不能丢的草稿')
+  await store.actions.onActiveDoc('k1', 5)
+
+  let docCalls = 0
+  stub({
+    history: async () => {
+      throw new Error('历史存储没有写权限')
+    },
+    activate: async () => ({ ok: true }),
+    doc: async (sid, key) => {
+      docCalls += 1
+      return docPayload(key, 'AI 的新正文', 5)
+    },
+    renderPreview: async () => emptyPreview(),
+  })
+
+  await store.actions.acceptExternal()
+
+  assert.equal(docCalls, 0, '快照失败时不能开始覆盖编辑器正文')
+  assert.equal(store.getSnapshot().markdown, '不能丢的草稿')
+  assert.equal(store.getSnapshot().dirty, true)
+  assert.notEqual(store.getSnapshot().external, null, '横幅留着，用户处理权限后可以重试')
+  assert.match(String(store.getSnapshot().toast?.text), /历史存储没有写权限/)
+  assert.equal(store.getSnapshot().toast?.kind, 'error')
+  store.dispose()
+})
+
+test('saveNow：普通保存失败保留 dirty、提示原因，并可立即重试', async (t) => {
+  const store = await readyStore('s-save-retry', 'k1', '旧正文', 3)
+  t.after(() => store.dispose())
+  store.actions.setMarkdown('仍要保存的草稿')
+  let attempts = 0
+  stub({
+    save: async () => {
+      attempts += 1
+      if (attempts === 1) throw new Error('磁盘暂时只读')
+      return { ok: true, revision: 4, updatedAt: 2 }
+    },
+  })
+
+  const first = await store.actions.flush()
+  assert.equal(first, false)
+  assert.equal(store.getSnapshot().markdown, '仍要保存的草稿')
+  assert.equal(store.getSnapshot().savedMarkdown, '旧正文')
+  assert.equal(store.getSnapshot().dirty, true)
+  assert.match(String(store.getSnapshot().toast?.text), /保存失败.*磁盘暂时只读/)
+  assert.equal(store.getSnapshot().toast?.kind, 'error')
+
+  const second = await store.actions.flush()
+  assert.equal(second, true)
+  assert.equal(attempts, 2)
+  assert.equal(store.getSnapshot().savedMarkdown, '仍要保存的草稿')
+  assert.equal(store.getSnapshot().dirty, false)
+  store.dispose()
+})
+
+test('resolveConflict(mine)：覆盖保存失败不能提示已覆盖', async (t) => {
+  const store = await readyStore('s-conflict-save', 'k1', '旧正文', 3)
+  t.after(() => store.dispose())
+  store.actions.setMarkdown('我的冲突草稿')
+  stub({
+    save: async () => {
+      throw new globalThis.__fpConflictError(5, 'AI 的冲突正文')
+    },
+  })
+  await store.actions.flush()
+  assert.equal(store.getSnapshot().conflict?.revision, 5, '前置条件：先进入真实冲突态')
+
+  stub({
+    save: async () => {
+      throw new Error('覆盖写入被拒绝')
+    },
+  })
+  await store.actions.resolveConflict('mine')
+
+  assert.equal(store.getSnapshot().markdown, '我的冲突草稿')
+  assert.equal(store.getSnapshot().dirty, true)
+  assert.match(String(store.getSnapshot().toast?.text), /覆盖写入被拒绝/)
+  assert.doesNotMatch(String(store.getSnapshot().toast?.text), /已用你的版本覆盖/)
+  assert.equal(store.getSnapshot().toast?.kind, 'error')
   store.dispose()
 })
 

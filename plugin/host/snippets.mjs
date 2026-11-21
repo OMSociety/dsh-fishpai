@@ -1,8 +1,14 @@
 import { randomUUID } from 'node:crypto'
+import { load } from 'cheerio'
 import { composeMarkdown, extractSnippets, normalizeSnippetName, sanitizeFragment } from '../core/snippets.mjs'
 import { fetchPublicPage } from './public-fetch.mjs'
 
 const PENDING_TTL_MS = 30 * 60 * 1000
+
+// name 是 snippets 表主键；HTTP/工具契约使用同一值作为条目 id。
+function publicSnippet(record) {
+  return { ...record, id: record.name }
+}
 
 export class SnippetService {
   constructor(getStores, { fetchPage = fetchPublicPage, renderFragment = (html) => sanitizeFragment(html) } = {}) {
@@ -29,9 +35,9 @@ export class SnippetService {
     let candidate
     if (args.url) {
       const page = await this.fetchPage(args.url)
-      candidate = extractSnippets(page.html, { footerAnchors: args.footerAnchors })
-      candidate.sourceName = page.title
-      candidate.sourceRef = page.url
+      candidate = extractSnippets(page.text, { footerAnchors: args.footerAnchors })
+      candidate.sourceName = load(page.text)('title').first().text().trim() || page.finalUrl
+      candidate.sourceRef = page.finalUrl
     } else {
       candidate = {
         headerHtml: args.headerHtml ? this.renderFragment(args.headerHtml) : null,
@@ -43,7 +49,7 @@ export class SnippetService {
     }
     if (!candidate.headerHtml && !candidate.footerHtml && !candidate.footerImg) throw new Error('未提取到片段：页头取首个 mmbiz 图，页尾需配置能命中的锚点关键词')
     const record = { name, headerHtml: candidate.headerHtml, footerHtml: candidate.footerHtml, footerImg: candidate.footerImg, createdAt: Date.now() }
-    const existing = (await this.stores()).snippets.table('snippets').get(name)
+    const existing = await (await this.stores()).snippets.table('snippets').get(name)
     if (existing && !args.force) {
       const error = new Error(`片段「${name}」已存在；确认覆盖时请使用 force:true`)
       error.duplicate = true
@@ -62,11 +68,14 @@ export class SnippetService {
     if (!row) throw new Error('pendingId 不存在或已过期，请重新 preview')
     await (await this.stores()).snippets.table('snippets').put(row.record.name, row.record)
     this.pending.delete(pendingId)
-    return row.record
+    return publicSnippet(row.record)
   }
 
   async list() {
-    return (await this.stores()).snippets.table('snippets').keys().sort()
+    const table = (await this.stores()).snippets.table('snippets')
+    const names = Array.from(await table.keys()).sort()
+    const records = await Promise.all(names.map((name) => table.get(name)))
+    return records.filter(Boolean).map(publicSnippet)
   }
 
   async get(name) {

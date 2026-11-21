@@ -92,10 +92,14 @@ async function copyRich(html: string, plain: string): Promise<void> {
     const range = document.createRange()
     range.selectNodeContents(holder)
     const selection = window.getSelection()
-    selection?.removeAllRanges()
-    selection?.addRange(range)
-    document.execCommand('copy')
-    selection?.removeAllRanges()
+    if (!selection) throw new Error('当前浏览器无法建立复制选区，请重试')
+    selection.removeAllRanges()
+    selection.addRange(range)
+    try {
+      if (!document.execCommand('copy')) throw new Error('浏览器没有完成复制，请检查剪贴板权限后重试')
+    } finally {
+      selection.removeAllRanges()
+    }
   } finally {
     holder.remove()
   }
@@ -536,7 +540,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
 
   // 专业模式先看成品；快速模式保留文稿与预览并排。用户随后可自由切换视图。
   React.useEffect(() => {
-    setMode(state.meta.target === 'xiumi' ? 'preview' : 'side')
+    setMode(state.meta.target === 'professional' ? 'preview' : 'side')
   }, [state.docKey, state.meta.target])
 
   // 换主题就重置"已关掉的风险提示"：切走再切回来，提示要重新出现（而不是被永久关掉）
@@ -779,11 +783,11 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
       <div className="fp-toolbar">
         <div className="fp-row">
           <div className="fp-mode-controls">
-            <div className="fp-seg" role="group" aria-label="渲染模式" title="专业=秀米组件管线，支持交互动画；快速=内置主题管线">
-              <Btn on={state.meta.target === 'xiumi'} onClick={() => void store.actions.setMeta({ target: 'xiumi' })} title="专业：秀米组件管线，支持交互动画">
+            <div className="fp-seg" role="group" aria-label="渲染模式" title="专业=专业组件管线，支持交互动画；快速=内置主题管线">
+              <Btn on={state.meta.target === 'professional'} onClick={() => void store.actions.setMeta({ target: 'professional' })} title="专业：专业组件管线，支持交互动画">
                 专业
               </Btn>
-              <Btn on={state.meta.target === 'wechat'} onClick={() => void store.actions.setMeta({ target: 'wechat' })} title="快速：内置主题管线">
+              <Btn on={state.meta.target === 'quick'} onClick={() => void store.actions.setMeta({ target: 'quick' })} title="快速：内置主题管线">
                 快速
               </Btn>
             </div>
@@ -830,7 +834,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
           </div>
         </div>
 
-        {state.meta.target === 'wechat' ? (
+        {state.meta.target === 'quick' ? (
         <div className="fp-row fp-quick-settings">
           <ThemePicker
             themes={state.themes}
@@ -916,7 +920,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
         ) : null}
       </div>
 
-      {state.meta.target === 'wechat' && currentTheme && !currentTheme.wechatSafe && riskDismissed !== currentTheme.key ? (
+      {state.meta.target === 'quick' && currentTheme && !currentTheme.wechatSafe && riskDismissed !== currentTheme.key ? (
         <div className="fp-banner" data-kind="warn">
           <span>
             {currentTheme.gradientText
@@ -985,7 +989,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             toast={(text, kind) => store.actions.toast(text, kind)}
             currentBlock={state.blocks.find((b) => b.startLine <= state.caretLine && state.caretLine <= b.endLine) || null}
             target={state.meta.target}
-            onRefine={() => void store.actions.setMeta({ target: 'xiumi' })}
+            onRefine={() => void store.actions.setMeta({ target: 'professional' })}
           />
         ) : null}
         {showPreview ? (
@@ -1247,7 +1251,7 @@ function ComponentPicker(props: { onPick: (template: string) => void }) {
         data-on={open ? 'true' : undefined}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title="插入专业（秀米）组件"
+        title="插入专业组件"
         onClick={() => setOpen((value) => !value)}
       >
         ⊕ 组件
@@ -1339,9 +1343,9 @@ function Editor(props: {
   const insertComponent = (template: string) => {
     const el = editorRef.current
     if (!el) return
-    if (props.target !== 'xiumi') {
+    if (props.target !== 'professional') {
       props.onRefine()
-      props.toast('组件是专业（秀米）管线专属，已为你切到专业模式')
+      props.toast('组件是专业管线专属，已为你切到专业模式')
     }
     applyEdit(insertBlockTemplate(el.value, el.selectionStart, el.selectionEnd, template))
   }
@@ -1366,6 +1370,8 @@ function Editor(props: {
   }
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // 输入法候选确认也会发出 keydown；组合期间的事件交回输入法，不触发行人编辑命令。
+    if (event.nativeEvent.isComposing || (event as unknown as { isComposing?: boolean }).isComposing) return
     const el = event.currentTarget
     // Tab：列表/多行选区整体缩进一级，普通段落里就是插一段空白（保持原有手感）。
     // Shift+Tab 一定要拦：不拦的话浏览器会把焦点挪走，人只会觉得"按了没反应"。
@@ -1403,7 +1409,7 @@ function Editor(props: {
   return (
     <div className="fp-pane">
       <div className="fp-pane-head">
-        <span>{props.target === 'xiumi' ? '文稿' : 'Markdown 文稿'}</span>
+        <span>{props.target === 'professional' ? '文稿' : 'Markdown 文稿'}</span>
         <span className="fp-spacer" />
         <span className="fp-muted">
           {props.currentBlock ? `${kindLabel(props.currentBlock.kind)} · 第 ${props.currentBlock.startLine} 行` : '未在块内'}

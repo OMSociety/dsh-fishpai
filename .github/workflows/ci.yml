@@ -28,6 +28,9 @@ jobs:
       - name: Renderer golden + core unit tests
         run: npm test
 
+      - name: Renderer snapshots are reproducible
+        run: node scripts/regen-golden.mjs --check
+
       - name: Typecheck client sources
         run: npm run typecheck
 

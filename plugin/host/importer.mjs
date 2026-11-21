@@ -4,7 +4,7 @@ import dns from 'node:dns/promises'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { importArticle, publicAssetUrl } from '../core/import/index.mjs'
-import { renderXiumiPublish } from '../core/xiumi/index.mjs'
+import { renderProfessionalPublish } from '../core/professional/index.mjs'
 import { lintWechatHtml } from '../core/wechat-lint.mjs'
 import { fetchPublicPage } from './public-fetch.mjs'
 import { downloadImportedImage } from './import-assets.mjs'
@@ -35,7 +35,7 @@ export async function importArticleDocument(args, {
   if (supplied.length !== 1) throw new Error('必须且只能提供 url、html、path 之一')
   if (!args.out_path || !String(args.out_path).trim()) throw new Error('out_path 必填：导入会新建并打开一篇 .md，不覆盖当前文档')
   const docPath = store.resolveInCwd(cwd, store.withDefaultExt(String(args.out_path), '.md'))
-  if (fs.existsSync(docPath)) throw new Error('out_path 已存在；为避免覆盖，请换一个新路径')
+  if (fs.existsSync(docPath)) throw new store.DocConflictError(docPath)
 
   let html
   let baseUrl
@@ -81,15 +81,16 @@ export async function importArticleDocument(args, {
 
   try {
     const imported = await importArticle({ html, baseUrl, resolveAsset })
-    const spec = imported.xiumiSpec
-    const rendered = renderXiumiPublish(imported.markdown, { spec })
+    const spec = imported.professionalSpec
+    const rendered = renderProfessionalPublish(imported.markdown, { spec })
     const lint = lintWechatHtml(rendered)
     const opened = store.openDoc({
       cwd,
       docPath,
       markdown: imported.markdown,
-      meta: { target: 'xiumi', xiumiSpec: spec },
+      meta: { target: 'professional', professionalSpec: spec },
       by: 'ai',
+      exclusive: true,
     })
     store.setActive(cwd, sessionId, opened.key)
     store.requestOpen({ cwd, docPath: opened.path, sessionId })
@@ -101,7 +102,7 @@ export async function importArticleDocument(args, {
       title: imported.title,
       sourceRef,
       stats: { ...imported.stats, assetsLocal: assets.filter((item) => item.status === 'local').length, assetsRemote: assets.filter((item) => item.status === 'remote').length },
-      xiumiSpec: spec,
+      professionalSpec: spec,
       specEvidence: imported.specEvidence,
       blocks: blocks.slice(0, 100).map(({ id, kind, tag, component, confidence, reason, sourceIndex }) => ({
         id, kind, tag, component, confidence, reason, sourceIndex,

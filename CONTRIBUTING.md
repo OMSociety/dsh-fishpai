@@ -29,8 +29,7 @@ CI（`.github/workflows/ci.yml`）在 Ubuntu 与 Windows 上运行 `npm ci`，�
    重生成，而且要在 PR 里说清"渲染行为为什么变了"（硬约束 1）。
 4. **新增依赖前先看许可**（硬约束 3）：GPL、无证、MPL 一律不进。
 5. **宿主工具用 raw JSON-Schema 注册**，不要 `import { defineTool }`（见 `AGENTS.md` 架构边界）。
-6. **版本号与 CHANGELOG 属于同一次发布**：PR 里不要顺手改 `package.json` 的 `version`，
-   发版单独走一次提交（本仓库不发 tag，发布前自查「version 与 CHANGELOG 一节对应」即可）。
+6. **版本号与 CHANGELOG 属于同一次发布**：PR 里不要顺手改 `package.json` 的 `version`，发版单独走一次提交。发布前核对版本号、CHANGELOG 与 npm 包内容，全量验收通过后在最终发布提交上创建 annotated tag（例如 `git tag -a v2.0.0 -m "v2.0.0"`），推送提交与 tag，再由维护者执行 `npm publish`，并用该版本 CHANGELOG 的中英条目创建 GitHub Release。
 
 ## 改渲染内核时
 

@@ -51,7 +51,7 @@ function sourceParts(markdown) {
       continue
     }
     const directive = match[1].toLowerCase()
-    if (!DIRECTIVES.has(directive)) throw new Error(`未知指令（秀米）：${directive}`)
+    if (!DIRECTIVES.has(directive)) throw new Error(`未知指令（专业）：${directive}`)
     flush()
     const body = []
     let closed = false
@@ -62,7 +62,7 @@ function sourceParts(markdown) {
       }
       body.push(lines[index])
     }
-    if (!closed) throw new Error(`秀米指令 ${directive} 未闭合：缺少结束行 :::`)
+    if (!closed) throw new Error(`专业指令 ${directive} 未闭合：缺少结束行 :::`)
     parts.push({ directive, body: body.join('\n') })
   }
   flush()
@@ -82,11 +82,35 @@ function markdownComponents(markdown, spec) {
       const content = tokens[index + 1]?.content || ''
       if (!token.hidden && content.trim()) components.push({ type: 'paragraph', html: inline(content, spec) })
       index += 2
+    } else if (token.type === 'table_open') {
+      const headers = []
+      const rows = []
+      const aligns = []
+      let currentRow = null
+      let inBody = false
+      while (++index < tokens.length && tokens[index].type !== 'table_close') {
+        const cell = tokens[index]
+        if (cell.type === 'tbody_open') inBody = true
+        else if (cell.type === 'tr_open') currentRow = []
+        else if (cell.type === 'th_open') {
+          const align = cell.attrGet('style')?.match(/text-align:\s*(left|center|right)/i)?.[1]
+          aligns.push(align || 'left')
+          headers.push(inline(tokens[index + 1]?.content || '', spec))
+          index += 2
+        } else if (cell.type === 'td_open') {
+          currentRow?.push(inline(tokens[index + 1]?.content || '', spec))
+          index += 2
+        } else if (cell.type === 'tr_close' && inBody && currentRow) {
+          rows.push(currentRow)
+          currentRow = null
+        }
+      }
+      components.push({ type: 'table', headers, rows, aligns })
     } else if (token.type === 'blockquote_open') {
       const depth = token.level
       const parts = []
       while (++index < tokens.length) {
-        if (tokens[index].type === 'blockquote_close' && tokens[index].level === depth - 1) break
+        if (tokens[index].type === 'blockquote_close' && tokens[index].level === depth) break
         if (tokens[index].type === 'inline') parts.push(inline(tokens[index].content, spec))
       }
       components.push({ type: 'quote', html: parts.join('<br />') })
@@ -150,6 +174,7 @@ function directiveComponent(part, spec) {
   // ── 交互组件（SMIL）：body 解析成各自的 props ──
   if (part.directive === 'expand' || part.directive === 'swap') {
     const [cover = '', body = ''] = part.body.split(/^---\s*$/m)
+    if (!body.trim()) throw new Error(`${part.directive} 需要 --- 分隔后的正文`)
     // coverText 是封面原始纯文本（SVG <text> 只能放纯文本，不能放渲染后的块级 HTML）。
     return {
       type: part.directive,
@@ -163,6 +188,7 @@ function directiveComponent(part, spec) {
     return { type: 'swiper', images }
   }
   if (part.directive === 'spotlight') {
+    if (!part.body.trim()) throw new Error('spotlight 需要正文')
     return { type: 'spotlight', body: renderComponents(markdownComponents(part.body, spec), spec) }
   }
   if (part.directive === 'danmaku') {
@@ -176,10 +202,12 @@ function directiveComponent(part, spec) {
   }
   if (part.directive === 'timeline') {
     const items = part.body.split('\n').map((line) => line.replace(/^\s*[-*+]\s+/, '').trim()).filter(Boolean)
+    if (!items.length) throw new Error('timeline 至少需要一行内容')
     return { type: 'timeline', items: items.map((item) => inline(item, spec)) }
   }
   if (part.directive === 'compare') {
     const [left = '', right = ''] = part.body.split(/^---\s*$/m)
+    if (!left.trim() || !right.trim()) throw new Error('compare 需要 --- 分隔的左右两栏正文')
     return { type: 'compare', left: renderComponents(markdownComponents(left, spec), spec), right: renderComponents(markdownComponents(right, spec), spec) }
   }
   return { type: part.directive, html: renderComponents(markdownComponents(part.body, spec), spec) }
@@ -192,16 +220,16 @@ export function componentsFromMarkdown(markdown, specInput = {}) {
 
 function renderComponents(components, spec) {
   return components.map((component) => {
-    if (!component || typeof component !== 'object') throw new Error('秀米组件必须是对象')
+    if (!component || typeof component !== 'object') throw new Error('专业组件必须是对象')
     const alias = ALL_ALIAS[component.type]
-    if (!alias) throw new Error(`未知组件（秀米）：${String(component.type)}`)
+    if (!alias) throw new Error(`未知组件（专业）：${String(component.type)}`)
     return ALL_COMPONENTS[alias](component, spec)
   }).join('')
 }
 
 export function buildPage(components, options = {}) {
   const spec = normalizeSpec(options.spec || options)
-  if (!Array.isArray(components)) throw new Error('秀米 components 必须是数组')
+  if (!Array.isArray(components)) throw new Error('专业 components 必须是数组')
   return `<section style="max-width:${spec.page_width}px;margin:0 auto;padding:${spec.page_padding_y}px ${spec.page_padding_x}px;box-sizing:border-box;background-color:${spec.page_bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;letter-spacing:${spec.body_spacing}px;">${renderComponents(components, spec)}</section>`
 }
 
@@ -209,7 +237,7 @@ export function buildPage(components, options = {}) {
  * 微信粘贴路径的文本包裹兼容层（对齐快速管线 render() 的 wrapText 语义）。
  *
  * 粘贴清洗要求 HTML 文本容器（p / h1-h6 / section / li / blockquote / td / th）里的
- * 文字必须放在 span 等行内元素中，裸文本节点会被降级。秀米管线的组件直接产出
+ * 文字必须放在 span 等行内元素中，裸文本节点会被降级。专业管线的组件直接产出
  * 裸文本，这里在出口统一包裹；`<svg>…</svg>` 整块跳过——SVG 的 <text> 不能包 span。
  */
 const TEXT_WRAP_TAGS = new Set(['section', 'p', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'td', 'th'])
@@ -240,16 +268,16 @@ function wrapTextNodes(html) {
   return wrapped.replace(/SVG(\d+)/g, (full, i) => svgs[Number(i)])
 }
 
-/** 秀米产物的复制 / 导出形态：内容层文本已包裹，可直接过粘贴 lint。 */
-export function renderXiumiPublish(markdown, options = {}) {
-  const out = renderXiumi(markdown, options)
+/** 专业产物的复制 / 导出形态：内容层文本已包裹，可直接过粘贴 lint。 */
+export function renderProfessionalPublish(markdown, options = {}) {
+  const out = renderProfessional(markdown, options)
   return { ...out, html: wrapTextNodes(out.html) }
 }
 
-export function renderXiumi(markdown, options = {}) {
-  const spec = normalizeSpec(options.spec || options.xiumi_spec || {})
+export function renderProfessional(markdown, options = {}) {
+  const spec = normalizeSpec(options.spec || options.professional_spec || {})
   const components = componentsFromMarkdown(markdown, spec)
-  return { html: buildPage(components, { spec }), themeKey: 'xiumi', themeName: '秀米', componentCount: components.length }
+  return { html: buildPage(components, { spec }), themeKey: 'professional', themeName: '专业', componentCount: components.length }
 }
 
 export { DEFAULT_SPEC, normalizeSpec }

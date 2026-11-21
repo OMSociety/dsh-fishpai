@@ -36,8 +36,8 @@
 | **主题与主题色** | 11 套主题，按"是否适合公众号"分组；主题色只对「默认公众号」生效（用不上的取色行会自动隐藏），有风险的主题直接提示原因；另有用户级「命名主题库」（模型可在内置主题上只改几个槽位，存为多套命名主题） |
 | **复制与导出** | 复制为 `text/html` + `text/plain` 双格式；本地图片内嵌 base64，粘过去**不用手动重传**；也能导出成自包含 `.html` |
 | **页头页尾片段库** | 页头首图、可配置页尾锚点片段经预览确认后入库，渲染时按 `snippetId` 装配 |
-| **微信约束检查** | `fishpai_lint` 检查全内联、禁用标签 / 属性、position、CSS 变量、grid、文本包裹、正文对比度、全幅限宽与表格默认边框 |
-| **专业自由画布** | 18 项文档级 `xiumi_spec` 控制画布、字阶与组件配色；`full_bleed` 处理整幅出血，章节头、信息卡、重点行、制作名单与 8 个交互组件可同自由 HTML / SVG 混排，本地素材在预览、复制与导出间同源使用 |
+| **微信约束检查** | `fishpai_lint` 检查全内联、禁用标签 / 属性、position、CSS 变量、grid、文本包裹、正文对比度、全幅限宽与表格默认边框；仅豁免精确匹配的鱼排固定结构，外部 raw 与自定义主题仍按实际内容检查 |
+| **专业自由画布** | 18 项文档级 `professional_spec` 控制画布、字阶与组件配色；`full_bleed` 处理整幅出血，章节头、信息卡、重点行、制作名单与 8 个交互组件可同自由 HTML / SVG 混排，本地素材在预览、复制与导出间同源使用 |
 | **现有文章导入** | `fishpai_import` 从公众号 URL、粘贴 HTML 或本地 HTML 新建专业文档；复杂版式保留 raw，高置信正文提升为 Markdown，图片本地化并给出结构与 lint 报告 |
 | **八个模型工具** | `fishpai_open` / `read` / `write` / `render` / `import` / `theme` / `snippets` / `lint`，配一份教模型怎么用的技能 |
 
@@ -65,6 +65,8 @@
 dsh plugin --profile <profile> add "dsh-fishpai"
 ```
 
+桌面版把 `<profile>` 替换为 `desktop`；其他环境填写实际使用的 profile 名称。
+
 > 装好后**刷新一下浏览器页面**，「鱼排编辑器」从右侧栏的引导页打开——只重启宿主不够，客户端产物是页面加载时取的；入口与布局按会话记忆，新会话第一次要点一次（模型调 `fishpai_open` 时也会自动打开）。
 > 命名主题与页头页尾片段存于用户级 `storageDomain`，跨工作目录、跨重启保留。插件运行不需要浏览器或平台登录。
 
@@ -85,10 +87,10 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 
 | 工具 | 作用 | 关键参数 |
 |---|---|---|
-| `fishpai_open` | 打开 / 新建文档，并在右侧栏弹出面板 | `path`（可省扩展名，自动补 `.md`）、`markdown`（新建时写正文）、`theme`、`xiumi_spec`（专业画布持久规格） |
+| `fishpai_open` | 打开 / 新建文档，并在右侧栏弹出面板 | `path`（可省扩展名，自动补 `.md`）、`markdown`（新建时写正文）、`theme`、`professional_spec`（专业画布持久规格） |
 | `fishpai_read` | **改稿前必做**：读块级 diff、批注、占位、图片提醒与块 id | `doc_key`、`include` |
 | `fishpai_write` | 改稿。必须带 `base_revision`；优先按块改 | `doc_key`、`base_revision`、`mode`（`patch` / `replace`）、`patches[{block_id 或 block_index, op, markdown}]` |
-| `fishpai_render` | 导出可粘贴 / 归档的自包含 HTML（本地图片内嵌 base64） | `out_path`（可省扩展名）、`theme`、`theme_spec`（临时自定义主题，不落盘）、`target`（`'xiumi'` 专业默认 / `'wechat'` 快速）、`xiumi_spec`（当次画布覆盖）、`snippetId`（装配页头页尾片段）、`publish`（`false` = 预览原样形态）、`embed_images` |
+| `fishpai_render` | 导出可粘贴 / 归档的自包含 HTML（本地图片内嵌 base64） | `out_path`（可省扩展名）、`theme`、`theme_spec`（仅 `'quick'` 快速目标的临时自定义主题，不落盘）、`target`（`'professional'` 专业默认 / `'quick'` 快速）、`professional_spec`（当次画布覆盖）、`snippetId`（装配页头页尾片段）、`publish`（`false` = 预览原样形态）、`embed_images` |
 | `fishpai_import` | 从公众号 URL、粘贴 HTML 或工作区 HTML 导入为新专业文档；raw 保真、保守提升、素材本地化，附结构 / 规格 / lint 报告 | `url` / `html` / `path`（三选一）、`out_path`（必须是不存在的 `.md`） |
 | `fishpai_theme` | 用户级**「命名主题库」**（多套，`set` / `show` / `clear` / `list`）：模型在某套内置主题上只覆盖想改的槽位，存为 `custom:<id>` 命名主题 | `action`、`theme_id`、`theme_spec` |
 | `fishpai_snippets` | 页头页尾片段库：预览确认后入库，渲染时按名装配 | `action`、`name`、`headerHtml` / `footerHtml` / `footerImg`、`footerAnchors`、`pending_id`、`confirm` |
@@ -118,7 +120,7 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 | 你指定的 `.md` | 文档正文 | 普通 Markdown，任何编辑器都能改；鱼排不往正文里塞标记 |
 | `.fishpai/docs/` | 没指定路径时新建的文档 | `fishpai_open` 省略 `path` 就落在这里，按标题命名 |
 | `<文档同级>/assets/` | 粘贴或导入的图片 | 相对路径引用（`assets/xxx.png`），文档搬走图也跟着走 |
-| `.fishpai/state/` | 主题、revision、baseline、批注 | 按文档路径哈希命名；删掉会丢批注、历史与「模型上次写入的基线」（正文不动，但模型暂时看不出你改了什么） |
+| `.fishpai/state/` | revision、baseline、批注与文档渲染状态 | 按文档路径哈希命名；删掉会丢批注、历史与「模型上次写入的基线」（正文不动，但模型暂时看不出你改了什么） |
 | `.fishpai/history/` | 历史快照（最多 50 份） | 面板「历史」抽屉里可一键回滚 |
 | 用户级存储（`storageDomain`） | 命名主题库、页头页尾片段库 | 跨工作目录、跨重启持久；命名主题为 `custom:<id>` |
 | `.fishpai/.gitignore` | 忽略 `state/`、`history/` | 插件自建，只追加缺失的行（你写的改动一字不动）；正文与图片是否入库由你自己决定 |
@@ -132,13 +134,15 @@ npm run typecheck  # 客户端 TSX 类型检查
 npm run build      # 重新打包 lib/client.js（改完客户端必须跑，并提交产物）
 npm run build:preview  # 用正式面板与 fixture 重建 README 预览，并在 Chrome 验收展开交互
 npm run check:build  # 确认 lib/ 无漂移
+npm run check:pack   # 核对 npm 发布物清单
+node scripts/regen-golden.mjs --check  # 确认渲染快照可复现
 ```
 
 目录与「改东西去哪」：
 
 ```
 plugin/index.mjs        宿主入口：注册工具 + /fishpai/api 路由 + fishpai 技能
-plugin/core/            渲染与解析核心：runtime / markdown / render / diff / notes / patch / theme-info / theme-spec / snippets / wechat-lint / xiumi/；HTML 导入解析器用 cheerio
+plugin/core/            渲染与解析核心：runtime / markdown / render / diff / notes / patch / theme-info / theme-spec / snippets / wechat-lint / professional/；HTML 导入解析器用 cheerio
 plugin/host/            宿主侧：工具契约、HTTP 路由、文档存储、图片、命名主题与 storageDomain 封装
 plugin/vendor/          内置主题 themes.js + markdown-it 14.1.0 + highlight.js 11.9.0 + hljs-map.json
 client/                 客户端源码（TSX → esbuild 打成 lib/client.js）
@@ -155,7 +159,14 @@ test/                   golden、站点对照、块/diff/批注/补丁、宿主�
 git clone --depth 1 https://github.com/wechatjs/verify-article-structure-spec "$env:TEMP\was"
 cd "$env:TEMP\was\cli"; $env:PUPPETEER_SKIP_DOWNLOAD='true'; npm install
 $env:PUPPETEER_EXECUTABLE_PATH='C:\Program Files\Google\Chrome\Application\chrome.exe'
-npx tsx src/index.ts <导出的 article.html> --json    # isValid: true 即通过
+$article = 'D:\path\article.html'                  # 换成实际导出路径
+npx tsx src/index.ts $article --json                # isValid: true 即通过
+```
+
+Bash / zsh 使用实际路径作为普通参数：
+
+```bash
+npx tsx src/index.ts /path/to/article.html --json
 ```
 
 ## 支持与致谢

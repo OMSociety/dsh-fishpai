@@ -36,8 +36,8 @@ test('URL导入新建并打开专业文档，素材本地化且来源不保留�
   assert.doesNotMatch(markdown, /tempkey=secret|asset-secret|link-secret|captcha-secret|nested-secret|page-secret/)
   assert.doesNotMatch(JSON.stringify(result), /tempkey=secret|asset-secret|link-secret|captcha-secret|nested-secret|page-secret/)
   const state = JSON.parse(fs.readFileSync(path.join(cwd, '.fishpai', 'state', `${result.key}.json`), 'utf8'))
-  assert.equal(state.target, 'xiumi')
-  assert.equal(state.xiumiSpec.body_size, 16)
+  assert.equal(state.target, 'professional')
+  assert.equal(state.professionalSpec.body_size, 16)
 })
 
 test('公众号人机验证页明确失败且不建稿', async () => {

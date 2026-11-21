@@ -164,14 +164,16 @@ export function createMd(styles, opts = {}) {
   md.renderer.rules.thead_open = () => '<thead>\n'
   md.renderer.rules.tbody_open = () => '<tbody>\n'
   md.renderer.rules.tr_open = () => '<tr>'
-  md.renderer.rules.th_open = (t, i, o, e, slf) => {
-    const a = slf.renderAttrs(t[i])
-    return `<th${styles.th ? ` style="${styles.th}"` : ''}${a}>`
+  const tableCellOpen = (tag, token, themeStyle, slf) => {
+    const alignment = token.attrGet('style') || ''
+    if (themeStyle || alignment) {
+      const separator = themeStyle && alignment && !/;\s*$/.test(themeStyle) ? ';' : ''
+      token.attrSet('style', `${themeStyle || ''}${separator}${alignment}`)
+    }
+    return `<${tag}${slf.renderAttrs(token)}>`
   }
-  md.renderer.rules.td_open = (t, i, o, e, slf) => {
-    const a = slf.renderAttrs(t[i])
-    return `<td${styles.td ? ` style="${styles.td}"` : ''}${a}>`
-  }
+  md.renderer.rules.th_open = (t, i, o, e, slf) => tableCellOpen('th', t[i], styles.th, slf)
+  md.renderer.rules.td_open = (t, i, o, e, slf) => tableCellOpen('td', t[i], styles.td, slf)
 
   // 加粗 / 斜体
   md.renderer.rules.strong_open = () => `<strong${styles.strong ? ` style="${styles.strong}"` : ''}>`

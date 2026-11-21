@@ -28,7 +28,7 @@ import { colorPresets } from '../core/runtime.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
 import { attachPlaceholdersToBlocks, extractPlaceholders, reanchorNotes } from '../core/notes.mjs'
 import { lintWechatHtml } from '../core/wechat-lint.mjs'
-import { renderXiumi, renderXiumiPublish } from '../core/xiumi/index.mjs'
+import { renderProfessional, renderProfessionalPublish } from '../core/professional/index.mjs'
 import * as store from './store.mjs'
 import { listLocalImages, makeImageResolver, readAsset, inlineHtmlImages } from './assets.mjs'
 
@@ -219,7 +219,7 @@ function docPayload({ cwd, key, domain }) {
       footnotes: state.footnotes !== false,
       macCodeBlock: state.macCodeBlock !== false,
       target: state.target,
-      xiumiSpec: state.xiumiSpec || {},
+      professionalSpec: state.professionalSpec || {},
     },
     ...liveSurface({ cwd, key, abs, markdown }),
     history: publicHistory(state.history),
@@ -235,6 +235,24 @@ function docPayload({ cwd, key, domain }) {
  * @returns {(req: object, res: object) => Promise<void>}
  */
 export function createApiHandler({ resolveCwd, log = () => {}, getStores = async () => null, snippets }) {
+  async function readableStores() {
+    try {
+      const stores = await getStores()
+      return stores
+        ? { stores, storage: { available: true, error: null } }
+        : { stores: null, storage: { available: false, error: '用户级存储不可用；自定义主题与片段暂不可读' } }
+    } catch (error) {
+      log(`storageDomain 打开失败：${error.message}`)
+      return { stores: null, storage: { available: false, error: '用户级存储不可用；自定义主题与片段暂不可读' } }
+    }
+  }
+
+  function themeKeyForState(state, stores, storage) {
+    if (!state) return 'default'
+    if (!storage.available && String(state.theme || '').startsWith('custom:')) return 'default'
+    return themeFor({ domain: stores?.themes, name: state.theme }).key
+  }
+
   function sessionOf(source, url) {
     const sessionId = String(source.sessionId || url.searchParams.get('sessionId') || '')
     if (!sessionId) throw new Error('缺少 sessionId')
@@ -250,13 +268,14 @@ export function createApiHandler({ resolveCwd, log = () => {}, getStores = async
 
     try {
       if (route === 'GET /themes') {
-        const stores = await getStores()
+        const { stores, storage } = await readableStores()
         return json(res, 200, {
           ok: true,
           themes: [...themeCatalog(), ...customCatalogEntries(stores?.themes)],
           presets: colorPresets(),
           fonts: ['sans', 'serif', 'mono'],
           sizes: ['14px', '15px', '16px', '17px', '18px'],
+          storage,
         })
       }
 
@@ -266,7 +285,7 @@ export function createApiHandler({ resolveCwd, log = () => {}, getStores = async
         const state = key ? store.readState(cwd, key) : null
         const pending = store.pendingOpenRequest(state, sessionId)
         const entry = key ? store.readIndex(cwd).docs[key] : null
-        const stores = await getStores()
+        const { stores, storage } = await readableStores()
         return json(res, 200, {
           ok: true,
           cwd,
@@ -278,11 +297,12 @@ export function createApiHandler({ resolveCwd, log = () => {}, getStores = async
                 revision: state ? state.revision : entry.revision,
                 // 主题也一起报：模型用 fishpai_theme 换了主题时 revision **不会变**，
                 // 面板只看 revision 就发现不了。这里报**解析后**的 key（自定义主题被删就退回 default）。
-                theme: state ? themeFor({ domain: stores?.themes, name: state.theme }).key : 'default',
+                theme: themeKeyForState(state, stores, storage),
               }
             : null,
           openRequest: pending ? { key, at: pending } : null,
           docs: store.listDocs(cwd),
+          storage,
         })
       }
 
@@ -457,13 +477,13 @@ export function createApiHandler({ resolveCwd, log = () => {}, getStores = async
         const state = store.readState(cwd, key)
         const sourceMarkdown = typeof body.markdown === 'string' ? body.markdown : readText(abs)
         const markdown = body.snippetId ? await snippets.compose(sourceMarkdown, body.snippetId) : sourceMarkdown
-        const target = String(body.target || 'wechat')
-        if (!['wechat', 'xiumi'].includes(target)) return fail(res, 400, `未知渲染目标：${target}`)
-        if (target === 'xiumi') {
+        const target = String(body.target || 'quick')
+        if (!['quick', 'professional'].includes(target)) return fail(res, 400, `未知渲染目标：${target}`)
+        if (target === 'professional') {
           const isPublish = String(body.mode) === 'publish'
-          const spec = body.xiumi_spec || state?.xiumiSpec || {}
+          const spec = body.professional_spec || state?.professionalSpec || {}
           // 发布/复制走文本包裹形态（过粘贴 lint）；预览保持原始产物。
-          const out = isPublish ? renderXiumiPublish(markdown, { spec }) : renderXiumi(markdown, { spec })
+          const out = isPublish ? renderProfessionalPublish(markdown, { spec }) : renderProfessional(markdown, { spec })
           if (isPublish) {
             const html = inlineHtmlImages(out.html, { cwd, docPath: abs })
             return json(res, 200, { ok: true, target, mode: 'publish', html, themeKey: out.themeKey, themeName: out.themeName })

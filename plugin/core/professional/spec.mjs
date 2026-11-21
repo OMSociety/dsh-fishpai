@@ -27,9 +27,9 @@ const NUMBER_LIMITS = {
 }
 
 export function normalizeSpec(input = {}) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('xiumi_spec 必须是对象')
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('professional_spec 必须是对象')
   for (const key of Object.keys(input)) {
-    if (!Object.hasOwn(DEFAULT_SPEC, key)) throw new Error(`未知秀米规格键：${key}`)
+    if (!Object.hasOwn(DEFAULT_SPEC, key)) throw new Error(`未知专业规格键：${key}`)
   }
   const spec = { ...DEFAULT_SPEC }
   for (const [key, value] of Object.entries(input)) {

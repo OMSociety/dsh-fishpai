@@ -4,7 +4,7 @@
  * 块清单与宿主路由使用同一切分函数。
  */
 import { readFileSync } from 'node:fs'
-import { renderXiumi, normalizeSpec } from '../../plugin/core/xiumi/index.mjs'
+import { renderProfessional, normalizeSpec } from '../../plugin/core/professional/index.mjs'
 import { hljsPreviewCss, themeCatalog } from '../../plugin/core/render.mjs'
 import { colorPresets } from '../../plugin/core/runtime.mjs'
 import { splitBlocks } from '../../plugin/core/markdown.mjs'
@@ -84,8 +84,8 @@ export function createPreviewFixture() {
     fontSize: '16px',
     footnotes: true,
     macCodeBlock: true,
-    target: 'xiumi',
-    xiumiSpec: normalizeSpec(PREVIEW_SPEC),
+    target: 'professional',
+    professionalSpec: normalizeSpec(PREVIEW_SPEC),
   }
   const blocks = publicBlocks(markdown)
   const notes = []
@@ -95,7 +95,7 @@ export function createPreviewFixture() {
     { id: 'preview-r12', rev: revision, at: updatedAt, by: 'human', chars: markdown.length, label: '演示文稿' },
   ]
   const docEntry = { key, path, title: PREVIEW_TITLE, revision, updatedAt }
-  const rendered = renderXiumi(markdown, { spec: meta.xiumiSpec })
+  const rendered = renderProfessional(markdown, { spec: meta.professionalSpec })
 
   return {
     key,

@@ -84,7 +84,7 @@ async function captureScreenshot() {
 fs.mkdirSync(PREVIEW_DIR, { recursive: true })
 const fixture = createPreviewFixture()
 fs.writeFileSync(FIXTURE, `${JSON.stringify(fixture, null, 2)}\n`, 'utf8')
-console.log(`[build-preview] renderXiumi → docs/preview/fixture.json（${fixture.render.componentCount} 个专业组件）`)
+console.log(`[build-preview] renderProfessional → docs/preview/fixture.json（${fixture.render.componentCount} 个专业组件）`)
 
 const result = await build({
   entryPoints: [ENTRY],

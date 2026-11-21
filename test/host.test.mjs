@@ -988,7 +988,7 @@ test('fishpai_render 的兼容层与面板的「复制到剪贴板」同款：�
   const key = store.activeKey(cwd, 's1')
   store.updateMeta({ cwd, docPath: store.readState(cwd, key).docPath, meta: { fontSize: '17px' } })
 
-  const out = await byName('fishpai_render').execute({ target: 'wechat' }, exec)
+  const out = await byName('fishpai_render').execute({ target: 'quick' }, exec)
   assert.equal(out.isError, false, out.text)
   const html = fs.readFileSync(path.join(cwd, /已导出 HTML：(\S+)/.exec(out.text)[1]), 'utf8')
   assert.match(html, /<p style="font-size: 17px; /, '选定的字号要推进到正文 p（与面板复制/导出那条路一致，否则导出的成品字号粘进去仍失效）')
@@ -997,7 +997,7 @@ test('fishpai_render 的兼容层与面板的「复制到剪贴板」同款：�
   assert.doesNotMatch(section, /font-size: 17px/, '小字不该被撑成正文字号')
 
   // publish:false（预览原样形态）不推进：字号仍然只挂在 wrapper 上（那是原始形态）
-  const plain = await byName('fishpai_render').execute({ target: 'wechat', publish: false }, exec)
+  const plain = await byName('fishpai_render').execute({ target: 'quick', publish: false }, exec)
   assert.equal(plain.isError, false, plain.text)
   const raw = fs.readFileSync(path.join(cwd, /已导出 HTML：(\S+)/.exec(plain.text)[1]), 'utf8')
   assert.match(raw, /font-size: 17px/, '原始形态下字号仍然在（挂在 wrapper 上）')
@@ -1372,13 +1372,13 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   assert.match(missing.json.error, /批注不存在/)
 
   // 8) POST /meta —— 样式开关与渲染目标
-  assert.equal(doc.json.meta.target, 'xiumi', '文档默认走秀米专业管线')
-  const meta = await callRoute(handler, { method: 'POST', url: '/fishpai/api/meta', body: { sessionId: session, docKey, meta: { color: '#10b981', target: 'wechat' } } })
+  assert.equal(doc.json.meta.target, 'professional', '文档默认走专业组件管线')
+  const meta = await callRoute(handler, { method: 'POST', url: '/fishpai/api/meta', body: { sessionId: session, docKey, meta: { color: '#10b981', target: 'quick' } } })
   assert.equal(meta.status, 200)
   const after = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=${session}&docKey=${docKey}` })
   assert.equal('mobile' in after.json.meta, false)
   assert.equal(after.json.meta.color, '#10b981')
-  assert.equal(after.json.meta.target, 'wechat', '渲染目标要随其它 meta 一起持久化')
+  assert.equal(after.json.meta.target, 'quick', '渲染目标要随其它 meta 一起持久化')
 
   // 9) POST /history list / stash / restore
   const listed = await callRoute(handler, { method: 'POST', url: '/fishpai/api/history', body: { sessionId: session, docKey, action: 'list' } })
@@ -1619,7 +1619,7 @@ test('fishpai_render 的自定义主题：theme_spec 校验后生效，越权规
 
   const good = await renderTool.execute(
     {
-      target: 'wechat',
+      target: 'quick',
       theme_spec: {
         name: '我的·灰底',
         base: 'elegant',
@@ -1638,14 +1638,14 @@ test('fishpai_render 的自定义主题：theme_spec 校验后生效，越权规
   assert.match(html, /line-height: 2\.2/)
 
   // 越权规格与写错的 base：拒绝 + 说清哪里不对（模型据此自己改对再来）
-  const bad = await renderTool.execute({ target: 'wechat', theme_spec: { base: 'default', styles: { p: 'position: fixed;' } } }, exec)
+  const bad = await renderTool.execute({ target: 'quick', theme_spec: { base: 'default', styles: { p: 'position: fixed;' } } }, exec)
   assert.equal(bad.isError, true)
   assert.match(bad.text, /不支持的属性/)
-  const badBase = await renderTool.execute({ target: 'wechat', theme_spec: { base: '火星主题', styles: { p: 'color: #000;' } } }, exec)
+  const badBase = await renderTool.execute({ target: 'quick', theme_spec: { base: '火星主题', styles: { p: 'color: #000;' } } }, exec)
   assert.equal(badBase.isError, true)
   assert.match(badBase.text, /base 必须是已有的主题 key/)
   // 未传 theme_spec 时使用 theme 参数
-  const plain = await renderTool.execute({ target: 'wechat', theme: 'bamboo' }, exec)
+  const plain = await renderTool.execute({ target: 'quick', theme: 'bamboo' }, exec)
   assert.equal(plain.isError, false, plain.text)
   assert.match(plain.text, /竹林/)
 })

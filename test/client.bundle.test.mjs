@@ -324,13 +324,13 @@ test('面板当前文案进入产物', () => {
 
 test('专业默认与组件抽屉：渲染目标贯通，八种容器模板都进产物', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
-  for (const copy of ['专业', '快速', '⊕ 组件', '组件是专业（秀米）管线专属，已为你切到专业模式']) {
+  for (const copy of ['专业', '快速', '⊕ 组件', '组件是专业管线专属，已为你切到专业模式']) {
     assert.ok(source.includes(copy), `模式切换或组件提示文案缺失：${copy}`)
   }
   for (const name of ['expand', 'swap', 'swiper', 'spotlight', 'danmaku', 'progress', 'timeline', 'compare']) {
     assert.ok(source.includes(`:::${name}`), `组件模板缺失：${name}`)
   }
-  assert.ok(source.includes('target: "xiumi"'), '默认渲染目标应为专业（秀米）')
+  assert.ok(source.includes('target: "professional"'), '默认渲染目标应为专业')
   assert.ok(source.includes('target: state.meta.target'), '复制与导出渲染要读文档的渲染目标')
   assert.ok(source.includes('state.meta.target,'), '预览 renderPreview 要显式收到渲染目标')
 })
@@ -340,7 +340,7 @@ test('专业模式收起快速控件，面板与编辑器跟随 DSH 主背景', 
   const styles = fs.readFileSync(path.join(ROOT, 'client', 'styles.ts'), 'utf8')
   assert.match(
     panel,
-    /\{state\.meta\.target === 'wechat' \? \(\s*<div className="fp-row fp-quick-settings">/,
+    /\{state\.meta\.target === 'quick' \? \(\s*<div className="fp-row fp-quick-settings">/,
     '主题、色板、字体、字号、脚注与 Mac 代码框必须只在快速模式渲染',
   )
   assert.ok(panel.includes('const [drawerOpen, setDrawerOpen] = React.useState(false)'), '辅助抽屉默认收起')
@@ -374,12 +374,12 @@ test('专业模式默认预览，文稿与预览标题保持作者视角', () =>
   assert.ok(panel.includes("React.useState<ViewMode>('preview')"), '专业模式的初始视图是预览')
   assert.match(
     panel,
-    /setMode\(state\.meta\.target === 'xiumi' \? 'preview' : 'side'\)/,
+    /setMode\(state\.meta\.target === 'professional' \? 'preview' : 'side'\)/,
     '切换渲染管线时采用各自的默认视图，之后仍可由用户切换',
   )
   assert.match(
     panel,
-    /<span>\{props\.target === 'xiumi' \? '文稿' : 'Markdown 文稿'\}<\/span>/,
+    /<span>\{props\.target === 'professional' \? '文稿' : 'Markdown 文稿'\}<\/span>/,
     '专业模式称「文稿」，快速模式称「Markdown 文稿」',
   )
   assert.ok(!panel.includes('Markdown 源码'), '编辑区标题采用「Markdown 文稿」')
@@ -671,7 +671,7 @@ test('启动时工作目录尚未就绪：首次成功轮询自动恢复面板�
         return {
           ok: true,
           doc: { key: 'k1', path: 'k1.md', title: '启动恢复', markdown: '恢复后的正文', revision: 1 },
-          meta: { target: 'xiumi' },
+          meta: { target: 'professional' },
           blocks: [], notes: [], placeholders: [], images: [], history: [],
         }
       }

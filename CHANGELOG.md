@@ -58,8 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 新增 `fishpai_lint` 与 `POST /lint`：检查微信粘贴结构、内联样式与正文对比度，并明确区分 API 路径观察与粘贴路径推论。
 - 新增 `fishpai_learn` 与 `POST /learn`：从定稿、HTML 或公开网页反推写作风格九字段，经 pending 候选与用户确认后写入 storageDomain writing 表。
 - 新增 `fishpai_snippets` 与 `POST /snippets`：页头首图、可配置页尾锚点片段经预览确认后入库；`fishpai_render` 与 `POST /render` 可用 `snippetId` 在渲染前装配。
-- 新增独立秀米渲染目标与 SVG 组件库；`fishpai_render` 和 `POST /render` 接受 `target:'xiumi'`，微信渲染管线保持独立。
-- 新增文档级秀米画布规格（18 项）：`fishpai_open({xiumi_spec})` 校验并持久化，预览、复制与导出共用；`fishpai_render({xiumi_spec})` 仅覆盖当次。
+- 新增独立专业渲染目标与 SVG 组件库；`fishpai_render` 和 `POST /render` 接受 `target:'professional'`，微信渲染管线保持独立。
+- 新增文档级专业画布规格（18 项）：`fishpai_open({professional_spec})` 校验并持久化，预览、复制与导出共用；`fishpai_render({professional_spec})` 仅覆盖当次。
 - 新增章节头、信息卡、重点行与制作名单四个语义组件，以及版式设计指南 `skills/fishpai/references/layout.md`。
 - 新增专业组件手册 `skills/fishpai/references/components.md`，含 8 个 SMIL 交互组件（点击展开 `expand`、点击换图 `swap`、滑动图集 `swiper`、探照灯 `spotlight`、弹幕 `danmaku`、进度条 `progress`、时间线 `timeline`、对比卡 `compare`）与静态版式组件；`fishpai_lint` 补 CSS 动画禁令与 SMIL 循环校验。
 - 专业管线升级为自由排版画布：Markdown、语义组件与 `:::raw` 可混合，raw 承载安全 HTML / SVG 原创与同等素材复刻，并拒绝脚本、事件属性与主动内容。
@@ -67,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 变更
 
-- **BREAKING**：文档默认走秀米组件管线（专业，`target:'xiumi'`）；快速渲染内核保留为「快速」模式（`target:'wechat'`）。`fishpai_render` 省略 `target` 时跟随文档当前模式。
+- **BREAKING**：文档默认走专业组件管线（`target:'professional'`）；快速渲染内核保留为「快速」模式（`target:'quick'`）。`fishpai_render` 省略 `target` 时跟随文档当前模式。
 - 声明可选 peer `@deepseek-ai/dsh-storage-domain`（用户级库存储）；`playwright-core` 用于 README 正式预览构建，属于开发依赖。
 - **BREAKING**：命名自定义主题改为用户级多主题库，存入 storageDomain themes 表，主题 key 使用 `custom:<id>`；`fishpai_theme` 支持 `set` / `show` / `clear` / `list`，并可用 `theme_id` 指定主题。不再读取 `.fishpai/theme.json` 或主题名 `custom`。
 - 渲染 golden 改为当前核心自产 snapshot，`scripts/regen-golden.mjs` 只从 `plugin/core/render.mjs` 生成；站点样本 parity 由 `FISHPAI_SITE_PARITY=1` 显式启用。
@@ -87,8 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `fishpai_lint` and `POST /lint` for WeChat paste-structure, inline-style, and text-contrast checks with explicit evidence boundaries.
 - Added `fishpai_learn` and `POST /learn`: infer nine writing-style fields from drafts, HTML, or public pages, then persist confirmed candidates to the storageDomain writing table.
 - Added `fishpai_snippets` and `POST /snippets`: confirm header/footer fragments before storage, then compose them by `snippetId` before rendering.
-- Added an independent Xiumi rendering target and SVG component library; `fishpai_render` and `POST /render` accept `target:'xiumi'`, while the WeChat rendering pipeline remains independent.
-- Added an 18-key document-level Xiumi canvas spec: `fishpai_open({xiumi_spec})` validates and persists it for preview, copy, and export; `fishpai_render({xiumi_spec})` overrides only the current render.
+- Added an independent professional rendering target and SVG component library; `fishpai_render` and `POST /render` accept `target:'professional'`, while the WeChat rendering pipeline remains independent.
+- Added an 18-key document-level professional canvas spec: `fishpai_open({professional_spec})` validates and persists it for preview, copy, and export; `fishpai_render({professional_spec})` overrides only the current render.
 - Added four semantic components (chapter headers, info cards, highlight lines, and credits) plus the layout guide `skills/fishpai/references/layout.md`.
 - Added the component reference `skills/fishpai/references/components.md` with 8 SMIL interactive components plus static layout components; `fishpai_lint` now flags CSS animations and risky SMIL loops.
 - Upgraded the professional pipeline into a free-form canvas: Markdown, semantic components, and `:::raw` can be mixed, with raw supporting safe HTML / SVG original designs and same-material recreations while rejecting scripts, event handlers, and active content.
@@ -96,7 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING**: Documents default to the Xiumi component pipeline (professional, `target:'xiumi'`); the quick rendering core remains available as the "quick" mode (`target:'wechat'`). `fishpai_render` follows the document's current mode when `target` is omitted.
+- **BREAKING**: Documents default to the professional component pipeline (`target:'professional'`); the quick rendering core remains available as the "quick" mode (`target:'quick'`). `fishpai_render` follows the document's current mode when `target` is omitted.
 - Declared the optional peer `@deepseek-ai/dsh-storage-domain` for user-level stores; `playwright-core` supports the formal README preview build as a development dependency.
 - **BREAKING**: Named custom themes now live in the user-level storageDomain themes table and use `custom:<id>` keys. `fishpai_theme` supports `set` / `show` / `clear` / `list` with an optional `theme_id`. `.fishpai/theme.json` and the bare `custom` theme name are no longer read.
 - Rendering goldens are now snapshots produced by the current core, with `scripts/regen-golden.mjs` using only `plugin/core/render.mjs`; site parity is an opt-in soft reference via `FISHPAI_SITE_PARITY=1`.

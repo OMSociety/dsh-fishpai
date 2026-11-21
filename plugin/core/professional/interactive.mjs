@@ -1,5 +1,5 @@
 /**
- * 秀米「专业」交互组件：SVG SMIL 动画层 + 内联内容层的混合产物。
+ * 专业交互组件：SVG SMIL 动画层 + 内联内容层的混合产物。
  *
  * 微信公众号正文禁用了 CSS `@keyframes` / `transition` / `animation-delay`，
  * 但为交互排版留了一条窄缝——SVG 的 SMIL 动画：
@@ -68,14 +68,17 @@ function trimTrailingBlockSpacing(html) {
 function expandable({ coverText, fallback, body, coverHeight }, spec) {
   const label = svgTextLabel(coverText, fallback)
   const expandedBody = trimTrailingBlockSpacing(body)
-  const text = String(expandedBody).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
   // 以 320px 视口估算：页面两侧留白 40px，正文容器两侧 padding 32px。
   // 微信窄屏的真实换行比桌面预览更密集，宁可为宽屏多留一行，也不能裁掉最后一行。
   const charsPerLine = Math.max(12, Math.floor(248 / (spec.body_size + spec.body_spacing)))
-  const lines = Math.max(1, Math.ceil([...text].length / charsPerLine))
-  const blocks = (String(body).match(/<(?:p|h[1-6]|section|table)\b/g) || []).length
-  // 最后一个块已去掉重复段后距，容器上下留白共 30px。
-  const contentHeight = Math.min(1200, Math.max(86, Math.ceil(lines * spec.body_size * spec.line_height + Math.max(0, blocks - 1) * 14 + 30)))
+  const blockTexts = String(expandedBody)
+    .split(/(?=<(?:p|h[1-6]|section|table|tr|li)\b)/i)
+    .map((block) => block.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+  const blocks = Math.max(1, blockTexts.length)
+  const lines = blockTexts.reduce((total, text) => total + Math.max(1, Math.ceil([...text].length / charsPerLine)), 0)
+  // 每个文本块单独占行；最后一个块已去掉重复段后距，容器上下留白共 30px。
+  const contentHeight = Math.max(86, Math.ceil(Math.max(1, lines) * spec.body_size * spec.line_height + Math.max(0, blocks - 1) * 14 + 30))
   // 小数行高与边框在移动端会产生亚像素取整，额外保留 1px 防止裁到底边。
   const totalHeight = coverHeight + contentHeight + 1
   return section('margin:0 0 20px;overflow:hidden;line-height:0;',

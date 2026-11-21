@@ -30,8 +30,10 @@ test('snippets：pending 确认后入库，compose 在渲染前装配', async ()
   const pending = await service.preview({ name: '研究尾注', footerHtml: '<section><p>作者：研究者</p></section>' })
   assert.equal(await stores.snippets.table('snippets').get('研究尾注'), undefined)
   await assert.rejects(() => service.commit({ pendingId: pending.pendingId, confirm: false }), /confirm/)
-  await service.commit({ pendingId: pending.pendingId, confirm: true })
-  assert.equal((await service.list())[0], '研究尾注')
+  const committed = await service.commit({ pendingId: pending.pendingId, confirm: true })
+  assert.equal(committed.id, '研究尾注')
+  assert.equal((await service.list())[0].id, '研究尾注')
+  assert.equal((await service.list())[0].headerHtml, null)
   const markdown = await service.compose('# 标题\n\n正文', '研究尾注')
   assert.match(markdown, /作者：研究者/)
   assert.equal(await service.delete('研究尾注'), true)
@@ -40,17 +42,37 @@ test('snippets：pending 确认后入库，compose 在渲染前装配', async ()
 test('snippets：URL 预览沿用公开网页抓取边界', async () => {
   const stores = memoryStores()
   const service = new SnippetService(async () => stores, {
-    fetchPage: async (url) => ({ url, title: '样文', html: '<img src="https://mmbiz.qpic.cn/a.png"><section>星标我们</section>' }),
+    fetchPage: async () => ({
+      text: '<html><head><title>样文</title></head><body><img src="https://mmbiz.qpic.cn/a.png"><section>星标我们</section></body></html>',
+      contentType: 'text/html; charset=utf-8',
+      finalUrl: 'https://example.com/final',
+    }),
   })
   const pending = await service.preview({ name: '网页片段', url: 'https://example.com/a', footerAnchors: ['星标我们'] })
   assert.equal(pending.sourceName, '样文')
+  assert.equal(pending.sourceRef, 'https://example.com/final')
   assert.match(pending.snippet.footerHtml, /星标我们/)
 })
 
-test('POST /snippets：preview/commit/list 共用 pending', async () => {
+test('POST /snippets：preview/commit/list 共用 pending，并等待异步 KvTable', async () => {
   const stores = memoryStores()
-  const snippets = new SnippetService(async () => stores)
-  const handler = createApiHandler({ resolveCwd: () => 'D:\\WorkSpace', getStores: async () => stores, snippets })
+  const table = stores.snippets.table('snippets')
+  const asyncStores = {
+    ...stores,
+    snippets: {
+      table: (name) => {
+        assert.equal(name, 'snippets')
+        return {
+          get: async (key) => table.get(key),
+          keys: async () => table.keys(),
+          put: async (key, value) => table.put(key, value),
+          delete: async (key) => table.delete(key),
+        }
+      },
+    },
+  }
+  const snippets = new SnippetService(async () => asyncStores)
+  const handler = createApiHandler({ resolveCwd: () => 'D:\\WorkSpace', getStores: async () => asyncStores, snippets })
   const server = createServer((req, res) => { if (req.url.startsWith(API_PREFIX)) return handler(req, res); res.statusCode = 404; res.end() })
   server.listen(0, '127.0.0.1'); await once(server, 'listening')
   const origin = `http://127.0.0.1:${server.address().port}`
@@ -63,7 +85,10 @@ test('POST /snippets：preview/commit/list 共用 pending', async () => {
     assert.equal(preview.ok, true)
     assert.ok(preview.pendingId)
     const committed = await call({ action: 'commit', pendingId: preview.pendingId, confirm: true })
+    assert.equal(committed.snippet.id, '尾部')
     assert.equal(committed.snippet.name, '尾部')
-    assert.deepEqual((await call({ action: 'list' })).snippets, ['尾部'])
+    const listed = (await call({ action: 'list' })).snippets
+    assert.deepEqual(listed.map((entry) => entry.id), ['尾部'])
+    assert.equal(listed[0].footerHtml, '<section>完</section>')
   } finally { server.close(); await once(server, 'close') }
 })
