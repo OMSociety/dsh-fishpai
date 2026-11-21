@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 渲染 golden 改为当前核心自产 snapshot，`scripts/regen-golden.mjs` 只从 `plugin/core/render.mjs` 生成；站点样本 parity 由 `FISHPAI_SITE_PARITY=1` 显式启用。
 - 项目说明、代码注释与技能文档统一以本仓库为行为依据；MoPai 保留为早期设计参考与许可证出处。
 - 公众号预览固定采用 375px 手机阅读宽度（栏位不足时随可用宽度收缩），不再提供独立宽度开关与预览外框；文档元数据同步移除 `mobile` 字段。
+- 专业画布的 `page_padding_y` 控制页面底部画布底色延伸，默认为 `0`；设置时在文末生成全宽空块承载画布底色，微信粘贴后仍保留。
 
 ### 移除
 
@@ -39,9 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 修复
 
 - 会话工作目录在启动阶段尚未就绪时，面板在首次成功轮询后自动恢复文档初始化。
-- 专业双栏与对比卡显式清除表格单元格默认边框；正式演示文稿的全幅头图、结尾色块与三栏表格使用统一的微信安全结构。
-- 正式演示头图的 `CONTENT` / `IN ORDER` 使用 Arial Black 轮廓路径并保留 `aria-label`，展示字不再依赖手机端可能忽略的 SVG `font-family`。
-- 专业复制与导出会分别包裹粗体、链接或换行后的每个直接文本节点，候选稿可通过文本结构检查。
 
 ### Added
 
@@ -62,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rendering goldens are now snapshots produced by the current core, with `scripts/regen-golden.mjs` using only `plugin/core/render.mjs`; site parity is an opt-in soft reference via `FISHPAI_SITE_PARITY=1`.
 - Project guides, code comments, and skill documentation now use this repository as the behavioral source of truth; MoPai remains credited as an early design reference and license origin.
 - The article preview now uses a fixed 375px mobile reading width, shrinking only when the pane is narrower. The separate width toggle and preview outline are gone, and the `mobile` field has been removed from document metadata.
+- The professional canvas's `page_padding_y` controls the bottom canvas-background extension and defaults to `0`; when set, a full-width empty block is appended to carry the canvas background, preserved after WeChat paste.
 
 ### Removed
 
@@ -70,9 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - When the session working directory is not ready during startup, the panel automatically resumes document initialization after the first successful poll.
-- Professional two-column and comparison components explicitly reset table-cell borders; the formal preview article uses consistent WeChat-safe structures for its full-bleed hero, closing color block, and three-column table.
-- The `CONTENT` and `IN ORDER` display text in the formal preview hero now uses Arial Black outlines with `aria-label`, so its glyphs no longer depend on SVG `font-family` support on mobile readers.
-- Professional copy and export now wrap every direct text node after bold text, links, or line breaks, allowing candidate articles to pass text-structure checks.
 
 ## [1.2.1] - 2026-11-02
 

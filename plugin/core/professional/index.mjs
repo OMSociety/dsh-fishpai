@@ -230,7 +230,13 @@ function renderComponents(components, spec) {
 export function buildPage(components, options = {}) {
   const spec = normalizeSpec(options.spec || options)
   if (!Array.isArray(components)) throw new Error('专业 components 必须是数组')
-  return `<section style="max-width:${spec.page_width}px;margin:0 auto;padding:${spec.page_padding_y}px ${spec.page_padding_x}px;box-sizing:border-box;background-color:${spec.page_bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;letter-spacing:${spec.body_spacing}px;">${renderComponents(components, spec)}</section>`
+  const content = renderComponents(components, spec)
+  // 底部画布底色延伸用显式全宽空块：外层 section 的 padding 在微信粘贴后不可靠，
+  // 内联空块能稳定保留画布底色，并与顶部留白解耦（顶部始终为 0）。
+  const bottom = spec.page_padding_y > 0
+    ? `<section style="height:${spec.page_padding_y}px;max-width:none !important;margin:0 -${spec.page_padding_x}px;background-color:${spec.page_bg};line-height:0;font-size:0;"></section>`
+    : ''
+  return `<section style="max-width:${spec.page_width}px;margin:0 auto;padding:0 ${spec.page_padding_x}px;box-sizing:border-box;background-color:${spec.page_bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;letter-spacing:${spec.body_spacing}px;">${content}${bottom}</section>`
 }
 
 /**

@@ -25,7 +25,7 @@ test('专业：Markdown 与指令经 wc 别名组成页面', () => {
   const components = componentsFromMarkdown('# 标题\n\n正文\n\n:::card\n卡片\n:::\n\n:::gradient_banner\n渐变\n:::')
   assert.deepEqual(components.map((x) => x.type), ['heading','paragraph','card','gradient_banner'])
   const html = buildPage(components)
-  assert.match(html, /^<section style="max-width:677px;margin:0 auto;padding:24px 20px;box-sizing:border-box;background-color:#ffffff;/)
+  assert.match(html, /^<section style="max-width:677px;margin:0 auto;padding:0 20px;box-sizing:border-box;background-color:#ffffff;/)
   assert.match(html, /linear-gradient\(135deg, #3f63d7 0%, #5b7cdb 100%\)/)
   assert.match(SVG_COMPONENTS.svg_wave_divider({}, DEFAULT_SPEC), /^<svg/)
 })
@@ -47,7 +47,7 @@ test('专业：自由画布与语义组件共享同一份规格', () => {
     '正文居中。', ':::credits', '文案｜鱼排', '排版｜鱼排', ':::',
   ].join('\n\n')
   const html = renderProfessional(source, { spec: { page_bg: '#f2f2f2', page_padding_x: 0, page_padding_y: 0, body_align: 'center', body_spacing: 2, accent: '#96d23a', accent2: '#111111', card_bg: '#ffffff' } }).html
-  assert.match(html, /max-width:677px;margin:0 auto;padding:0px 0px/)
+  assert.match(html, /max-width:677px;margin:0 auto;padding:0 0px/)
   assert.match(html, /background-color:#f2f2f2/)
   assert.match(html, /letter-spacing:2px/)
   assert.match(html, /#1<\/span>/)
@@ -72,6 +72,14 @@ test('专业：全幅容器按页面留白扩展，并复用 raw 安全边界', 
   assert.match(html, /margin:0 0 30px;/)
   assert.throws(() => renderProfessional(':::full_bleed\n:::'), /需要 HTML\/SVG 内容/)
   assert.throws(() => renderProfessional(':::full_bleed\n<script>alert(1)</script>\n:::'), /raw 不允许/)
+})
+
+test('专业：底部画布底色延伸用显式空块，顶部留白始终为 0', () => {
+  const withBottom = renderProfessional('正文', { spec: { page_padding_y: 32 } }).html
+  assert.match(withBottom, /padding:0 20px;/, '顶部留白固定为 0')
+  assert.match(withBottom, /<section style="height:32px;max-width:none !important;margin:0 -20px;background-color:#ffffff;line-height:0;font-size:0;"><\/section>/, '底部用全宽空块承载画布底色')
+  const noBottom = renderProfessional('正文').html
+  assert.doesNotMatch(noBottom, /height:0px;max-width:none !important;margin:0 -20px;background-color:#ffffff;line-height:0;font-size:0;/, 'page_padding_y=0 时不生成底部空块')
 })
 
 test('专业：raw 保留 HTML/SVG 并拒绝主动内容', () => {

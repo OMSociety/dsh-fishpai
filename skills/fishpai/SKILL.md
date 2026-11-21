@@ -70,7 +70,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 {
   "page_bg": "#f2f2f2",
   "page_padding_x": 20,
-  "page_padding_y": 24,
+  "page_padding_y": 0,
   "body_color": "#3e3e3e",
   "body_size": 15,
   "body_align": "center",
@@ -86,7 +86,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 
 规格键分组：
 
-- 画布：`page_bg` `page_width` `page_padding_x` `page_padding_y`。需要整页视觉时设置背景与留白；跨出正文左右留白的主视觉用 `full_bleed`，不手写负外边距。
+- 画布：`page_bg` `page_width` `page_padding_x` `page_padding_y`。需要整页视觉时设置背景与留白；跨出正文左右留白的主视觉用 `full_bleed`，不手写负外边距。`page_padding_y` 控制文末画布底色延伸，默认为 `0`。
 - 标题：`title_color` `title_size` `title_align`。
 - 正文：`body_color` `body_size` `body_align` `body_spacing` `line_height` `muted_color`。
 - 卡片：`card_bg` `card_radius` `card_padding`。

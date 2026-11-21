@@ -11,7 +11,7 @@ export const DEFAULT_SPEC = Object.freeze({
   page_bg: '#ffffff',
   page_width: 677,
   page_padding_x: 20,
-  page_padding_y: 24,
+  page_padding_y: 0,
   card_bg: '#f5f6f8',
   card_radius: 8,
   card_padding: 14,
