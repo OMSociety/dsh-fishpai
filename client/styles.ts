@@ -310,7 +310,7 @@ export const CSS = `
 .fp-input:focus{border-color:var(--dsw-alias-brand-primary);box-shadow:0 0 0 2px var(--dsw-alias-bg-layer-2)}
 .fp-input[disabled]{opacity:.6}
 
-/* 风格与页头页尾素材库。 */
+/* 页头页尾片段库。 */
 .fp-btn.danger{color:var(--dsw-alias-state-error-primary)}
 .fp-item-title{font-weight:500;color:var(--dsw-alias-label-primary);word-break:break-word}
 .fp-item-meta{margin-top:2px;font-size:11px;color:var(--dsw-alias-label-secondary);word-break:break-word}
@@ -325,11 +325,6 @@ export const CSS = `
   border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);
 }
 .fp-library-list{margin-top:6px}
-.fp-style-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:5px 0}
-.fp-style-grid > div{min-width:0;padding:4px 6px;border-radius:5px;background:var(--dsw-alias-bg-layer-1)}
-.fp-style-grid dt{font-size:10px;color:var(--dsw-alias-label-secondary)}
-.fp-style-grid dd{margin:1px 0 0;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word}
-.fp-root[data-narrow="true"] .fp-style-grid{grid-template-columns:1fr}
 .fp-snippet-html{
   max-height:140px;overflow:auto;margin:5px 0 0;padding:6px;border-radius:5px;white-space:pre-wrap;word-break:break-all;
   border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);

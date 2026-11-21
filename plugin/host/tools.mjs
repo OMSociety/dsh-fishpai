@@ -27,6 +27,7 @@ import {
   writeCustomTheme,
 } from './custom-theme.mjs'
 import { MAX_EMBED_BYTES, listLocalImages, listRemoteImages, makeImageResolver, inlineHtmlImages } from './assets.mjs'
+import { importArticleDocument } from './importer.mjs'
 
 const OUT_SCHEMA = {
   type: 'object',
@@ -642,52 +643,25 @@ export function registerTools(ctx, deps) {
   })
 
   register({
-    name: 'fishpai_learn',
-    description:
-      '从定稿 Markdown、HTML、公开 HTTPS 网页或工作目录内的 .md/.html 反推写作风格。' +
-      'action=preview 只生成九字段候选并返回 pending_id；必须把候选交给用户确认，再用 action=commit、confirm=true 入库。' +
-      'action=list/delete 管理用户级风格库。',
+    name: 'fishpai_import',
+    description: '从微信公众号 URL、粘贴 HTML 或工作区 HTML 文件导入为新鱼排文档。优先保留原始版式，仅把高置信标题、段落、列表和图片提升为原生 Markdown；图片本地化，返回结构、资源、规格与 lint 报告。url、html、path 三选一；out_path 必须是不存在的 .md，导入后在面板打开。',
     parameters: {
-      type: 'object',
-      additionalProperties: false,
+      type: 'object', additionalProperties: false,
       properties: {
-        action: { type: 'string', enum: ['preview', 'commit', 'list', 'delete'], description: '默认 preview' },
-        markdown: { type: 'string', description: '定稿 Markdown；与 html/url/path 四选一' },
-        html: { type: 'string', description: '定稿 HTML；与 markdown/url/path 四选一' },
-        url: { type: 'string', description: '公开 HTTPS 网页；拒绝本机与私有网络地址' },
-        path: { type: 'string', description: '会话工作目录内的 .md/.html 定稿' },
-        styleId: { type: 'string', description: '目标风格 id；省略则 preview 生成' },
-        sourceName: { type: 'string', description: '来源的可读名称' },
-        sourceRef: { type: 'string', description: '来源 URL、工作目录相对路径或其它可追溯引用' },
-        pending_id: { type: 'string', description: 'commit 时填 preview 返回的 pending_id' },
-        confirm: { type: 'boolean', description: 'commit 必须为 true，表示用户已确认候选' },
-        style: { type: 'object', additionalProperties: true, description: 'commit 时经用户确认的字段修订；styleId 不可改' },
+        url: { type: 'string', description: '公开 mp.weixin.qq.com 文章 URL。临时链接中的查询凭据不会写入文档。' },
+        html: { type: 'string', description: '粘贴的 HTML。可用外层 wrap 注明来源。' },
+        path: { type: 'string', description: '工作区内已有 .html/.htm 文件。' },
+        out_path: { type: 'string', description: '新文档路径（.md）；不得覆盖已有文件。' },
       },
-      required: [],
+      required: ['out_path'],
     },
     output: { schema: OUT_SCHEMA, render: renderText },
     async execute(args, exec) {
       try {
-        if (!deps.learn) throw new Error('learn 服务未初始化')
-        const action = String(args.action || 'preview')
-        if (action === 'preview') {
-          const { cwd } = sessionOf(deps, exec)
-          const preview = await deps.learn.preview({ ...args, cwd })
-          return ok(`风格候选（尚未入库）：\n${JSON.stringify(preview, null, 2)}\n请把九字段交给用户确认；确认后用 pending_id 执行 commit。`)
-        }
-        if (action === 'commit') {
-          const result = await deps.learn.commit({ pendingId: args.pending_id, confirm: args.confirm, style: args.style })
-          return ok(`已入库写作风格 ${result.style.styleId}：\n${JSON.stringify(result.style, null, 2)}`)
-        }
-        if (action === 'list') return ok(JSON.stringify(await deps.learn.list(), null, 2))
-        if (action === 'delete') {
-          const result = await deps.learn.delete(args)
-          return ok(result.removed ? `已删除风格 ${args.styleId}` : '没有找到这套风格，什么都没动。')
-        }
-        return err(`未知 action：${action}`)
-      } catch (error) {
-        return err(`fishpai_learn 失败：${error.message}`)
-      }
+        const { sessionId, cwd } = sessionOf(deps, exec)
+        const result = await importArticleDocument(args, { cwd, sessionId })
+        return ok(JSON.stringify(result, null, 2), result.key)
+      } catch (error) { return err(`fishpai_import 失败：${error.message}`) }
     },
   })
 

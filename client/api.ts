@@ -118,26 +118,6 @@ export interface ThemeInfo {
   wechatSafe: boolean
 }
 
-export interface LearnStyle {
-  styleId: string
-  tone: string | string[]
-  structure: string | string[]
-  audience: string | string[]
-  purpose: string | string[]
-  do: string | string[]
-  dont: string | string[]
-  sourceName: string
-  sourceRef: string
-  createdAt: number
-}
-
-export interface LearnPreview {
-  ok: true
-  pendingId: string
-  style: LearnStyle
-  warnings: string[]
-}
-
 export interface SnippetInfo {
   id: string
   name: string
@@ -281,12 +261,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ sessionId, docKey, markdown, meta, mode: 'publish', ...options }),
     }),
-
-  learn: (sessionId: string, payload: Record<string, unknown>) =>
-    call<LearnPreview | { ok: true; styles: LearnStyle[] } | { ok: true; style: LearnStyle } | { ok: true; removed: boolean }>(
-      `/learn`,
-      { method: 'POST', body: JSON.stringify({ sessionId, ...payload }) },
-    ),
 
   snippets: (sessionId: string, payload: Record<string, unknown>) =>
     call<SnippetPreview | { ok: true; snippets: SnippetInfo[] } | { ok: true; snippet: SnippetInfo } | { ok: true; removed: boolean }>(

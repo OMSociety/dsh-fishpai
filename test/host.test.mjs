@@ -1082,7 +1082,7 @@ test('工具契约：八个工具都是合法的 raw JSON-Schema 形态', () => 
   const { tools } = fakeHost(tmpWorkspace())
   assert.deepEqual(
     tools.map((t) => t.name).sort(),
-    ['fishpai_learn', 'fishpai_lint', 'fishpai_open', 'fishpai_read', 'fishpai_render', 'fishpai_snippets', 'fishpai_theme', 'fishpai_write'],
+    ['fishpai_import', 'fishpai_lint', 'fishpai_open', 'fishpai_read', 'fishpai_render', 'fishpai_snippets', 'fishpai_theme', 'fishpai_write'],
   )
   for (const tool of tools) {
     assert.equal(typeof tool.description, 'string')
@@ -1098,6 +1098,22 @@ test('工具契约：八个工具都是合法的 raw JSON-Schema 形态', () => 
     const rendered = tool.output.render({}, { text: 'hello' })
     assert.deepEqual(rendered, [{ type: 'text', text: 'hello' }])
   }
+})
+
+test('工具：import 粘贴 HTML 新建专业文档，只返回结构摘要', async () => {
+  const cwd = tmpWorkspace()
+  const { tools, exec } = fakeHost(cwd)
+  const result = await tools.find((tool) => tool.name === 'fishpai_import').execute({
+    html: '<article><h1>导入标题</h1><p>普通正文</p><svg viewBox="0 0 10 10"><rect width="10" height="10"/></svg></article>',
+    out_path: 'import-tool.md',
+  }, exec)
+  assert.equal(result.isError, false)
+  const report = JSON.parse(result.text)
+  assert.equal(report.title, '导入标题')
+  assert.equal(report.stats.total, 3)
+  assert.equal(report.stats.raw, 1)
+  assert.equal(report.blocks.some((block) => Object.hasOwn(block, 'html') || Object.hasOwn(block, 'markdown')), false)
+  assert.match(fs.readFileSync(path.join(cwd, 'import-tool.md'), 'utf8'), /:::raw/)
 })
 
 test('端到端：open → 人改 + 加批注 → read 看到 diff → write 局部改 → 再 read 归零', async () => {

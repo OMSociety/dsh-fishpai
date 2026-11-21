@@ -1,6 +1,6 @@
 ---
 name: fishpai
-description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联样式 HTML，并在 DSH 右侧栏的「鱼排编辑器」面板里与人协同改稿（专业自由画布 + 11 套快速主题 + 微信脚注 + 代码块高亮 + 复制到剪贴板）。当用户要求「公众号排版」「微信排版」「把这篇 Markdown 排好看点」「套个主题」「加交互组件」「复制到剪贴板」「导出公众号 HTML」「改这篇公众号文章」，或提到鱼排 / FishPai / 墨排 / MoPai / mopai-markdown / 秀米 / xiumi 时使用；也用于人在鱼排面板里改过稿、加了批注或行内占位之后，需要读懂 diff 再改稿的场合。
+description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联样式 HTML，并在 DSH 右侧栏的「鱼排编辑器」面板里与人协同改稿（专业自由画布 + 11 套快速主题 + 微信脚注 + 代码块高亮 + 复制到剪贴板）。当用户要求「公众号排版」「微信排版」「把这篇 Markdown 排好看点」「套个主题」「加交互组件」「复制到剪贴板」「导出公众号 HTML」「改这篇公众号文章」「导入 / 复刻公众号文章」，或提到鱼排 / FishPai / 墨排 / MoPai / mopai-markdown / 秀米 / xiumi 时使用；也用于人在鱼排面板里改过稿、加了批注或行内占位之后，需要读懂 diff 再改稿的场合。
 ---
 
 # 鱼排 FishPai（公众号排版与协同改稿）
@@ -28,9 +28,9 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 
 **不适用**：需要**群发**公众号。鱼排只产出可粘贴或可导出的 HTML；**群发永远由人在公众号后台手动完成**，鱼排不做、也不绕平台风控。
 
-## 写作规范
+## 改稿事实边界
 
-涉及起草、改写、润色、降低 AI（Artificial Intelligence，人工智能）味、质量自评或结尾写作时，读取 [references/writing.md](references/writing.md)。指纹提示与五维评分只用于定位问题和安排修改顺序，不阻断交付；只做排版、主题或渲染调整时无需读取。
+尊重用户当次指令，保留原文的事实、观点、引用与明确要求固定的内容；不补写没有依据的数字、案例、引语或亲历。
 
 ## 八个工具与正确顺序
 
@@ -40,8 +40,8 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 | `fishpai_read` | **改稿前必做**。返回：与"你上次写入的版本"的**块级 diff**、人的**批注**、**行内占位**、图片提醒、全文与块 id |
 | `fishpai_write` | 改稿。必须带 `base_revision`；优先 `mode:"patch"` 只改指定块，`mode:"replace"` 才整篇换 |
 | `fishpai_render` | 导出可粘贴/归档用的 HTML 文件（发布形态默认内嵌本地图片；`out_path` 可省略扩展名）。`target` 选 `xiumi`（专业，默认跟随文档）或 `wechat`（快速）；`snippetId` 可拼入已确认的页头页尾片段 |
+| `fishpai_import` | 从公众号 URL、粘贴 HTML 或工作区 HTML 新建专业文档。`url` / `html` / `path` 三选一，`out_path` 必须不存在；raw 保真、保守提升、图片本地化，返回结构 / 素材 / 规格证据 / lint 报告 |
 | `fishpai_theme` | 管理**用户级命名主题库**（`set` / `show` / `clear` / `list`），可存多套命名主题，跨工作目录共享。用户要"某种观感"时用，见下面「自定义主题」一节 |
-| `fishpai_learn` | 从定稿（Markdown/HTML/网页）反推写作风格，产出九字段风格卡。`preview` 生成候选 → 用户确认 → `commit` 入库。落用户级风格库 |
 | `fishpai_snippets` | 提取并管理页头页尾片段。`preview` 生成候选 → 用户确认 → `commit` 入库；渲染时用 `fishpai_render` 的 `snippetId` 装配，不改源 Markdown |
 | `fishpai_lint` | 检查 HTML 是否满足微信粘贴约束（id/class/CSS 动画/grid 等禁令），结果区分草稿 API 路径观察与粘贴路径推论 |
 
@@ -49,6 +49,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 
 - **直接排版**：`fishpai_open`（专业稿同时设 `xiumi_spec`）→ 写稿或局部改稿 → 面板复制或 `fishpai_render` 导出。插件内部自动校验规格、组件必填内容和 raw 安全边界；不逐项跑 lint、不主动做浏览器截图、不研究平台内部机制。工具明确报错时才针对该错误修正。
 - **协同改稿**：打开后告诉用户可在右侧栏改字、选块加批注；用户说“我改了”再 `fishpai_read`，按 diff 与批注用 `fishpai_write` 局部修改。
+- **现有文章导入**：`fishpai_import({url, out_path})`，或传 `html` / `path`。导入后先读返回的分块、素材、规格证据与 lint 报告；复杂 raw 块按块编辑，不强行把 SVG / 微信专用结构改写成普通 Markdown。私有测试原文、图片与报告放暂存区，不进仓库。
 - **交付**：用户点「复制到剪贴板」；需要成品 HTML 文件时调用 `fishpai_render`。真实设备验收只在最终候选完成后做一次，不把中途验收转嫁给用户。
 
 ## 专业自由画布

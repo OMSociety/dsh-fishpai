@@ -46,8 +46,7 @@ class MemoryDomain {
 export function memoryStores() {
   return {
     themes: new MemoryDomain(),
-    writing: new MemoryDomain(),
-    snippets: new MemoryDomain(),
+     snippets: new MemoryDomain(),
     async close() {},
   }
 }

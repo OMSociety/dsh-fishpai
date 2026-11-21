@@ -14,8 +14,6 @@ import {
   type DocMeta,
   type HistoryEntry,
   type ImageInfo,
-  type LearnPreview,
-  type LearnStyle,
   type Note,
   type Placeholder,
   type SnippetInfo,
@@ -67,7 +65,6 @@ export interface FishpaiState {
   /** 这个工作目录里已经打开过的鱼排文档（空面板上的「最近打开」用它）。 */
   docs: Array<{ key: string; path: string; title: string; revision: number; updatedAt: number }>
   themes: ThemeInfo[]
-  learnStyles: LearnStyle[]
   snippets: SnippetInfo[]
   libraryLoading: boolean
   libraryError: string | null
@@ -130,7 +127,6 @@ function initialState(sessionId: string): FishpaiState {
     history: [],
     docs: [],
     themes: [],
-    learnStyles: [],
     snippets: [],
     libraryLoading: false,
     libraryError: null,
@@ -514,20 +510,6 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     }
   }
 
-  async function listLearnStyles() {
-    libraryRequests += 1
-    patch({ libraryLoading: true, libraryError: null })
-    try {
-      const res = (await api.learn(state.sessionId, { action: 'list' })) as { ok: true; styles: LearnStyle[] }
-      patch({ learnStyles: Array.isArray(res.styles) ? res.styles : [] })
-    } catch (error) {
-      patch({ libraryError: `风格库载入失败：${(error as Error).message}` })
-    } finally {
-      libraryRequests -= 1
-      patch({ libraryLoading: libraryRequests > 0 })
-    }
-  }
-
   async function listSnippets() {
     libraryRequests += 1
     patch({ libraryLoading: true, libraryError: null })
@@ -622,25 +604,9 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       void refreshPreview(state.markdown, meta)
     },
 
-    refreshLearnStyles: listLearnStyles,
     refreshSnippets: listSnippets,
     async refreshLibraries() {
-      await Promise.all([listLearnStyles(), listSnippets()])
-    },
-
-    async previewLearn(payload: Record<string, unknown>): Promise<LearnPreview> {
-      return (await api.learn(state.sessionId, { action: 'preview', ...payload })) as LearnPreview
-    },
-    async commitLearn(pendingId: string): Promise<LearnStyle> {
-      const res = (await api.learn(state.sessionId, { action: 'commit', pendingId, confirm: true })) as { ok: true; style: LearnStyle }
-      patch({ learnStyles: [res.style, ...state.learnStyles.filter((item) => item.styleId !== res.style.styleId)] })
-      toast('风格已入库')
-      return res.style
-    },
-    async deleteLearn(styleId: string) {
-      const res = (await api.learn(state.sessionId, { action: 'delete', styleId })) as { ok: true; removed: boolean }
-      if (res.removed) patch({ learnStyles: state.learnStyles.filter((item) => item.styleId !== styleId) })
-      toast(res.removed ? '风格已删除' : '这条风格已经不在了')
+      await listSnippets()
     },
 
     async previewSnippet(payload: Record<string, unknown>): Promise<SnippetPreview> {

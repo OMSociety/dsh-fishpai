@@ -62,7 +62,7 @@ export function listCustomThemes(domain) {
 }
 
 /** 新建或按 id 覆盖一套主题；省略 id 时由宿主生成。 */
-export async function writeCustomTheme({ domain, spec, id, source = 'custom' }) {
+export async function writeCustomTheme({ domain, spec, id }) {
   const themeId = id === undefined || id === null || id === ''
     ? randomUUID().replaceAll('-', '').slice(0, 12)
     : normalizeCustomThemeId(id)
@@ -75,7 +75,7 @@ export async function writeCustomTheme({ domain, spec, id, source = 'custom' }) 
     base: built.spec.base,
     styles: built.spec.styles,
     createdAt: previous?.createdAt ?? Date.now(),
-    source: source === 'learn' ? 'learn' : 'custom',
+    source: 'custom',
   }
   await table.put(themeId, record)
   return { ...buildRecord(themeId, record), record }

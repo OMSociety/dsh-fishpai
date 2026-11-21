@@ -235,7 +235,7 @@ function docPayload({ cwd, key, domain }) {
  * @param {{resolveCwd: (sessionId: string) => string, log?: (msg: string) => void, getStores?: () => Promise<object|null>}} deps
  * @returns {(req: object, res: object) => Promise<void>}
  */
-export function createApiHandler({ resolveCwd, log = () => {}, getStores = async () => null, learn, snippets }) {
+export function createApiHandler({ resolveCwd, log = () => {}, getStores = async () => null, snippets }) {
   function sessionOf(source, url) {
     const sessionId = String(source.sessionId || url.searchParams.get('sessionId') || '')
     if (!sessionId) throw new Error('缺少 sessionId')
@@ -389,17 +389,6 @@ export function createApiHandler({ resolveCwd, log = () => {}, getStores = async
       if (route === 'POST /lint') {
         if (typeof body.html !== 'string') return fail(res, 400, 'lint 需要 html 字符串')
         return json(res, 200, { ok: true, lint: lintWechatHtml(body.html) })
-      }
-
-      if (route === 'POST /learn') {
-        if (!learn) return fail(res, 503, 'learn 服务未初始化')
-        const action = String(body.action || 'preview')
-        if (body.path) return fail(res, 400, '浏览器请发送定稿正文，不支持服务器路径')
-        if (action === 'preview') return json(res, 200, { ok: true, ...await learn.preview(body) })
-        if (action === 'commit') return json(res, 200, { ok: true, ...await learn.commit(body) })
-        if (action === 'list') return json(res, 200, { ok: true, styles: await learn.list() })
-        if (action === 'delete') return json(res, 200, { ok: true, ...await learn.delete(body) })
-        return fail(res, 400, '未知 action（可用 preview / commit / list / delete）')
       }
 
       if (route === 'POST /upload') {

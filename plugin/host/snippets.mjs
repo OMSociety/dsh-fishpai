@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { composeMarkdown, extractSnippets, normalizeSnippetName, sanitizeFragment } from '../core/snippets.mjs'
-import { fetchPublicPage } from './learn.mjs'
+import { fetchPublicPage } from './public-fetch.mjs'
 
 const PENDING_TTL_MS = 30 * 60 * 1000
 

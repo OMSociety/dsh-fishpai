@@ -5,7 +5,7 @@
 ## 项目概览
 
 - 一句话定位：DSH 插件——把 Markdown 排成可直接粘进微信公众号编辑器的内联样式 HTML；宿主侧（Node ESM）与客户端侧（浏览器 TSX）在同一个包里，面板长在 DSH 右侧栏，人与模型协同改稿。
-- 技术栈：Node ≥20（CI 用 22）/ React 18 + TSX（esbuild 打包）/ npm；`playwright-core` 是 README 预览构建的开发依赖，`@deepseek-ai/dsh-storage-domain` 是 optional peer（宿主提供用户级存储时启用）；不写 `engines.dsh`。
+- 技术栈：Node ≥20（CI 用 22）/ React 18 + TSX（esbuild 打包）/ npm；`cheerio` 是现有文章导入的运行时 HTML 解析依赖，`playwright-core` 是 README 预览构建的开发依赖，`@deepseek-ai/dsh-storage-domain` 是 optional peer（宿主提供用户级存储时启用）；不写 `engines.dsh`。
 - 衍生来源：快速渲染管线与主题数据源自 `ye4wzp/mopai-markdown`（MIT），衍生起点为 `c91487a`（2026-08-19）；当前行为以本仓库代码、测试与自产 snapshot 为准，署名与出处见 [NOTICE.md](./NOTICE.md)。
 - 文档索引：
   - 功能与安装：[README.md](./README.md)
@@ -40,7 +40,7 @@ npm run check:build
 client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+工具）──▶ plugin/core/（纯函数渲染内核）──▶ plugin/vendor/（数据）
 ```
 
-- `plugin/core/` 是纯函数、零依赖，除 `runtime.mjs` 用 vm 只读加载 vendor 外不碰文件系统；fs / HTTP 只允许出现在 `plugin/host/`。
+- `plugin/core/` 不碰文件系统或网络；渲染与文档处理保持纯函数。导入解析器 `plugin/core/import/` 使用 cheerio，其余 core 模块无运行时 npm 依赖；`runtime.mjs` 只用 vm 只读加载 vendor，fs / HTTP 只允许出现在 `plugin/host/`。
 - 浏览器侧读写文档的唯一通道是 `/fishpai/api/*`（`plugin/host/routes.mjs`）：同源校验（`Host` 必须是环路字面量，挡 DNS rebinding）+ docKey + revision 守卫。客户端不拿绝对路径。
 - 禁止在客户端 bundle 里 `require('@deepseek-ai/*')`。原因：rc2 官方禁止客户端 bundle 加载 Harness Client 包（宿主改名会让整块界面白掉）；图标几何复制进 `client/theme-icons.tsx`（见硬约束 10）。esbuild external 列表与 `test/client.bundle.test.mjs` 是守卫。
 - 宿主工具用 raw JSON-Schema 注册（`ctx.tools.register({name, description, parameters, output, execute})`）；不要 `import { defineTool } from '@deepseek-ai/dsh-tools'`——树外解析不可靠。
@@ -53,10 +53,10 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 | 改主题数据 | `plugin/vendor/themes.js`，再 `npm run test:golden:regen` |
 | 改块切分 / diff / 补丁 / 批注 | `plugin/core/markdown.mjs` / `diff.mjs` / `patch.mjs` / `notes.mjs` |
 | 改自定义主题 | `plugin/core/theme-spec.mjs`（校验+合并）+ `plugin/host/custom-theme.mjs`（存取） |
-| 改写作风格学习 | `plugin/core/learn.mjs`（规则反推）+ `plugin/host/learn.mjs`（pending、网页抓取、入库） |
 | 改页头页尾片段 | `plugin/core/snippets.mjs`（提取+装配）+ `plugin/host/snippets.mjs`（pending+入库） |
 | 改微信约束检查 | `plugin/core/wechat-lint.mjs` + `test/wechat-lint.test.mjs` |
 | 改秀米组件渲染 | `plugin/core/xiumi/{spec,components,interactive,index}.mjs`（独立目标，不改微信 render 签名） |
+| 改现有文章导入 | `plugin/core/import/`（HTML 分块与规格推导）+ `plugin/host/importer.mjs`（工具编排）+ `public-fetch.mjs` / `import-assets.mjs`（公开 URL 与素材） |
 | 改模型工具 | `plugin/host/tools.mjs`（raw JSON-Schema 注册） |
 | 改面板读写 / 安全边界 | `plugin/host/routes.mjs` + `client/api.ts` |
 | 改图片存取与内嵌 | `plugin/host/assets.mjs` |
@@ -67,6 +67,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 ## 数据流
 
 - 模型侧：`fishpai_open` → 人在面板改字 / 加批注 → `fishpai_read`（块级 diff + 批注 + 占位）→ `fishpai_write`（必须带 `base_revision`，优先 `mode:"patch"` 按块改）→ 人点「复制到剪贴板」。
+- 导入侧：`fishpai_import` → 公开 URL / HTML 清洗与分块 → 图片落文档旁 `assets/` → 新建专业文档并打开 → 返回结构、素材、规格证据与 lint 报告。
 - 浏览器侧：面板 → `/fishpai/api/*`（同源 + docKey + revision 守卫）→ `plugin/host/store.mjs` → 会话工作目录下的 `.md` 与 `.fishpai/`。客户端 3s 轮询拿 `openRequest` 与 revision 变化。
 
 ## 修改契约
@@ -100,12 +101,12 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 10. **图标全部内联在本包里**：14 支主题/控件图标几何在 `client/theme-icons.tsx`（复制自宿主 rc2 图标包，MIT，见 NOTICE.md）；品牌鱼只有一份几何——`icon.svg`（36 画板、自带渐变）与 `FishMark` 必须同步。除品牌标外颜色只走 `currentColor` 与 `--dsw-alias-*`。
 11. **编辑器的快捷键与格式化动作只有一份实现**（`client/mdedit.ts`，纯函数）：`SHORTCUTS` 一张表同时喂键盘匹配、界面速查表与测试。编辑动作必须走 `document.execCommand('insertText')`——直接改 `value` 会让 `Ctrl+Z` 的原生撤销栈作废。
 12. **自定义主题是数据，不是代码**：`plugin/core/theme-spec.mjs` 只做校验 + 合并，绝不求值模型给的代码。属性白名单统计自 11 套内置主题（它们实测能在公众号里活）；规格只认 `name` / `base` / `styles`，多写的键报错而不是默默忽略；必须在内置主题上做增量覆盖（缺槽位 = 不加 style 属性）；`wrapper` 必含 `font-family` / `font-size`（漏了面板字体/字号控件变死控件）。命名主题存 storageDomain themes 表，主题 key 为 `custom:<id>`，同一 id 的 `set` 即覆盖；损坏或非法记录在读取时给出错误，缺失 id 回默认并标记 `missing`。临时 `theme_spec` 仍只用于本次渲染。规格里**没有图标字段**。换主题**不动 revision**——面板靠 `/state` 的 `active.theme` 发现，只换 meta、不重载正文，别让用户正在打的字被换掉。
-13. **learn 的候选不是用户资产**：`fishpai_learn` 与 `POST /learn` 必须先生成 pending 候选，只有 `commit + confirm=true` 才写 storageDomain writing 表。九字段必须含 styleId/tone/structure/audience/purpose/do/dont/sourceName/sourceRef；网页只抓公开 HTTPS，DNS 解析到本机或私有网段即拒绝，正文上限 2 MiB。
-14. **页头页尾片段是预览确认后的用户资产**：`POST /snippets` 与 `fishpai_snippets` 走 preview→commit；页头取正文首个 mmbiz 图，页尾锚点关键词必须由用户显式配置。渲染通过 `snippetId` 在 render 前拼 Markdown，不改源文档；片段存 storageDomain snippets 表。
-15. **微信 lint 必须标明证据边界**：`fishpai_lint` 与 `POST /lint` 检查全内联、禁 position/class/id/div/CSS 变量/grid、文本节点包裹、正文 4.5:1 对比度、全幅限宽与表格默认边框。既有规则观察来自草稿 API 路径；用于鱼排粘贴路径时默认标为推论。只有 `full-bleed-width` 与 `table-cell-border-reset` 等逐条标注 `微信临时预览粘贴路径实测` 的规则可按实测引用，不把单条实测扩大为整套规则的背书。
-16. **秀米是独立渲染目标与自由排版画布**：组件与 Markdown 映射只放 `plugin/core/xiumi/`，接入点是 `fishpai_render.target` 与 `POST /render.target`；微信 `render()` 不加 target。静态组件与 8 个交互组件分别由 components.mjs、interactive.mjs 注册，DEFAULT_SPEC 的 18 个键按模块常量校验；文档级 `xiumiSpec` 由 store 持久化，预览、复制与导出共用。`raw` 承载安全 HTML / SVG，素材经 assets.mjs 统一收集与内嵌；`full_bleed` 复用 raw 安全校验，按 `page_padding_x` 输出左右负外边距并显式设置 `max-width:none !important`，专业表格单元格先写 `border:0` 再保留指定边线。未知组件、非法规格和主动内容必须报错。微信复制形态不用 `div`，SVG 不依赖 `image href`；需要固定字形的 SVG 展示字转成带 `aria-label` 的矢量路径，不依赖手机字体，普通正文保留 HTML 文本；复制与导出出口包裹文本容器中的全部直接文本节点（含行内元素与换行后的文本），SVG 内部除外。展开组件使用零高正文与 SVG 高度动画，不依赖 foreignObject；高度按 320px 视口扣除页面与正文容器留白后的可用宽度估算，不能为压缩宽屏留白而裁掉窄屏末行。复制到目标编辑器后的结构与交互以该编辑器的粘贴处理为准。
-17. **复制与导出是插件的交付面**：面板复制与 `fishpai_render` 通过 publish 模式生成同一形态的 HTML；插件运行时只执行本地渲染、剪贴板复制与文件导出，平台草稿与群发由用户在对应平台完成。`playwright-core` 仅服务于维护者执行 `npm run build:preview`，属于开发依赖。
-18. **预览与复制产物是两条渲染路径，预览的样式问题不许改渲染内核**。`publish` 模式才开三处兼容层；`preview`（`annotate: true`）不开，也不做 hljs 内联。预览 iframe 是沙箱 srcdoc、没有外部样式表：预览缺的样式只能由宿主生成 CSS 随响应下发（范例：`hljsPreviewCss()` → `hljsCss` → 客户端 `buildSrcdoc`），不能改 `render.mjs`（golden 守的是 publish + 默认路径，改内核同时污染两条路）。判据：**预览有差异、复制产物正常 = 补在预览侧，不是内核 bug**。
+13. **页头页尾片段是预览确认后的用户资产**：`POST /snippets` 与 `fishpai_snippets` 走 preview→commit；页头取正文首个 mmbiz 图，页尾锚点关键词必须由用户显式配置。渲染通过 `snippetId` 在 render 前拼 Markdown，不改源文档；片段存 storageDomain snippets 表。
+14. **微信 lint 必须标明证据边界**：`fishpai_lint` 与 `POST /lint` 检查全内联、禁 position/class/id/div/CSS 变量/grid、文本节点包裹、正文 4.5:1 对比度、全幅限宽与表格默认边框。既有规则观察来自草稿 API 路径；用于鱼排粘贴路径时默认标为推论。只有 `full-bleed-width` 与 `table-cell-border-reset` 等逐条标注 `微信临时预览粘贴路径实测` 的规则可按实测引用，不把单条实测扩大为整套规则的背书。
+15. **秀米是独立渲染目标与自由排版画布**：组件与 Markdown 映射只放 `plugin/core/xiumi/`，接入点是 `fishpai_render.target` 与 `POST /render.target`；微信 `render()` 不加 target。静态组件与 8 个交互组件分别由 components.mjs、interactive.mjs 注册，DEFAULT_SPEC 的 18 个键按模块常量校验；文档级 `xiumiSpec` 由 store 持久化，预览、复制与导出共用。`raw` 承载安全 HTML / SVG，素材经 assets.mjs 统一收集与内嵌；`full_bleed` 复用 raw 安全校验，按 `page_padding_x` 输出左右负外边距并显式设置 `max-width:none !important`，专业表格单元格先写 `border:0` 再保留指定边线。未知组件、非法规格和主动内容必须报错。微信复制形态不用 `div`，SVG 不依赖 `image href`；需要固定字形的 SVG 展示字转成带 `aria-label` 的矢量路径，不依赖手机字体，普通正文保留 HTML 文本；复制与导出出口包裹文本容器中的全部直接文本节点（含行内元素与换行后的文本），SVG 内部除外。展开组件使用零高正文与 SVG 高度动画，不依赖 foreignObject；高度按 320px 视口扣除页面与正文容器留白后的可用宽度估算，不能为压缩宽屏留白而裁掉窄屏末行。复制到目标编辑器后的结构与交互以该编辑器的粘贴处理为准。
+16. **复制与导出是插件的交付面**：面板复制与 `fishpai_render` 通过 publish 模式生成同一形态的 HTML；插件运行时只执行本地渲染、剪贴板复制与文件导出，平台草稿与群发由用户在对应平台完成。`playwright-core` 仅服务于维护者执行 `npm run build:preview`，属于开发依赖。
+17. **预览与复制产物是两条渲染路径，预览的样式问题不许改渲染内核**。`publish` 模式才开三处兼容层；`preview`（`annotate: true`）不开，也不做 hljs 内联。预览 iframe 是沙箱 srcdoc、没有外部样式表：预览缺的样式只能由宿主生成 CSS 随响应下发（范例：`hljsPreviewCss()` → `hljsCss` → 客户端 `buildSrcdoc`），不能改 `render.mjs`（golden 守的是 publish + 默认路径，改内核同时污染两条路）。判据：**预览有差异、复制产物正常 = 补在预览侧，不是内核 bug**。
+18. **导入以保真和可编辑分块为边界**：`fishpai_import` 只抓公开公众号 HTTPS URL，粘贴 / 本地 HTML 走通用 `article` / `main` / `body` 提取；复杂 SVG、表格和微信专用节点保持原子 raw，只有能保留原意的简单结构提升为 Markdown。`out_path` 必须不存在，文档与素材都过工作目录路径守卫；公开网页与图片各自执行重定向、DNS 私网、大小、MIME / 魔数校验。所有 URL 属性先清除 `tempkey` / `exportkey` / `pass_ticket` 等敏感查询与 fragment，再进入文稿或报告；主动内容、事件、`srcdoc` 与可执行 URL 必须拒绝。结构报告不回传完整 raw HTML，私有测试样本只放暂存区。
 
 ## 禁止操作
 

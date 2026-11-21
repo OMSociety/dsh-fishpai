@@ -16,7 +16,6 @@ import { registerTools } from './host/tools.mjs'
 import { createApiHandler, API_PREFIX } from './host/routes.mjs'
 import { canonicalCwd, ensureFishpaiLayout } from './host/store.mjs'
 import { openUserStores } from './host/store-domain.mjs'
-import { LearnService } from './host/learn.mjs'
 import { SnippetService } from './host/snippets.mjs'
 
 export const name = 'dsh-fishpai'
@@ -112,11 +111,10 @@ export function apply(ctx) {
     return () => {}
   }, 'fishpai: 初始化 .fishpai 布局')
 
-  const learn = new LearnService(getStores)
   const snippets = new SnippetService(getStores)
 
   // ── 1. 模型工具 ────────────────────────────────────────────
-  ctx.effect(() => registerTools(ctx, { resolveCwd, log, getStores, learn, snippets }), 'fishpai: 注册模型工具')
+  ctx.effect(() => registerTools(ctx, { resolveCwd, log, getStores, snippets }), 'fishpai: 注册模型工具')
 
   // ── 2. HTTP 路由 ───────────────────────────────────────────
   ctx.effect(() => {
@@ -127,7 +125,7 @@ export function apply(ctx) {
       return () => {}
     }
     // 路由注册失败向上抛到 cordis effect，插件挂载失败并在界面与日志中呈现。
-    const handler = createApiHandler({ resolveCwd, log, getStores, learn, snippets })
+    const handler = createApiHandler({ resolveCwd, log, getStores, snippets })
     return webServer.register({ kind: 'prefix', path: API_PREFIX, handler })
   }, 'fishpai: /fishpai/api 路由')
 

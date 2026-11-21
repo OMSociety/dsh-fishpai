@@ -77,7 +77,7 @@ test('宿主插件能在真实 Cordis 里挂载，并注册八个工具、一条
 
   assert.deepEqual(
     registeredTools.map((t) => t.name).sort(),
-    ['fishpai_learn', 'fishpai_lint', 'fishpai_open', 'fishpai_read', 'fishpai_render', 'fishpai_snippets', 'fishpai_theme', 'fishpai_write'],
+    ['fishpai_import', 'fishpai_lint', 'fishpai_open', 'fishpai_read', 'fishpai_render', 'fishpai_snippets', 'fishpai_theme', 'fishpai_write'],
   )
   assert.equal(routes.length, 1)
   assert.equal(routes[0].kind, 'prefix')

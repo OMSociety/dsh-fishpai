@@ -30,7 +30,9 @@
 | `plugin/vendor/hljs-map.json` | — | MIT（本仓库整理） | 从真实浏览器导出的 highlight.js token 计算样式表 |
 | `client/theme-icons.tsx` | 图标几何复制自 `@deepseek-ai/dsh-client-ui-primitives` 0.2.0-rc.2 | MIT | © 2026 DeepSeek |
 
-最后一行（`client/theme-icons.tsx`）不是打包进来的依赖，而是**复制**过来的图形数据：主题与控件
+现有文章导入使用运行时依赖 [`cheerio`](https://cheerio.js.org/) 1.0.0（MIT，Copyright (c) 2022 Matt Mueller）解析 HTML；该依赖由 npm 安装，其许可随依赖包分发，未复制进本仓库源码。
+
+表中 `client/theme-icons.tsx` 不是打包进来的依赖，而是**复制**过来的图形数据：主题与控件
 图标的 `<path>` 几何取自 DSH 内建图标集。之所以复制而不是 `require` 那个包，是因为 rc2 官方在
 `cordis-plugin-development/references/practices.md` 里明文禁止客户端 bundle 把 Harness Client
 包当模块加载（宿主升级改名会让插件静默少图标），替代做法就是把 primitive 的标记复制进插件。
@@ -129,16 +131,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 | 项目 | 许可 | 参考的内容 |
 |---|---|---|
-| [gzh-content-skill](https://github.com/songlitong521-oss/gzh-content-skill) | MIT | 公众号内容工作流的整体划分：写作风格九字段描述、风格暂存与确认入库流程、秀米与微信后台自动化链路（选择器与登录标记实测）、页头页尾片段的两阶段确认。 |
-| [wechat-article-skills](https://github.com/aiworkskills/wechat-article-skills) | Apache-2.0 | 「骨架 × 配色」两层主题模型、组件三层覆写链与 `when_to_use`/`anti_pattern` 说明、单主色派生全色板的对比度门禁思路、AI 味指纹库的类目。 |
-| [wechat-skill](https://github.com/843645440/wechat-skill) | AGPL-3.0 | 仅借鉴设计原则（全内联约束、确定性校验兜底、文本节点包裹、WCAG 对比度门禁、五维质量自评的权重划分），未复制其代码、色值、HTML 结构或文案。 |
+| [gzh-content-skill](https://github.com/songlitong521-oss/gzh-content-skill) | MIT | 公众号正文处理边界、页头页尾片段的两阶段确认。 |
+| [wechat-article-skills](https://github.com/aiworkskills/wechat-article-skills) | Apache-2.0 | 「骨架 × 配色」两层主题模型、组件三层覆写链与 `when_to_use`/`anti_pattern` 说明、单主色派生全色板的对比度门禁思路。 |
+| [wechat-skill](https://github.com/843645440/wechat-skill) | AGPL-3.0 | 仅借鉴设计原则（全内联约束、确定性校验兜底、文本节点包裹、WCAG 对比度门禁），未复制其代码、色值、HTML 结构或文案。 |
 
 ## 4. 刻意**未**引入的东西
 
 | 项目 | 原因 |
 |---|---|
 | `wechatsync/Wechatsync` 及其派生的 `article-syncjs` | 上游为 GPL-3.0，派生物**没有**许可证文件（默认保留全部权利）。鱼排不做多平台分发。 |
-| `DOMPurify` | 许可为 `(MPL-2.0 OR Apache-2.0)`，MPL 是文件级 copyleft。鱼排的渲染在宿主侧完成，预览走沙箱 iframe，不需要它。 |
+| `DOMPurify` | 许可为 `(MPL-2.0 OR Apache-2.0)`。导入解析使用 cheerio，主动内容、事件属性与危险 URL 由本仓库规则清理，以保留微信兼容的 HTML / SVG / SMIL 结构。 |
 
 ## 5. 本仓库新增部分的许可
 

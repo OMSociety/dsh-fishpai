@@ -8,7 +8,7 @@ import * as React from 'react'
 import { useSyncExternalStore } from 'react'
 import { buildSrcdoc, type FishpaiStore } from './store'
 import { sanitizeHtmlFragment } from './sanitize'
-import { LearnLibrary, SnippetLibrary } from './library'
+import { SnippetLibrary } from './library'
 import { COPY_HINT, IS_MAC, MOD_KEY } from './keys'
 import {
   SHORTCUTS,
@@ -26,7 +26,7 @@ import { CaretGlyph, FishMark, RefreshGlyph, ThemeGlyph, TickGlyph } from './ico
 import type { Block, DocMeta, Note, Placeholder, ThemeInfo } from './api'
 
 type ViewMode = 'edit' | 'preview' | 'side'
-type Tab = 'notes' | 'todo' | 'blocks' | 'history' | 'learn' | 'snippets'
+type Tab = 'notes' | 'todo' | 'blocks' | 'history' | 'snippets'
 
 function countWords(text: string): number {
   const cjk = (text.match(/[\u3400-\u9fff\u3040-\u30ff]/g) || []).length
@@ -1557,9 +1557,6 @@ function Drawer(props: {
         <Btn expanded={props.open && props.tab === 'history'} on={props.open && props.tab === 'history'} onClick={() => props.onTab('history')}>
           历史
         </Btn>
-        <Btn expanded={props.open && props.tab === 'learn'} on={props.open && props.tab === 'learn'} onClick={() => props.onTab('learn')}>
-          风格库
-        </Btn>
         <Btn expanded={props.open && props.tab === 'snippets'} on={props.open && props.tab === 'snippets'} onClick={() => props.onTab('snippets')}>
           页头页尾
         </Btn>
@@ -1666,7 +1663,6 @@ function Drawer(props: {
           )
         ) : null}
 
-        {props.tab === 'learn' ? <LearnLibrary store={props.store} /> : null}
         {props.tab === 'snippets' ? <SnippetLibrary store={props.store} /> : null}
       </div>
       ) : null}

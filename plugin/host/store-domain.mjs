@@ -1,8 +1,8 @@
 /**
- * 用户级资产库：命名主题、写作风格、页头页尾片段。
+ * 用户级资产库：命名主题、页头页尾片段。
  *
  * 为什么是 storageDomain 而不是 cwd 级文件：
- *   这三类是「用户级资产」——换工作目录、换会话都该跟着用户走，且要跨重启保留。
+ *   这两类是「用户级资产」——换工作目录、换会话都该跟着用户走，且要跨重启保留。
  *   宿主的 storageDomain（@deepseek-ai/dsh-storage-domain）正好提供版本化、schema 校验、
  *   宿主托管落盘（profile 目录）的 KV 存储，同步读、持久写，正是这类资产的归宿。
  *   文档协同状态（.fishpai/state、history）仍留在 cwd——那是「这篇文档」的状态，按工作区隔离才对。
@@ -53,30 +53,7 @@ const themeRecord = codec((v) => {
     base: str(v.base, { max: 40 }),
     styles: cleanStyles,
     createdAt: typeof v.createdAt === 'number' && Number.isFinite(v.createdAt) ? v.createdAt : Date.now(),
-    source: v.source === 'learn' ? 'learn' : 'custom',
-  }
-})
-
-// ── 写作风格库 ──────────────────────────────────────────────────
-// learn 产物：九字段风格描述 + 来源出处。
-
-const writingStyleRecord = codec((v) => {
-  if (!isRecord(v)) throw new TypeError('写作风格必须是对象')
-  const arr = (x) => {
-    if (!Array.isArray(x)) return []
-    return x.filter((s) => typeof s === 'string').map((s) => s.slice(0, 500)).slice(0, 40)
-  }
-  return {
-    styleId: str(v.styleId, { max: 60 }),
-    tone: str(v.tone ?? '', { max: 2000, allowEmpty: true }),
-    structure: str(v.structure ?? '', { max: 2000, allowEmpty: true }),
-    audience: str(v.audience ?? '', { max: 500, allowEmpty: true }),
-    purpose: str(v.purpose ?? '', { max: 500, allowEmpty: true }),
-    do: arr(v.do),
-    dont: arr(v.dont),
-    sourceName: str(v.sourceName ?? '', { max: 200, allowEmpty: true }),
-    sourceRef: str(v.sourceRef ?? '', { max: 1000, allowEmpty: true }),
-    createdAt: typeof v.createdAt === 'number' && Number.isFinite(v.createdAt) ? v.createdAt : Date.now(),
+    source: 'custom',
   }
 })
 
@@ -97,13 +74,11 @@ const snippetRecord = codec((v) => {
 // ── 域声明 ──────────────────────────────────────────────────────
 
 export const THEMES_DOMAIN = 'fishpai_themes'
-export const WRITING_DOMAIN = 'fishpai_writing_styles'
 export const SNIPPETS_DOMAIN = 'fishpai_snippets'
 
 function domainSpecs(defineDomain) {
   return {
     themes: defineDomain({ name: THEMES_DOMAIN, version: 1, tables: { themes: { valueSchema: themeRecord } } }),
-    writing: defineDomain({ name: WRITING_DOMAIN, version: 1, tables: { styles: { valueSchema: writingStyleRecord } } }),
     snippets: defineDomain({ name: SNIPPETS_DOMAIN, version: 1, tables: { snippets: { valueSchema: snippetRecord } } }),
   }
 }
@@ -112,10 +87,10 @@ function domainSpecs(defineDomain) {
  * 打开全部用户级域，返回一组句柄；调用方（插件 apply）负责 close。
  *
  * storageDomain 不可用时返回 null；内置主题与文档协同仍可使用，
- * 命名主题、learn 与片段会明确报告能力不可用。
+ * 命名主题与片段会明确报告能力不可用。
  *
  * @param {object} ctx cordis 上下文
- * @returns {Promise<{themes, writing, snippets, close} | null>}
+ * @returns {Promise<{themes, snippets, close} | null>}
  */
 export async function openUserStores(ctx) {
   const storageDomain = ctx && typeof ctx.get === 'function' ? ctx.get('storageDomain', true) : ctx?.storageDomain
@@ -127,13 +102,10 @@ export async function openUserStores(ctx) {
   try {
     const themes = await storageDomain.open(specs.themes)
     opened.push(themes)
-    const writing = await storageDomain.open(specs.writing)
-    opened.push(writing)
     const snippets = await storageDomain.open(specs.snippets)
     opened.push(snippets)
     return {
       themes,
-      writing,
       snippets,
       async close() {
         for (const d of opened.reverse()) {
