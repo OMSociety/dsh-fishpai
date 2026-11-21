@@ -1,9 +1,8 @@
 /**
  * 内置 vendor 运行时加载：在 vm context 里求值随包分发的三个资产。
  *
- * 为什么必须用 vm 顶层求值：来源项目 `js/themes.js` 用顶层 `const themes = {...}` 声明，
+ * 为什么必须用 vm 顶层求值：随包分发的 `themes.js` 用顶层 `const themes = {...}` 声明，
  * 不挂 `window`；直接 `import` 拿不到，必须 context 级顶层求值。
- * （这是来源项目的既有行为，不是我们选择的实现方式——见 NOTICE.md）
  *
  * 全部懒加载并缓存：插件启动时不付这份解析代价。
  */
@@ -62,7 +61,7 @@ export function resolveTheme(name) {
   return null
 }
 
-/** 快速管线字体预设（源自来源项目 app.js 的 fontMap）；默认 fontFamily='sans' 会覆盖主题自带字体。 */
+/** 快速管线字体预设；默认 fontFamily='sans' 会覆盖主题自带字体。 */
 export const FONT_MAP = {
   sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Noto Sans SC", sans-serif',
   serif: '"Georgia", "Noto Serif SC", "Source Han Serif SC", serif',

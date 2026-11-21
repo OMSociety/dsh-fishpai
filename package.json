@@ -1,7 +1,7 @@
 {
   "name": "dsh-fishpai",
   "version": "2.0.0",
-  "description": "DeepSeek Harness plugin: 鱼排 FishPai — a WeChat Official Account typesetting workbench in the DSH right sidebar, with block-level diffs and annotations a model can read. Rendering core derived from the MIT mopai-markdown.",
+  "description": "DeepSeek Harness plugin: 鱼排 FishPai — a WeChat Official Account typesetting workbench in the DSH right sidebar, with block-level diffs and annotations a model can read.",
   "type": "module",
   "license": "MIT",
   "author": "OMSociety (https://github.com/OMSociety)",

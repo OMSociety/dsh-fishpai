@@ -71,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 声明可选 peer `@deepseek-ai/dsh-storage-domain`（用户级库存储）；`playwright-core` 用于 README 正式预览构建，属于开发依赖。
 - **BREAKING**：命名自定义主题改为用户级多主题库，存入 storageDomain themes 表，主题 key 使用 `custom:<id>`；`fishpai_theme` 支持 `set` / `show` / `clear` / `list`，并可用 `theme_id` 指定主题。不再读取 `.fishpai/theme.json` 或主题名 `custom`。
 - 渲染 golden 改为当前核心自产 snapshot，`scripts/regen-golden.mjs` 只从 `plugin/core/render.mjs` 生成；站点样本 parity 由 `FISHPAI_SITE_PARITY=1` 显式启用。
-- 项目说明、代码注释与技能文档统一以本仓库为行为依据；MoPai 保留为衍生来源与许可证出处。
+- 项目说明、代码注释与技能文档统一以本仓库为行为依据；MoPai 保留为早期设计参考与许可证出处。
 
 ### 移除
 
@@ -100,7 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Declared the optional peer `@deepseek-ai/dsh-storage-domain` for user-level stores; `playwright-core` supports the formal README preview build as a development dependency.
 - **BREAKING**: Named custom themes now live in the user-level storageDomain themes table and use `custom:<id>` keys. `fishpai_theme` supports `set` / `show` / `clear` / `list` with an optional `theme_id`. `.fishpai/theme.json` and the bare `custom` theme name are no longer read.
 - Rendering goldens are now snapshots produced by the current core, with `scripts/regen-golden.mjs` using only `plugin/core/render.mjs`; site parity is an opt-in soft reference via `FISHPAI_SITE_PARITY=1`.
-- Project guides, code comments, and skill documentation now use this repository as the behavioral source of truth; MoPai remains credited as the derivative source and license origin.
+- Project guides, code comments, and skill documentation now use this repository as the behavioral source of truth; MoPai remains credited as an early design reference and license origin.
 
 ### Removed
 
@@ -184,7 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 宿主依赖下限抬到 `>=0.2.0-rc.2 <0.3.0-0`：`peerDependencies` 的七个 `@deepseek-ai/dsh-*` 包与新增的 `engines.dsh` 一条同口径。此前声明的下限是 0.1.5-rc.2。
 - 内置图标名改用宿主当前导出的拼写（`*Regular` 字重后缀），去掉两代拼写的对照表：下限抬高后只需服务一条线；某个名字取不到时仍降级成纯文字。
 - 面板空白页的品牌标改用 `FishMark`——与包根 `icon.svg` 同一份 36 画板几何内联渲染，删掉此前的 16 画板 `FishGlyph`。同一支鱼在全仓库只剩一份几何，改 `icon.svg` 只需回来改一处。
-- 移除仓库内的来源项目静态站点副本 `legacy-site/`（27 个文件），安装说明收口到 npm 包：本仓库此后只保留插件本体，`dsh plugin add dsh-fishpai` 是唯一安装入口。
+- 移除仓库内的 MoPai 静态站点副本 `legacy-site/`（27 个文件），安装说明收口到 npm 包：本仓库此后只保留插件本体，`dsh plugin add dsh-fishpai` 是唯一安装入口。
 
 ### Changed
 

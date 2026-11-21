@@ -1,24 +1,24 @@
-# 起源与第三方许可（NOTICE）
+# 第三方许可与致谢（NOTICE）
 
 鱼排（FishPai，仓库 `OMSociety/dsh-fishpai`）是独立维护的 DeepSeek Harness（DSH）插件。
-其快速渲染管线与主题数据衍生自 [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)，并保留来源项目的 MIT 许可与版权声明。
+快速渲染管线与主题数据的早期设计参考 [MoPai 墨排 / mopai-markdown](https://github.com/ye4wzp/mopai-markdown)，相关 MIT 许可与版权声明按本文件保留。
 
-## 1. 衍生来源
+## 1. 快速管线的早期设计参考
 
 | 项 | 内容 |
 |---|---|
-| 来源仓库 | https://github.com/ye4wzp/mopai-markdown |
-| 来源作者 | [@ye4wzp](https://github.com/ye4wzp) |
+| 参考仓库 | https://github.com/ye4wzp/mopai-markdown |
+| 原作者 | [@ye4wzp](https://github.com/ye4wzp) |
 | 许可 | MIT |
-| 衍生起点 | 来源仓库 `main` 的 `c91487abfc5848f5b78e9fcec3b62d58033c61dc`（2026-08-19）；共同祖先为 `a33b33d606032091f48e62386592daefc3f8f472`（2026-06-08）。当前行为以本仓库代码、测试与自产 snapshot 为准 |
+| 初始对应版本 | 上游仓库 `main` 的 `c91487abfc5848f5b78e9fcec3b62d58033c61dc`（2026-08-19）；共同祖先为 `a33b33d606032091f48e62386592daefc3f8f472`（2026-06-08）。当前行为以本仓库代码、测试与自产 snapshot 为准 |
 
-鱼排直接复用了来源项目的两项核心资产，均为 MIT：
+快速管线保留并继续维护两项相关资产，均为 MIT：
 
-1. **主题定义** —— 来源项目 `js/themes.js` 复制为本仓库 `plugin/vendor/themes.js`，换行符归一为 LF；
-   当前主题集与各槽位声明以该文件为准。来源版本 `js/themes.js` 的 blob SHA 为
+1. **主题定义** —— 上游 `js/themes.js` 的主题数据保留在本仓库 `plugin/vendor/themes.js`，换行符归一为 LF；
+   当前主题集与各槽位声明以该文件为准。上游版本 `js/themes.js` 的 blob SHA 为
    `dfa0ea47287fb16969aabe75163f9049c10c82e8`，需要追溯出处时按此锚点核对。
 2. **渲染管线设计** —— 「先渲染 HTML，再给每个标签内联主题样式」「生成公众号 HTML 时把代码块内
-   span 的计算样式内联」「h4–h6 套 h3 样式」「外链转文末参考资料」等初始行为与验收标准。
+   span 的计算样式内联」「h4–h6 套 h3 样式」「外链转文末参考资料」等早期行为与验收参考。
 
 ## 2. 打包进本仓库的第三方代码与图形数据
 
@@ -26,7 +26,7 @@
 |---|---|---|---|
 | `plugin/vendor/markdown-it.min.js` | markdown-it 14.1.0 | MIT | © 2014 Vitaly Puzrin, Alex Kocharin |
 | `plugin/vendor/highlight.min.js` | highlight.js 11.9.0 (git f47103d4f1) | BSD-3-Clause | © 2006, Ivan Sagalaev |
-| `plugin/vendor/themes.js` | 来源项目主题数据（当前主题集见上） | MIT | © 2026 [@ye4wzp](https://github.com/ye4wzp) |
+| `plugin/vendor/themes.js` | 上游主题数据（当前主题集见上） | MIT | © 2026 [@ye4wzp](https://github.com/ye4wzp) |
 | `plugin/vendor/hljs-map.json` | — | MIT（本仓库整理） | 从真实浏览器导出的 highlight.js token 计算样式表 |
 | `client/theme-icons.tsx` | 图标几何复制自 `@deepseek-ai/dsh-client-ui-primitives` 0.2.0-rc.2 | MIT | © 2026 DeepSeek |
 
@@ -48,7 +48,7 @@ Copyright (c) 2026 DeepSeek
 `markdown-it` 与 `highlight.js` 的运行时代码随本插件一起分发。两者都是压缩产物，首部注释里
 只留了一行简短声明——MIT 要求"在软件的所有副本中保留版权声明与本许可声明"，BSD-3-Clause
 要求"以二进制形式再分发时在文档中复现版权声明、条件列表与免责声明"。两份完整条款因此
-附在本节末尾；`.min.js` 首部的原文如下（逐字，`undefined` 是来源项目构建脚本留下的占位符，
+附在本节末尾；`.min.js` 首部的原文如下（逐字，`undefined` 是 highlight.js 上游构建脚本留下的占位符，
 版权人以 highlight.js 的 `LICENSE` 中 `Copyright (c) 2006, Ivan Sagalaev.` 为准）：
 
 ```
@@ -142,6 +142,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 | `wechatsync/Wechatsync` 及其派生的 `article-syncjs` | 上游为 GPL-3.0，派生物**没有**许可证文件（默认保留全部权利）。鱼排不做多平台分发。 |
 | `DOMPurify` | 许可为 `(MPL-2.0 OR Apache-2.0)`。导入解析使用 cheerio，主动内容、事件属性与危险 URL 由本仓库规则清理，以保留微信兼容的 HTML / SVG / SMIL 结构。 |
 
-## 5. 本仓库新增部分的许可
+## 5. 本仓库维护部分的许可
 
-新增代码同样以 MIT 发布，版权归 [@OMSociety](https://github.com/OMSociety)。完整条款见 `LICENSE`。
+维护代码同样以 MIT 发布，版权归 [@OMSociety](https://github.com/OMSociety)。完整条款见 `LICENSE`。

@@ -8,7 +8,7 @@
 
 - 一句话定位：DSH 插件——把 Markdown 排成可直接粘进微信公众号编辑器的内联样式 HTML；宿主侧（Node ESM）与客户端侧（浏览器 TSX）在同一个包里，面板长在 DSH 右侧栏，人与模型协同改稿。
 - 技术栈：Node ≥20（CI 用 22）/ React 18 + TSX（esbuild 打包）/ npm；`cheerio` 是现有文章导入的运行时 HTML 解析依赖，`playwright-core` 是 README 预览构建的开发依赖，`@deepseek-ai/dsh-storage-domain` 是 optional peer（宿主提供用户级存储时启用）；不写 `engines.dsh`。
-- 衍生来源：快速渲染管线与主题数据源自 `ye4wzp/mopai-markdown`（MIT），衍生起点为 `c91487a`（2026-08-19）；当前行为以本仓库代码、测试与自产 snapshot 为准，署名与出处见 [NOTICE.md](./NOTICE.md)。
+- 许可基线：快速管线的早期设计参考 `ye4wzp/mopai-markdown`（MIT），初始对应上游 `c91487a`（2026-08-19）；`plugin/vendor/themes.js` 保留其 MIT 主题数据与版权声明。当前行为以本仓库代码、测试与自产 snapshot 为准，署名与出处见 [NOTICE.md](./NOTICE.md)。
 - 文档索引：
   - 功能与安装：[README.md](./README.md)
   - 协作流程与 PR 硬要求：[CONTRIBUTING.md](./CONTRIBUTING.md)
