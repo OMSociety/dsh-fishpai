@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DEFAULT_SPEC } from '../plugin/core/professional/spec.mjs'
 import { HTML_COMPONENTS, SVG_COMPONENTS, WECHAT_COMPONENTS } from '../plugin/core/professional/components.mjs'
-import { buildPage, componentsFromMarkdown, renderProfessional } from '../plugin/core/professional/index.mjs'
+import { buildPage, componentsFromMarkdown, renderProfessional, renderProfessionalPublish } from '../plugin/core/professional/index.mjs'
 import { registerTools } from '../plugin/host/tools.mjs'
 import { createApiHandler } from '../plugin/host/routes.mjs'
 import fs from 'node:fs'
@@ -15,8 +15,8 @@ import * as store from '../plugin/host/store.mjs'
 
 const md = '# 标题\n\n正文 **加粗**。\n\n- 甲\n- 乙'
 
-test('专业：规格十八键与静态组件、交互组件注册表', () => {
-  assert.deepEqual(Object.keys(DEFAULT_SPEC).sort(), ['title_color','title_size','title_align','body_color','body_size','body_align','body_spacing','line_height','muted_color','page_bg','page_width','page_padding_x','page_padding_y','card_bg','card_radius','card_padding','accent','accent2'].sort())
+test('专业：规格十九键与静态组件、交互组件注册表', () => {
+  assert.deepEqual(Object.keys(DEFAULT_SPEC).sort(), ['title_color','title_size','title_align','body_color','body_size','body_align','body_spacing','line_height','muted_color','page_bg','page_width','page_padding_x','page_padding_y','page_padding_bottom','card_bg','card_radius','card_padding','accent','accent2'].sort())
   assert.deepEqual(Object.keys(HTML_COMPONENTS), ['heading','paragraph','card','two_columns','table','quote','divider'])
   assert.deepEqual(Object.keys(SVG_COMPONENTS), ['svg_gradient_banner','svg_wave_divider','svg_number_icons'])
   assert.deepEqual(Object.keys(WECHAT_COMPONENTS), ['wc_heading','wc_paragraph','wc_card','wc_bullet_list','wc_gradient_banner','wc_wave_divider','wc_number_steps','wc_info_card','wc_chapter_header','wc_highlight','wc_credits','wc_quote','wc_two_columns','wc_table','wc_raw','wc_full_bleed'])
@@ -25,7 +25,7 @@ test('专业：Markdown 与指令经 wc 别名组成页面', () => {
   const components = componentsFromMarkdown('# 标题\n\n正文\n\n:::card\n卡片\n:::\n\n:::gradient_banner\n渐变\n:::')
   assert.deepEqual(components.map((x) => x.type), ['heading','paragraph','card','gradient_banner'])
   const html = buildPage(components)
-  assert.match(html, /^<section style="max-width:677px;margin:0 auto;padding:0 20px;box-sizing:border-box;background-color:#ffffff;/)
+  assert.match(html, /^<section style="max-width:677px;margin:0 auto;padding:0px 20px 0;box-sizing:border-box;background-color:#ffffff;/)
   assert.match(html, /linear-gradient\(135deg, #3f63d7 0%, #5b7cdb 100%\)/)
   assert.match(SVG_COMPONENTS.svg_wave_divider({}, DEFAULT_SPEC), /^<svg/)
 })
@@ -47,7 +47,7 @@ test('专业：自由画布与语义组件共享同一份规格', () => {
     '正文居中。', ':::credits', '文案｜鱼排', '排版｜鱼排', ':::',
   ].join('\n\n')
   const html = renderProfessional(source, { spec: { page_bg: '#f2f2f2', page_padding_x: 0, page_padding_y: 0, body_align: 'center', body_spacing: 2, accent: '#96d23a', accent2: '#111111', card_bg: '#ffffff' } }).html
-  assert.match(html, /max-width:677px;margin:0 auto;padding:0 0px/)
+  assert.match(html, /max-width:677px;margin:0 auto;padding:0px 0px 0/)
   assert.match(html, /background-color:#f2f2f2/)
   assert.match(html, /letter-spacing:2px/)
   assert.match(html, /#1<\/span>/)
@@ -74,12 +74,15 @@ test('专业：全幅容器按页面留白扩展，并复用 raw 安全边界', 
   assert.throws(() => renderProfessional(':::full_bleed\n<script>alert(1)</script>\n:::'), /raw 不允许/)
 })
 
-test('专业：底部画布底色延伸用显式空块，顶部留白始终为 0', () => {
-  const withBottom = renderProfessional('正文', { spec: { page_padding_y: 32 } }).html
-  assert.match(withBottom, /padding:0 20px;/, '顶部留白固定为 0')
-  assert.match(withBottom, /<section style="height:32px;max-width:none !important;margin:0 -20px;background-color:#ffffff;line-height:0;font-size:0;"><\/section>/, '底部用全宽空块承载画布底色')
-  const noBottom = renderProfessional('正文').html
-  assert.doesNotMatch(noBottom, /height:0px;max-width:none !important;margin:0 -20px;background-color:#ffffff;line-height:0;font-size:0;/, 'page_padding_y=0 时不生成底部空块')
+test('专业：顶部留白与底部画布底色延伸独立控制', () => {
+  const withBottom = renderProfessional('正文', { spec: { page_padding_bottom: 32 } }).html
+  assert.match(withBottom, /padding:0px 20px 0;/, '顶部留白默认为 0，且不重复产生底部 padding')
+  assert.match(withBottom, /<section style="height:32px;max-width:none !important;margin:0 -20px;background-color:#ffffff;line-height:0;font-size:0;">&nbsp;<\/section>/, '底部块带占位字符，避免被当作空节点清除')
+  const withTop = renderProfessional('正文', { spec: { page_padding_y: 12, page_padding_bottom: 0 } }).html
+  assert.match(withTop, /padding:12px 20px 0;/, 'page_padding_y 只控制顶部留白')
+  assert.doesNotMatch(withTop, /height:32px|height:24px/, 'page_padding_bottom=0 时不生成底部块')
+  const publish = renderProfessionalPublish('正文').html
+  assert.match(publish, /height:24px;[^>]*><span>&nbsp;<\/span><\/section><\/section>$/, '默认复制产物保留 24px 底部延伸，并满足文本包裹约束')
 })
 
 test('专业：raw 保留 HTML/SVG 并拒绝主动内容', () => {

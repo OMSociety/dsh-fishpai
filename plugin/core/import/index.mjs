@@ -363,6 +363,7 @@ function inferSpec($, root) {
     page_width: dominant(rootEntries, 'max-width', pixelNumber) || dominant(rootEntries, 'width', pixelNumber),
     page_padding_x: rootStyle.padding ? paddingParts(rootStyle.padding)?.x : pixelNumber(rootStyle['padding-left']),
     page_padding_y: rootStyle.padding ? paddingParts(rootStyle.padding)?.y : pixelNumber(rootStyle['padding-top']),
+    page_padding_bottom: rootStyle.padding ? paddingParts(rootStyle.padding)?.y : pixelNumber(rootStyle['padding-bottom']),
     card_bg: dominant(cards, 'background-color', normalizeColor),
     card_radius: dominant(cards, 'border-radius', pixelNumber),
     card_padding: dominant(cards, 'padding', (value) => paddingParts(value)?.y),
@@ -384,7 +385,7 @@ function inferSpec($, root) {
     if (valid) {
       const ratio = candidate.count / candidate.total
       const confidence = Math.min(0.95, 0.65 + ratio * 0.25 + Math.min(candidate.count - 1, 2) * 0.025)
-      const inRange = typeof value !== 'number' || !({ title_size: [10, 80], body_size: [10, 40], body_spacing: [0, 20], line_height: [1, 4], page_width: [280, 1200], page_padding_x: [0, 120], page_padding_y: [0, 120], card_radius: [0, 80], card_padding: [0, 100] }[key] || []).length || (value >= ({ title_size: [10, 80], body_size: [10, 40], body_spacing: [0, 20], line_height: [1, 4], page_width: [280, 1200], page_padding_x: [0, 120], page_padding_y: [0, 120], card_radius: [0, 80], card_padding: [0, 100] }[key][0]) && value <= ({ title_size: [10, 80], body_size: [10, 40], body_spacing: [0, 20], line_height: [1, 4], page_width: [280, 1200], page_padding_x: [0, 120], page_padding_y: [0, 120], card_radius: [0, 80], card_padding: [0, 100] }[key][1]))
+      const inRange = typeof value !== 'number' || !({ title_size: [10, 80], body_size: [10, 40], body_spacing: [0, 20], line_height: [1, 4], page_width: [280, 1200], page_padding_x: [0, 120], page_padding_y: [0, 120], page_padding_bottom: [0, 120], card_radius: [0, 80], card_padding: [0, 100] }[key] || []).length || (value >= ({ title_size: [10, 80], body_size: [10, 40], body_spacing: [0, 20], line_height: [1, 4], page_width: [280, 1200], page_padding_x: [0, 120], page_padding_y: [0, 120], page_padding_bottom: [0, 120], card_radius: [0, 80], card_padding: [0, 100] }[key][0]) && value <= ({ title_size: [10, 80], body_size: [10, 40], body_spacing: [0, 20], line_height: [1, 4], page_width: [280, 1200], page_padding_x: [0, 120], page_padding_y: [0, 120], page_padding_bottom: [0, 120], card_radius: [0, 80], card_padding: [0, 100] }[key][1]))
       if (inRange) {
         professionalSpec[key] = value
         specEvidence[key] = { value, confidence: Number(confidence.toFixed(2)), evidence: [`内联样式匹配 ${candidate.count}/${candidate.total} 次`] }

@@ -12,6 +12,7 @@ export const DEFAULT_SPEC = Object.freeze({
   page_width: 677,
   page_padding_x: 20,
   page_padding_y: 0,
+  page_padding_bottom: 24,
   card_bg: '#f5f6f8',
   card_radius: 8,
   card_padding: 14,
@@ -22,7 +23,7 @@ export const DEFAULT_SPEC = Object.freeze({
 const COLOR_KEYS = new Set(['title_color', 'body_color', 'muted_color', 'page_bg', 'card_bg', 'accent', 'accent2'])
 const NUMBER_LIMITS = {
   title_size: [10, 80], body_size: [10, 40], body_spacing: [0, 20], line_height: [1, 4],
-  page_width: [280, 1200], page_padding_x: [0, 120], page_padding_y: [0, 120],
+  page_width: [280, 1200], page_padding_x: [0, 120], page_padding_y: [0, 120], page_padding_bottom: [0, 120],
   card_radius: [0, 80], card_padding: [0, 100],
 }
 

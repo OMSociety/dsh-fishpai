@@ -490,7 +490,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     if (res) patch({ themes: res.themes, presets: res.presets, sizes: res.sizes, fonts: res.fonts })
   }
 
-  async function init() {
+  async function init(options: { startup?: boolean } = {}) {
     try {
       patch({ status: 'loading', error: null })
       await refreshThemes()
@@ -509,6 +509,12 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       const loaded = await loadDoc(st.active.key)
       if (!loaded && state.error) patch({ status: 'error' })
     } catch (error) {
+      // 宿主启动期间会话工作目录和路由可能尚未就绪：保持启动态，交给现有轮询恢复。
+      // 用户手动重试或运行中加载失败仍进入 error，保留真实原因与重试入口。
+      if (options.startup && !state.docKey) {
+        patch({ status: 'loading', error: null })
+        return
+      }
       patch({ status: 'error', error: (error as Error).message })
     }
   }

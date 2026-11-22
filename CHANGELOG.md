@@ -15,13 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 新增
 
 - 新增专业模式与专业渲染管线：`fishpai_render` 与 `POST /render` 使用 `target:'professional'`，微信渲染管线保持独立；Markdown、语义组件与 `:::raw` 可混合，组成自由排版画布，raw 承载安全 HTML / SVG 原创与同等素材复刻，拒绝脚本、事件属性与主动内容；本地 `<img>` 与 `<image>` 素材纳入统一素材清单，预览可读取，复制与导出默认内嵌 base64。
-- 新增文档级专业画布规格（18 项）：`fishpai_open({professional_spec})` 校验并持久化，预览、复制与导出共用；`fishpai_render({professional_spec})` 仅覆盖当次。
+- 新增文档级专业画布规格（19 项）：`fishpai_open({professional_spec})` 校验并持久化，预览、复制与导出共用；`fishpai_render({professional_spec})` 仅覆盖当次。
 - 新增章节头、信息卡、重点行与制作名单四个语义组件，以及版式设计指南 `skills/fishpai/references/layout.md`。
 - 新增专业组件手册 `skills/fishpai/references/components.md`，含 8 个 SMIL 交互组件（点击展开 `expand`、点击换图 `swap`、滑动图集 `swiper`、探照灯 `spotlight`、弹幕 `danmaku`、进度条 `progress`、时间线 `timeline`、对比卡 `compare`）与静态版式组件；`fishpai_lint` 补 CSS 动画禁令与 SMIL 循环校验。
 - 新增 `fishpai_lint` 与 `POST /lint`：检查微信粘贴结构、内联样式与正文对比度，并明确区分 API 路径观察与粘贴路径推论。
 - 新增 `fishpai_snippets` 与 `POST /snippets`：页头首图、可配置页尾锚点片段经预览确认后入库；`fishpai_render` 与 `POST /render` 可用 `snippetId` 在渲染前装配。
 - 专业管线新增 `full_bleed` 全幅容器：按文档 `page_padding_x` 计算左右出血，并以 `max-width:none !important` 保持全宽；`fishpai_lint` 新增 `full-bleed-width` 与 `table-cell-border-reset` 检查及对应技能指引。
-- 新增 `fishpai_import`：从公开公众号 URL、粘贴 HTML 或工作区 HTML 新建专业文档。复杂 SVG / 表格 / 微信专用节点保留为可编辑 raw，高置信标题、段落、列表与图片提升为原生 Markdown；公开图片下载到文档旁 `assets/`，并返回分块、素材、18 键规格证据与 lint 报告。导入不覆盖已有文档，临时 URL 查询凭据不进入文稿或报告。
+- 新增 `fishpai_import`：从公开公众号 URL、粘贴 HTML 或工作区 HTML 新建专业文档。复杂 SVG / 表格 / 微信专用节点保留为可编辑 raw，高置信标题、段落、列表与图片提升为原生 Markdown；公开图片下载到文档旁 `assets/`，并返回分块、素材、19 键规格证据与 lint 报告。导入不覆盖已有文档，临时 URL 查询凭据不进入文稿或报告。
 
 ### 变更
 
@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 渲染 golden 改为当前核心自产 snapshot，`scripts/regen-golden.mjs` 只从 `plugin/core/render.mjs` 生成；站点样本 parity 由 `FISHPAI_SITE_PARITY=1` 显式启用。
 - 项目说明、代码注释与技能文档统一以本仓库为行为依据；MoPai 保留为早期设计参考与许可证出处。
 - 公众号预览固定采用 375px 手机阅读宽度（栏位不足时随可用宽度收缩），不再提供独立宽度开关与预览外框；文档元数据同步移除 `mobile` 字段。
-- 专业画布的 `page_padding_y` 控制页面底部画布底色延伸，默认为 `0`；设置时在文末生成全宽空块承载画布底色，微信粘贴后仍保留。
+- 专业画布的 `page_padding_y` 控制顶部留白，默认为 `0`；`page_padding_bottom` 独立控制底部画布底色延伸，默认为 `24`，文末以带占位字符的全宽块承载画布底色。
 
 ### 移除
 
@@ -39,18 +39,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 修复
 
-- 会话工作目录在启动阶段尚未就绪时，面板在首次成功轮询后自动恢复文档初始化。
+- 会话工作目录在启动阶段尚未就绪时，面板保持“鱼排插件启动中”加载态，并在成功轮询后自动恢复文档初始化。
 
 ### Added
 
 - Added the professional mode and rendering pipeline: `fishpai_render` and `POST /render` accept `target:'professional'` while the WeChat pipeline remains independent; Markdown, semantic components, and `:::raw` can be mixed into a free-form canvas, with raw carrying safe HTML / SVG original designs and same-material recreations while rejecting scripts, event handlers, and active content; local `<img>` and `<image>` assets join the unified asset inventory, readable in previews and embedded as base64 by default for copy and export.
-- Added an 18-key document-level professional canvas spec: `fishpai_open({professional_spec})` validates and persists it for preview, copy, and export; `fishpai_render({professional_spec})` overrides only the current render.
+- Added a 19-key document-level professional canvas spec: `fishpai_open({professional_spec})` validates and persists it for preview, copy, and export; `fishpai_render({professional_spec})` overrides only the current render.
 - Added four semantic components (chapter headers, info cards, highlight lines, and credits) plus the layout guide `skills/fishpai/references/layout.md`.
 - Added the component reference `skills/fishpai/references/components.md` with 8 SMIL interactive components plus static layout components; `fishpai_lint` now flags CSS animations and risky SMIL loops.
 - Added `fishpai_lint` and `POST /lint` for WeChat paste-structure, inline-style, and text-contrast checks with explicit evidence boundaries.
 - Added `fishpai_snippets` and `POST /snippets`: confirm header/footer fragments before storage, then compose them by `snippetId` before rendering.
 - Added the professional `full_bleed` container, which derives horizontal bleed from the document's `page_padding_x` and preserves full width with `max-width:none !important`; `fishpai_lint` now checks `full-bleed-width` and `table-cell-border-reset`, with matching skill guidance.
-- Added `fishpai_import` for creating professional documents from public WeChat article URLs, pasted HTML, or workspace HTML. Complex SVG, tables, and WeChat-specific nodes remain editable raw blocks, while high-confidence headings, paragraphs, lists, and images become native Markdown. Public images are saved beside the document in `assets/`; the report covers blocks, assets, 18-key spec evidence, and lint results. Import never overwrites an existing document, and temporary URL credentials are excluded from documents and reports.
+- Added `fishpai_import` for creating professional documents from public WeChat article URLs, pasted HTML, or workspace HTML. Complex SVG, tables, and WeChat-specific nodes remain editable raw blocks, while high-confidence headings, paragraphs, lists, and images become native Markdown. Public images are saved beside the document in `assets/`; the report covers blocks, assets, 19-key spec evidence, and lint results. Import never overwrites an existing document, and temporary URL credentials are excluded from documents and reports.
 
 ### Changed
 
@@ -60,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rendering goldens are now snapshots produced by the current core, with `scripts/regen-golden.mjs` using only `plugin/core/render.mjs`; site parity is an opt-in soft reference via `FISHPAI_SITE_PARITY=1`.
 - Project guides, code comments, and skill documentation now use this repository as the behavioral source of truth; MoPai remains credited as an early design reference and license origin.
 - The article preview now uses a fixed 375px mobile reading width, shrinking only when the pane is narrower. The separate width toggle and preview outline are gone, and the `mobile` field has been removed from document metadata.
-- The professional canvas's `page_padding_y` controls the bottom canvas-background extension and defaults to `0`; when set, a full-width empty block is appended to carry the canvas background, preserved after WeChat paste.
+- The professional canvas's `page_padding_y` controls top padding and defaults to `0`; `page_padding_bottom` independently controls the bottom canvas-background extension and defaults to `24`, rendered as a full-width block with a placeholder character.
 
 ### Removed
 
@@ -68,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- When the session working directory is not ready during startup, the panel automatically resumes document initialization after the first successful poll.
+- When the session working directory is not ready during startup, the panel stays in its startup loading state and automatically resumes document initialization after a successful poll.
 
 ## [1.2.1] - 2026-11-02
 

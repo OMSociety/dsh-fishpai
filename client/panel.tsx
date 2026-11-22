@@ -535,7 +535,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
   const noteInputRef = React.useRef<HTMLTextAreaElement | null>(null)
 
   React.useEffect(() => {
-    void store.actions.init()
+    void store.actions.init({ startup: true })
   }, [store])
 
   // 专业模式先看成品；快速模式保留文稿与预览并排。用户随后可自由切换视图。
@@ -713,7 +713,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
         <div className="fp-blank">
           <div className="fp-blank-card">
             <BlankMark />
-            <div className="fp-blank-line fp-muted">正在打开文档…</div>
+            <div className="fp-blank-line fp-muted">鱼排插件启动中…</div>
             <div className="fp-loading-bar" />
           </div>
         </div>

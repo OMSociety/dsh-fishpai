@@ -260,8 +260,15 @@ export function apply(ctx: any): void {
         lastTheme = themeKey
         // 不仅看 revision：模型可能换了一篇文档（fishpai_open 另一篇），此时 key 会变
         const store = stores.get(sessionId)
-        const needsRecovery = store?.getSnapshot().status === 'error' && !store.getSnapshot().docKey
-        if (store && switched && activeKey && (!firstPoll || needsRecovery)) void store.actions.onActiveDoc(activeKey, revision, themeKey)
+        const snapshot = store?.getSnapshot()
+        const needsRecovery = (snapshot?.status === 'loading' || snapshot?.status === 'error') && !snapshot.docKey
+        if (store && needsRecovery) {
+          // 启动态与启动错误都由成功轮询接管；没有活动文档时也要结束加载，进入空面板。
+          if (activeKey) void store.actions.onActiveDoc(activeKey, revision, themeKey)
+          else void store.actions.init({ startup: true })
+        } else if (store && switched && activeKey && !firstPoll) {
+          void store.actions.onActiveDoc(activeKey, revision, themeKey)
+        }
       } catch (error) {
         // 宿主刚起来时路由可能还没注册：每个"未就绪期"只报一次，别每 3 秒刷屏
         if (!warned) {

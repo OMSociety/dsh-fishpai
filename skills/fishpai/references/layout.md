@@ -100,7 +100,7 @@
 
 | 分组 | 键 | 用途 |
 | --- | --- | --- |
-| 画布 | `page_bg` `page_width` `page_padding_x` `page_padding_y` | 页面底色、最大宽度与留白 |
+| 画布 | `page_bg` `page_width` `page_padding_x` `page_padding_y` `page_padding_bottom` | 页面底色、最大宽度、顶部留白与底部画布延伸 |
 | 标题 | `title_color` `title_size` `title_align` | Markdown 一级标题 |
 | 正文 | `body_color` `body_size` `body_align` `body_spacing` `line_height` `muted_color` | 字阶、对齐、字距、行高与辅助色 |
 | 卡片 | `card_bg` `card_radius` `card_padding` | 卡片、对白承载面与引文 |

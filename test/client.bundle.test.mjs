@@ -498,7 +498,7 @@ test('面板提示与批注定位文案进入产物', () => {
 
 test('空面板的载入、失败与空文档状态提供对应操作', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
-  for (const copy of ['鱼排编辑器', '正在打开文档…', '新建空白文档', '最近打开', '面板没能载入']) {
+  for (const copy of ['鱼排编辑器', '鱼排插件启动中…', '新建空白文档', '最近打开', '面板没能载入']) {
     assert.ok(source.includes(copy), `空面板文案缺失：${copy}`)
   }
   assert.ok(source.includes('重试'), '载入失败提供重试操作')
@@ -685,9 +685,9 @@ test('启动时工作目录尚未就绪：首次成功轮询自动恢复面板�
   assert.ok(host, '面板槽位已注册')
   const panel = host.component({ sessionId: 's1' })
   const store = panel.props.store
-  await store.actions.init()
-  assert.equal(store.getSnapshot().status, 'error')
-  assert.match(String(store.getSnapshot().error), /无法解析会话工作目录/)
+  await store.actions.init({ startup: true })
+  assert.equal(store.getSnapshot().status, 'loading')
+  assert.equal(store.getSnapshot().error, null, '启动未就绪只保持加载提示，不落错误页')
 
   harness.timers[0]()
   await flush(8)
