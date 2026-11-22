@@ -111,7 +111,7 @@ test('POST /render target=professional 使用同一组件管线并回带面板�
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'fishpai-professional-route-'))
   const opened = store.createDoc({ cwd, title: '专业路由' })
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }))
-  const handler = createApiHandler({ resolveCwd: () => cwd, log: () => {} })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd, log: () => {} })
   const server = createServer((req, res) => { if (req.url.startsWith('/fishpai/api/')) return handler(req, res); res.statusCode = 404; res.end() })
   server.listen(0, '127.0.0.1'); await once(server, 'listening')
   t.after(() => new Promise((resolve) => server.close(resolve)))

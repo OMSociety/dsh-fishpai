@@ -20,8 +20,8 @@ import { SnippetService } from './host/snippets.mjs'
 
 export const name = 'dsh-fishpai'
 
-/** 少一个都会被 Cordis 拒绝访问：工具、路由、会话目录、技能。 */
-export const inject = ['webServer', 'sessions', 'tools', 'skills']
+/** 少一个都会被 Cordis 拒绝访问：工具、路由、浏览器认证、会话目录、技能。 */
+export const inject = ['webServer', 'connection', 'sessions', 'tools', 'skills']
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SKILL_DIR = path.join(ROOT, 'skills', 'fishpai')
@@ -125,7 +125,13 @@ export function apply(ctx) {
       return () => {}
     }
     // 路由注册失败向上抛到 cordis effect，插件挂载失败并在界面与日志中呈现。
-    const handler = createApiHandler({ resolveCwd, log, getStores, snippets })
+    const handler = createApiHandler({
+      resolveCwd,
+      log,
+      getStores,
+      snippets,
+      requestRejection: (req) => ctx.connection.requestRejection(req),
+    })
     return webServer.register({ kind: 'prefix', path: API_PREFIX, handler })
   }, 'fishpai: /fishpai/api 路由')
 

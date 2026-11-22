@@ -674,7 +674,7 @@ test('路由：只认 docKey，路径穿越与未知 docKey 都被挡', async ()
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
 
   const unknown = await callRoute(handler, { method: 'GET', url: '/fishpai/api/doc?sessionId=s1&docKey=deadbeef' })
   assert.equal(unknown.status, 400)
@@ -695,7 +695,7 @@ test('路由：正文文件不见了回 404（不是 200 + 空正文），且不
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
 
   // 状态还在（索引里有这篇），正文文件被人在编辑器外删了/改名了
   const stateBefore = store.readState(cwd, opened.key)
@@ -750,7 +750,7 @@ test('路由：doc 返回块/批注/占位；PUT 冲突返回 409 与最新文�
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
 
   const doc = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=s1&docKey=${opened.key}` })
   assert.equal(doc.status, 200)
@@ -787,7 +787,7 @@ test('路由：render 预览带块锚点，publish 不带且与 core 一致', as
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
 
   const preview = await callRoute(handler, {
     method: 'POST',
@@ -838,7 +838,7 @@ test('路由：面板自己新建空白文档（不编造 baseline），POST /ac
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
 
   const created = await callRoute(handler, { method: 'POST', url: '/fishpai/api/doc', body: { sessionId: 's1' } })
   assert.equal(created.status, 200)
@@ -875,7 +875,7 @@ test('微信结构兼容层只走复制/导出：publish 包 span，preview 不�
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
 
   const publish = await callRoute(handler, {
     method: 'POST',
@@ -901,7 +901,7 @@ test('微信底色兼容层只走复制/导出：publish 把 background 拆成�
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: RICH, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
   const render = (mode) => callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: 's1', docKey: opened.key, mode } })
 
   // 微信的安全过滤按属性名过：`background` 简写不在名单里 → 引用块的框、表头底色粘过去会整条丢
@@ -921,7 +921,7 @@ test('面板开关的判据由渲染结果给出：linkCount / hasCode 随预览
   const markdown = '看 github.com/OMSociety/dsh-fishpai 这个仓库。\n\n段落\n\n    缩进式代码块\n'
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
 
   const preview = await callRoute(handler, { method: 'POST', url: '/fishpai/api/render', body: { sessionId: 's1', docKey: opened.key, mode: 'preview' } })
   assert.equal(preview.status, 200)
@@ -951,7 +951,7 @@ test('状态里存着已移除的主题（ft/medium）：退回默认，不让�
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
   store.updateMeta({ cwd, docPath: opened.path, meta: { theme: 'ft' } }) // 旧状态 / 手改的状态
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
 
   const doc = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=s1&docKey=${opened.key}` })
   assert.equal(doc.status, 200)
@@ -1008,7 +1008,7 @@ test('路由：Origin: null 的请求被拒（沙箱 iframe / data: 文档）', 
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
   const res = await callRoute(handler, {
     method: 'GET',
     url: `/fishpai/api/doc?sessionId=s1&docKey=${opened.key}`,
@@ -1020,7 +1020,7 @@ test('路由：Origin: null 的请求被拒（沙箱 iframe / data: 文档）', 
 test('路由：超过 8MB 的请求体回 413 而不是断连', async () => {
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
   const res = await callRoute(handler, {
     method: 'PUT',
     url: '/fishpai/api/doc',
@@ -1035,7 +1035,7 @@ test('路由：history 的 stash 把草稿存成历史，且可按 id 回滚', a
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
 
   const stash = await callRoute(handler, {
     method: 'POST',
@@ -1240,7 +1240,7 @@ test('工具注册失败要整体回滚并抛错，不能留一半工具还装�
 
 test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在（跨边界对账）', async () => {
   const cwd = tmpWorkspace()
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
   const session = 's1'
 
   // tools 先建文档（模型侧入口）
@@ -1447,7 +1447,7 @@ test('路由守卫：PUT /doc 缺/非法 baseRevision 一律 400，过期版本 
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
   const url = '/fishpai/api/doc'
   const human = `${ARTICLE}\n人加的一句。\n`
 
@@ -1474,7 +1474,7 @@ test('路由守卫：PUT /doc 的 markdown 缺字段是 400，不是"把正文�
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
   const url = '/fishpai/api/doc'
 
   for (const markdown of [undefined, { a: 1 }, 42, ['x']]) {
@@ -1495,7 +1495,7 @@ test('并发写：同一个 baseRevision 的两个 PUT 只允许一个落盘', a
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
   const put = (markdown) =>
     callRoute(handler, { method: 'PUT', url: '/fishpai/api/doc', body: { sessionId: 's1', docKey: opened.key, markdown, baseRevision: 1 } })
 
@@ -1510,7 +1510,7 @@ test('请求体：分块累加按字节来（切在汉字中间的 chunk 也不�
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
 
   const markdown = '中文正文，一字不能少。\n'
   const payload = Buffer.from(JSON.stringify({ sessionId: 's1', docKey: opened.key, markdown, baseRevision: 1 }), 'utf8')
@@ -1528,7 +1528,7 @@ test('请求体：流上出错时回 400 而不是挂住', async () => {
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
   // body:{} 只为带上 content-type（否则走 415 分支）；emitError 会让桩不投递任何数据
   const res = await callRoute(handler, { method: 'PUT', url: '/fishpai/api/doc', body: {}, emitError: true })
   assert.equal(res.status, 400)
@@ -1539,7 +1539,7 @@ test('请求体超过上限：413，且盘上正文一个字不动', async () =>
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
   const res = await callRoute(handler, { method: 'PUT', url: '/fishpai/api/doc', raw: Buffer.alloc(9 * 1024 * 1024, 0x61) })
   assert.equal(res.status, 413)
   assert.match(res.json.error, /上限/)
@@ -1551,7 +1551,7 @@ test('GET /asset：成功路径回真图与 content-type；越界/远程/不存�
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
   const saved = store.saveAsset({ cwd, docPath: opened.path, name: 'image.png', mime: 'image/png', data: PNG_BYTES.toString('base64') })
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
   const get = (src) => callRoute(handler, { method: 'GET', url: `/fishpai/api/asset?sessionId=s1&docKey=${opened.key}&src=${encodeURIComponent(src)}` })
 
   // 成功响应验证 readAsset 返回原图与 content-type；404 用例验证越界、远程与缺失路径约束。
@@ -1601,7 +1601,7 @@ test('存图：上传只收栅格图，名字里的扩展名不会叠进落盘�
 
 test('新建文档：标题里的控制字符不会进到文件路径里', async () => {
   const cwd = tmpWorkspace()
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
   const res = await callRoute(handler, { method: 'POST', url: '/fishpai/api/doc', body: { sessionId: 's1', title: '名\u0000字\u001b' } })
   assert.equal(res.status, 200)
   assert.ok(!/[\u0000-\u001f]/.test(res.json.path), `路径不该含控制字符：${JSON.stringify(res.json.path)}`)
@@ -1719,7 +1719,7 @@ test('命名主题：路由列清单、渲染并报告当前主题', async () =>
 > 引用一句。
 `, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd, getStores: async () => stores })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd, getStores: async () => stores })
 
   const before = await callRoute(handler, { method: 'GET', url: '/fishpai/api/themes?sessionId=s1' })
   assert.equal(before.json.themes.length, 11)
@@ -1755,7 +1755,7 @@ test('POST /theme：删除指定命名主题并让正用着它的文档退回默
   const stores = memoryStores()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd, getStores: async () => stores })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd, getStores: async () => stores })
 
   const noop = await callRoute(handler, { method: 'POST', url: '/fishpai/api/theme', body: { sessionId: 's1', action: 'clear', theme: 'custom:gray' } })
   assert.equal(noop.status, 200)

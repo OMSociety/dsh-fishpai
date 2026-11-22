@@ -10,6 +10,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 修复
+
+- 所有 `/fishpai/api/*` 路由在解析请求与执行读写前，先通过 DSH `ctx.connection.requestRejection` 完成 Host/Origin 检查与浏览器登录态认证；返回 `401` 或 `403` 时立即结束请求。
+
+### Fixed
+
+- All `/fishpai/api/*` routes now apply DSH `ctx.connection.requestRejection` for Host/Origin checks and browser authentication before parsing requests or performing reads and writes; requests rejected with `401` or `403` end immediately.
+
 ## [2.0.0] - 2026-11-22
 
 ### 新增

@@ -72,7 +72,7 @@ test('POST /snippets：preview/commit/list 共用 pending，并等待异步 KvTa
     },
   }
   const snippets = new SnippetService(async () => asyncStores)
-  const handler = createApiHandler({ resolveCwd: () => 'D:\\WorkSpace', getStores: async () => asyncStores, snippets })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => process.cwd(), getStores: async () => asyncStores, snippets })
   const server = createServer((req, res) => { if (req.url.startsWith(API_PREFIX)) return handler(req, res); res.statusCode = 404; res.end() })
   server.listen(0, '127.0.0.1'); await once(server, 'listening')
   const origin = `http://127.0.0.1:${server.address().port}`

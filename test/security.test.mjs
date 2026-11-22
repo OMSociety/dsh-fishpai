@@ -274,11 +274,35 @@ test('updateMeta / saveDoc：非十六进制形态的 color 一律不写进状�
   assert.equal(store.readState(cwd, opened.key).color, null)
 })
 
+test('DSH 访问检查先于鱼排路由的任何读写', async () => {
+  const seen = []
+  const handler = createApiHandler({
+    requestRejection: (req) => {
+      seen.push(req.url)
+      return req.headers['x-test-rejection']
+    },
+    resolveCwd: () => { throw new Error('被拒绝的请求不得解析工作目录') },
+  })
+  for (const rejection of [401, 403]) {
+    let ended = false
+    const res = { statusCode: 200, end: () => { ended = true } }
+    await handler({
+      method: 'POST',
+      url: '/fishpai/api/doc',
+      headers: { host: '127.0.0.1:3080', origin: 'http://127.0.0.1:3080', 'x-test-rejection': rejection },
+      on: () => { throw new Error('被拒绝的请求不得读取正文') },
+    }, res)
+    assert.equal(res.statusCode, rejection)
+    assert.equal(ended, true)
+  }
+  assert.deepEqual(seen, ['/fishpai/api/doc', '/fishpai/api/doc'])
+})
+
 test('POST /render：body.meta 里的 color 也要过形态校验（它不是写状态那条路）', async () => {
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: '## 标题\n\n正文。\n', by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
 
   const out = await callRoute(handler, {
     method: 'POST',
@@ -315,7 +339,7 @@ test('字号入口二：POST /render 的 body.meta.fontSize 也要过形态校�
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: '## 标题\n\n正文。\n', by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
 
   const out = await callRoute(handler, {
     method: 'POST',

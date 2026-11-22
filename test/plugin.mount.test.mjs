@@ -5,15 +5,15 @@
  * 只有真库才知道（比如"`ctx.inject` 的回调是异步的"就是真库行为，桩里同步触发会掩盖竞态）。
  * 这一层挂得起来，安装到 DSH 里才谈得上能跑。
  *
- * 这里只搭最小的服务面：webServer / sessions / tools / skills，其余用不上。
+ * 这里只搭最小的服务面：webServer / connection / sessions / tools / skills，其余用不上。
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Context } from '@deepseek-ai/cordis'
 import * as plugin from '../plugin/index.mjs'
 
-/** 搭一个最小宿主：四个服务 + 一块临时工作目录。 */
-function makeApp(cwd) {
+/** 搭一个最小宿主：五个服务 + 一块临时工作目录。 */
+function makeApp(cwd, requestRejection = () => undefined) {
   const app = new Context()
   const registeredTools = []
   const routes = []
@@ -29,6 +29,7 @@ function makeApp(cwd) {
       }
     },
   })
+  app.provide('connection', { requestRejection })
   app.provide('sessions', {
     get: (id) => sessions.get(id),
     list: () => [...sessions.values()],
@@ -117,6 +118,25 @@ test('宿主插件能在真实 Cordis 里挂载，并注册八个工具、一条
   assert.equal(skills.length, 0, '卸载后不应残留技能')
 })
 
+test('宿主挂载把 connection 的拒绝结果接到鱼排路由', async () => {
+  const fs = await import('node:fs')
+  const os = await import('node:os')
+  const path = await import('node:path')
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'fishpai-connection-'))
+  const { app, routes } = makeApp(cwd, () => 401)
+  const fiber = app.plugin(plugin)
+  await fiber
+  await flush()
+  const route = routes.find((entry) => entry.path === '/fishpai/api')
+  assert.ok(route, '鱼排路由已注册')
+  let ended = false
+  const res = { statusCode: 200, end: () => { ended = true } }
+  await route.handler({ method: 'GET', url: '/fishpai/api/themes', headers: { host: '127.0.0.1:3080' } }, res)
+  assert.equal(res.statusCode, 401)
+  assert.equal(ended, true)
+  await fiber.dispose()
+})
+
 test('缺少 webServer 时照样挂载（工具与技能仍然可用）', async () => {
   const fs = await import('node:fs')
   const os = await import('node:os')
@@ -125,6 +145,7 @@ test('缺少 webServer 时照样挂载（工具与技能仍然可用）', async 
 
   const app = new Context()
   app.provide('webServer', undefined) // 服务存在但没有实现：插件应当降级，而不是挂不起来
+  app.provide('connection', { requestRejection: () => undefined })
   app.provide('sessions', { get: () => ({ header: { cwd } }), list: () => [] })
   const tools = []
   app.provide('tools', {

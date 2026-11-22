@@ -2,18 +2,20 @@
  * `/fishpai/api/*` HTTP 路由：浏览器侧唯一的读写入口。
  *
  * 安全边界（这是浏览器与文件系统之间唯一的一道门）：
- *   1. **同源校验**：`sec-fetch-site: cross-site` 直接拒；`Host` 必须是环路字面量
+ *   1. **DSH 访问检查**：每个请求先交给 `ctx.connection.requestRejection`，统一执行宿主的
+ *      Host/Origin 检查与浏览器登录态认证；返回 401/403 时立即结束，不能进入任何读写分支。
+ *   2. **同源校验**：`sec-fetch-site: cross-site` 直接拒；`Host` 必须是环路字面量
  *      （`127.0.0.1` / `localhost` / `::1`），这一条挡的是 DNS rebinding——光比
  *      `Origin === Host` 挡不住"攻击者域名解析到 127.0.0.1"那种情形；
  *      `Origin` 缺失视为同源，但 `Origin: null`（沙箱 iframe / `data:` 文档）一律拒。
  *      写方法额外要求 `content-type: application/json`——跨站的简单请求会在浏览器侧先被拦下。
- *   2. **只认 docKey，不认路径**：客户端传索引里的键，宿主自己查出绝对路径，
+ *   3. **只认 docKey，不认路径**：客户端传索引里的键，宿主自己查出绝对路径，
  *      再用 `resolveInCwd` 复检（挡 `../`、挡符号链接逃逸、挡非白名单扩展名）。
  *      docKey 必须存在于**该 sessionId 工作目录**的索引里，所以跨会话读要先知道对方的
- *      sessionId **与** docKey；本机单用户场景下这条不是授权边界，同源校验才是。
- *   3. **revision 守卫**：写入**必须**带 `baseRevision`（数字），缺失、非法或不匹配一律拒绝：
+ *      sessionId **与** docKey；本机单用户场景下这条不是授权边界，DSH 访问检查才是。
+ *   4. **revision 守卫**：写入**必须**带 `baseRevision`（数字），缺失、非法或不匹配一律拒绝：
  *      路由层回 400/409，存储层把"没有版本号"也当冲突。绝不静默覆盖人的手改。
- *   4. **新建只有两处**：`POST /upload`（图片资产，落在文档同级的 `assets/`）与
+ *   5. **新建只有两处**：`POST /upload`（图片资产，落在文档同级的 `assets/`）与
  *      `POST /doc`（文档，路径由宿主在 `.fishpai/docs/` 下生成）。两处的文件名都由宿主生成，
  *      客户端给的名字只当作一段可读词、不参与路径拼接；大小与格式在 `store.saveAsset` 里卡。
  *      正文仍只能由 `/doc` 改。
@@ -231,10 +233,10 @@ function docPayload({ cwd, key, domain }) {
 /**
  * 建一个 `/fishpai/api` 前缀处理器。
  *
- * @param {{resolveCwd: (sessionId: string) => string, log?: (msg: string) => void, getStores?: () => Promise<object|null>}} deps
+ * @param {{resolveCwd: (sessionId: string) => string, requestRejection: (req: object) => 401|403|undefined, log?: (msg: string) => void, getStores?: () => Promise<object|null>}} deps
  * @returns {(req: object, res: object) => Promise<void>}
  */
-export function createApiHandler({ resolveCwd, log = () => {}, getStores = async () => null, snippets }) {
+export function createApiHandler({ resolveCwd, requestRejection, log = () => {}, getStores = async () => null, snippets }) {
   async function readableStores() {
     try {
       const stores = await getStores()
@@ -262,6 +264,12 @@ export function createApiHandler({ resolveCwd, log = () => {}, getStores = async
   }
 
   return async function handle(req, res) {
+    const rejection = requestRejection(req)
+    if (rejection !== undefined) {
+      res.statusCode = rejection
+      res.end()
+      return
+    }
     if (!sameOrigin(req)) return fail(res, 403, '拒绝跨站请求')
     const url = new URL(req.url || '/', 'http://localhost')
     const route = `${req.method} ${url.pathname.slice(API_PREFIX.length)}`
