@@ -46,7 +46,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 ```
 
 - `plugin/core/` 不碰文件系统或网络；渲染与文档处理保持纯函数。导入解析器 `plugin/core/import/` 使用 cheerio，其余 core 模块无运行时 npm 依赖；`runtime.mjs` 只用 vm 只读加载 vendor，fs / HTTP 只允许出现在 `plugin/host/`。
-- 浏览器侧读写文档的唯一通道是 `/fishpai/api/*`（`plugin/host/routes.mjs`）：同源校验（`Host` 必须是环路字面量，挡 DNS rebinding）+ docKey + revision 守卫。客户端不拿绝对路径。
+- 浏览器侧读写文档的唯一通道是 `/fishpai/api/*`（`plugin/host/routes.mjs`）：同源校验（`Origin` 与 `Host` 归一后一致；Host 白名单与登录态由宿主 `requestRejection` 负责，远程、局域网与反向代理均可用）+ docKey + revision 守卫。客户端不拿绝对路径。
 - 禁止在客户端 bundle 里 `require('@deepseek-ai/*')`。原因：rc2 官方禁止客户端 bundle 加载 Harness Client 包（宿主改名会让整块界面白掉）；图标几何复制进 `client/theme-icons.tsx`（见硬约束 10）。esbuild external 列表与 `test/client.bundle.test.mjs` 是守卫。
 - 宿主工具用 raw JSON-Schema 注册（`ctx.tools.register({name, description, parameters, output, execute})`）；不要 `import { defineTool } from '@deepseek-ai/dsh-tools'`——树外解析不可靠。
 
@@ -148,7 +148,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 |---|---|---|
 | `plugin/core/render.mjs` | 47KB 主流程，默认路径与 golden 字节级绑定 | 先 `npm test`；动过就全量回归 |
 | `plugin/core/patch.mjs` | CRLF、同块多补丁与列表分隔空行会改变补丁落点 | `node --test test/core.test.mjs test/host.test.mjs` |
-| `plugin/host/routes.mjs` | 浏览器与文件系统之间唯一的门；同源守卫挡 DNS rebinding（Host 必须是环路字面量） | `node --test test/security.test.mjs` |
+| `plugin/host/routes.mjs` | 浏览器与文件系统之间唯一的门；同源守卫比对 Origin 与 Host（不限定环路，远程与反向代理可用） | `node --test test/security.test.mjs` |
 | `plugin/vendor/themes.js` | 内置主题数据，删 / 改主题 = golden 全变 | `npm run test:golden:regen` 并在 PR 说明原因 |
 | `client/theme-icons.tsx` | 几何复制自宿主 rc2 图标包；测试只守结构、守不住几何内容 | 与 rc2 原版逐字比对后再 `npm run build` |
 | `scripts/regen-golden.mjs` | 自产 snapshot 的唯一生成器，决定 fixture、主题与渲染参数覆盖 | 改后先跑 `--check`，再显式重生成并审阅差异 |

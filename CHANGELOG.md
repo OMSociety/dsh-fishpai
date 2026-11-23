@@ -10,6 +10,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2026-11-23
+
+### 修复
+
+- 同源校验不再要求 Host 是环路字面量。远程访问、局域网地址与反向代理（Host 为域名）下，所有 `/fishpai/api/*` 请求此前一律回 `403`，面板无法加载；现在 Host 白名单与登录态认证由宿主 `requestRejection` 负责，本插件只比对 `Origin` 与 `Host` 归一后是否一致，并继续拒绝 `sec-fetch-site: cross-site` 与 `Origin: null`。
+
+### Fixed
+
+- The same-origin check no longer requires `Host` to be a loopback literal. Behind remote access, a LAN address or a reverse proxy (`Host` is a domain name), every `/fishpai/api/*` request used to get `403` and the panel could not load; the Host allowlist and sign-in are now left to the host's `requestRejection`, and this plugin only compares `Origin` with `Host` after normalisation, still rejecting `sec-fetch-site: cross-site` and `Origin: null`.
 ## [2.0.1] - 2026-11-22
 
 ### 修复

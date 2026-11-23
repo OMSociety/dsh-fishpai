@@ -596,24 +596,18 @@ test('同源守卫：跨站与伪造 Origin 一律拒绝', () => {
   assert.equal(sameOrigin({ headers: {} }), false)
 })
 
-test('同源守卫：DNS rebinding 挡在 Host 一侧（Origin 与 Host 相等也不够）', () => {
-  // 攻击者把 evil.example 解析到 127.0.0.1，浏览器发来的 Host 与 Origin 天然一致——
-  // 只比"两者相等"会全数放行，所以 Host 本身必须是环路字面量。
-  assert.equal(sameOrigin({ headers: { host: 'evil.example:3080', origin: 'http://evil.example:3080' } }), false)
-  assert.equal(
-    sameOrigin({
-      headers: { host: 'evil.example:3080', origin: 'http://evil.example:3080', 'sec-fetch-site': 'same-origin' },
-    }),
-    false,
-  )
-  assert.equal(sameOrigin({ headers: { host: 'attacker.test:3080' } }), false)
-  // 只伪装 Host、Origin 仍是外域（HTTP/1.1 允许两者不一致）也要拒
-  assert.equal(sameOrigin({ headers: { host: '127.0.0.1:3080', origin: 'http://evil.example:3080' } }), false)
-  // 大小写与端口都要认，别把正常用法挡掉
+test('同源守卫：Host 与 Origin 归一后一致才放行，远程、局域网与反向代理同样可用', () => {
+  // 访问白名单与登录态由宿主 requestRejection 负责；这里只比 Host 与 Origin 是否同源。
+  assert.equal(sameOrigin({ headers: { host: 'docs.example.com', origin: 'https://docs.example.com' } }), true)
+  assert.equal(sameOrigin({ headers: { host: '192.168.1.20:3080', origin: 'http://192.168.1.20:3080' } }), true)
+  assert.equal(sameOrigin({ headers: { host: 'proxy.example:8443' } }), true)
   assert.equal(sameOrigin({ headers: { host: 'LOCALHOST:3080', origin: 'http://localhost:3080' } }), true)
-  assert.equal(sameOrigin({ headers: { host: 'localhost' } }), true)
   assert.equal(sameOrigin({ headers: { host: '[::1]:3080', origin: 'http://[::1]:3080' } }), true)
+  // Origin 与 Host 不一致（HTTP/1.1 允许两者不同）一律拒
+  assert.equal(sameOrigin({ headers: { host: 'docs.example.com', origin: 'https://evil.example' } }), false)
   assert.equal(sameOrigin({ headers: { host: '127.0.0.1:3080', origin: 'http://127.0.0.1:9999' } }), false)
+  assert.equal(sameOrigin({ headers: { host: 'docs.example.com', origin: 'https://docs.example.com', 'sec-fetch-site': 'cross-site' } }), false)
+  assert.equal(sameOrigin({ headers: { host: 'bad host' , origin: 'http://x' } }), false)
 })
 
 /** 最小 req/res 桩，够跑通路由分支。`chunks` 可以指定分块；`failAfter` 注入一次流错误。 */

@@ -4,9 +4,8 @@
  * 安全边界（这是浏览器与文件系统之间唯一的一道门）：
  *   1. **DSH 访问检查**：每个请求先交给 `ctx.connection.requestRejection`，统一执行宿主的
  *      Host/Origin 检查与浏览器登录态认证；返回 401/403 时立即结束，不能进入任何读写分支。
- *   2. **同源校验**：`sec-fetch-site: cross-site` 直接拒；`Host` 必须是环路字面量
- *      （`127.0.0.1` / `localhost` / `::1`），这一条挡的是 DNS rebinding——光比
- *      `Origin === Host` 挡不住"攻击者域名解析到 127.0.0.1"那种情形；
+ *   2. **同源校验**：`sec-fetch-site: cross-site` 直接拒；`Origin` 与 `Host` 归一后必须一致
+ *      （远程、局域网、反向代理下 Host 为域名同样放行，Host 白名单与登录态由第 1 条负责）；
  *      `Origin` 缺失视为同源，但 `Origin: null`（沙箱 iframe / `data:` 文档）一律拒。
  *      写方法额外要求 `content-type: application/json`——跨站的简单请求会在浏览器侧先被拦下。
  *   3. **只认 docKey，不认路径**：客户端传索引里的键，宿主自己查出绝对路径，
@@ -48,24 +47,12 @@ function fail(res, code, message) {
 }
 
 /**
- * 只有 Host 头指向本机环路才放行。
+ * Host / Origin 一致性（纵深防御）。
  *
- * 为什么不能只比 `Origin` 与 `Host` 是否相等：那条规则挡不住 **DNS rebinding**——
- * 攻击者把自己的域名解析到 127.0.0.1，浏览器发出的 `Host: evil.example:3080` 与
- * `Origin: http://evil.example:3080` 天然相等，于是校验通过，页面就能读走工作目录里的文档。
- * 环路字面量是攻不动的：`evil.example` 不可能等于 `127.0.0.1` / `localhost` / `::1`。
- *
- * 判据不用字符串切分，而是把 authority 交给 WHATWG URL 归一后再判——理由与平台自身的
- * `/api` 信任闸门一致（见 dsh-client-connection 的 `parseAuthority` / `isLoopbackHostname`）：
- * 手写切分会与 URL 归一产生分歧，凡归一化会改写而字符串不会的写法就会判错。
- * 走归一之后：`LOCALHOST:3080`、`127.0.0.1.`（尾随点）、`2130706433`（十进制 IPv4）、
- * `127.0.0.1:80`（默认端口被剥掉）都按真实含义识别为本机；而 `0.0.0.0`、IPv4 映射的
- * `[::ffff:127.0.0.1]`、裸 IPv6（`::1` 不带方括号）、带前导空白的 authority 一律不是本机
- * （注意：尾随空白在 WHATWG 归一里会被剥掉，`'127.0.0.1:3080 '` 反而放行——放行的仍是
- * 本机字面量，与平台判据一致，不构成安全削弱）。
- * IPv4 的识别是整段 127/8（`127.1`、`'0x7f000001'` 都算），与平台的 dsh-client-connection 同判据。
- * 这条闸门只挡浏览器侧的混淆代理（Host 由浏览器设置），它不是认证层：非浏览器客户端
- * 本来就能自己写 `Host`，所以"放宽到整段 127/8"不构成安全削弱——与平台判据保持一致即可。
+ * 宿主的 `ctx.connection.requestRejection` 已统一执行 Host 白名单与浏览器登录态认证；
+ * 远程访问、局域网地址与反向代理（Host 为域名）由它按部署配置裁决，这里不再要求 Host 是环路字面量。
+ * 本函数只做同源：`sec-fetch-site: cross-site` 拒；`Origin: null` 拒；Origin 缺失视为同源；
+ * Origin 与 Host 经 WHATWG URL 归一后 authority 相等才放行（大小写、默认端口、尾随点由归一吸收）。
  */
 function parseAuthority(authority) {
   try {
@@ -75,20 +62,12 @@ function parseAuthority(authority) {
   }
 }
 
-/** WHATWG 归一后的 hostname 是否为本机环路（IPv6 字面量保留方括号）。 */
-function isLoopbackHostname(hostname) {
-  if (hostname === 'localhost' || hostname === '[::1]') return true
-  const parts = hostname.split('.')
-  return parts.length === 4 && parts[0] === '127' && parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)
-}
-
 export function sameOrigin(req) {
   const host = req.headers && req.headers.host
   if (!host) return false
   if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') return false
   const hostUrl = parseAuthority(host)
   if (hostUrl === undefined) return false
-  if (!isLoopbackHostname(hostUrl.hostname)) return false
   const origin = req.headers.origin
   // 没有 Origin 的是非浏览器客户端或同源 GET；`null` 只可能来自沙箱 iframe / data: 文档，
   // 属于不可信上下文，绝不能与"没有 Origin"混为一谈。
