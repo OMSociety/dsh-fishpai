@@ -46,7 +46,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 ```
 
 - `plugin/core/` 不碰文件系统或网络；渲染与文档处理保持纯函数。导入解析器 `plugin/core/import/` 使用 cheerio，其余 core 模块无运行时 npm 依赖；`runtime.mjs` 只用 vm 只读加载 vendor，fs / HTTP 只允许出现在 `plugin/host/`。
-- 浏览器侧读写文档的唯一通道是 `/fishpai/api/*`（`plugin/host/routes.mjs`）：同源校验（`Origin` 与 `Host` 归一后一致；Host 白名单与登录态由宿主 `requestRejection` 负责，远程、局域网与反向代理均可用）+ docKey + revision 守卫。客户端不拿绝对路径。
+- 浏览器侧读写文档的唯一通道是 `/fishpai/api/*`（`plugin/host/routes.mjs`）：同源校验（`Origin` 与 `Host` 归一后一致；Host 白名单与登录态由宿主负责，远程、局域网与反向代理均可用）。准入分两代宿主：`ctx.connection.requestRejection` 存在（<= 0.2.2-rc.5，WebServer 不传 Peer）时调用它；不存在（>= 0.2.3-alpha.1）时要求 handler 第三参 Peer 的 `principal.kind` 为 `owner`，否则 403；之后是 docKey + revision 守卫。客户端不拿绝对路径。
 - 禁止在客户端 bundle 里 `require('@deepseek-ai/*')`。原因：rc2 官方禁止客户端 bundle 加载 Harness Client 包（宿主改名会让整块界面白掉）；图标几何复制进 `client/theme-icons.tsx`（见硬约束 10）。esbuild external 列表与 `test/client.bundle.test.mjs` 是守卫。
 - 宿主工具用 raw JSON-Schema 注册（`ctx.tools.register({name, description, parameters, output, execute})`）；不要 `import { defineTool } from '@deepseek-ai/dsh-tools'`——树外解析不可靠。
 
@@ -115,6 +115,10 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 16. **复制与导出是插件的交付面**：面板复制与 `fishpai_render` 通过 publish 模式生成同一形态的 HTML；插件运行时只执行本地渲染、剪贴板复制与文件导出，平台草稿与群发由用户在对应平台完成。`playwright-core` 仅服务于维护者执行 `npm run build:preview`，属于开发依赖。
 17. **预览与复制产物是两条渲染路径，预览的样式问题不许改渲染内核**。`publish` 模式才开三处兼容层；`preview`（`annotate: true`）不开，也不做 hljs 内联。预览 iframe 是沙箱 srcdoc、没有外部样式表：预览缺的样式只能由宿主生成 CSS 随响应下发（范例：`hljsPreviewCss()` → `hljsCss` → 客户端 `buildSrcdoc`），不能改 `render.mjs`（golden 守的是 publish + 默认路径，改内核同时污染两条路）。判据：**预览有差异、复制产物正常 = 补在预览侧，不是内核 bug**。
 18. **导入以保真和可编辑分块为边界**：`fishpai_import` 只抓公开公众号 HTTPS URL，粘贴 / 本地 HTML 走通用 `article` / `main` / `body` 提取；复杂 SVG、表格和微信专用节点保持原子 raw，只有能保留原意的简单结构提升为 Markdown。`out_path` 必须不存在，文档与素材都过工作目录路径守卫；公开网页与图片各自执行重定向、DNS 私网、大小、MIME / 魔数校验。所有 URL 属性先清除 `tempkey` / `exportkey` / `pass_ticket` 等敏感查询与 fragment，再进入文稿或报告；主动内容、事件、`srcdoc` 与可执行 URL 必须拒绝。结构报告不回传完整 raw HTML，私有测试样本只放暂存区。
+
+## 待办（有触发条件）
+
+- **移除旧宿主兼容分支**：DSH 0.2.3 发布 rc 版后，删除 `plugin/host/routes.mjs` 的 `requestRejection` 分支、`plugin/index.mjs` 的 `requestRejection` 传参、各测试中的 `requestRejection: () => undefined` 夹具（改传 owner Peer）；CHANGELOG 在 Removed 章节记录。
 
 ## 禁止操作
 

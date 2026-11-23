@@ -130,7 +130,10 @@ export function apply(ctx) {
       log,
       getStores,
       snippets,
-      requestRejection: (req) => ctx.connection.requestRejection(req),
+      // 旧宿主（<= 0.2.2-rc.5）提供 requestRejection；新宿主（>= 0.2.3-alpha.1）没有，路由改验 Peer。
+      requestRejection: typeof ctx.connection.requestRejection === 'function'
+        ? (req) => ctx.connection.requestRejection(req)
+        : undefined,
     })
     return webServer.register({ kind: 'prefix', path: API_PREFIX, handler })
   }, 'fishpai: /fishpai/api 路由')

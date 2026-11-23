@@ -212,8 +212,8 @@ function docPayload({ cwd, key, domain }) {
 /**
  * 建一个 `/fishpai/api` 前缀处理器。
  *
- * @param {{resolveCwd: (sessionId: string) => string, requestRejection: (req: object) => 401|403|undefined, log?: (msg: string) => void, getStores?: () => Promise<object|null>}} deps
- * @returns {(req: object, res: object) => Promise<void>}
+ * @param {{resolveCwd: (sessionId: string) => string, requestRejection?: (req: object) => 401|403|undefined, log?: (msg: string) => void, getStores?: () => Promise<object|null>}} deps
+ * @returns {(req: object, res: object, peer?: object) => Promise<void>}
  */
 export function createApiHandler({ resolveCwd, requestRejection, log = () => {}, getStores = async () => null, snippets }) {
   async function readableStores() {
@@ -242,12 +242,19 @@ export function createApiHandler({ resolveCwd, requestRejection, log = () => {},
     return { sessionId, cwd }
   }
 
-  return async function handle(req, res) {
-    const rejection = requestRejection(req)
-    if (rejection !== undefined) {
-      res.statusCode = rejection
-      res.end()
-      return
+  return async function handle(req, res, peer) {
+    if (typeof requestRejection === 'function') {
+      // 旧宿主（@deepseek-ai/dsh-client-connection <= 0.2.2-rc.5）的 WebServer 不传 Peer，只能靠 requestRejection 准入。
+      // 失效条件：DSH 0.2.3 出 rc 版后，整段 requestRejection 分支及对应的旧宿主测试一并删除（见 AGENTS.md）。
+      const rejection = requestRejection(req)
+      if (rejection !== undefined) {
+        res.statusCode = rejection
+        res.end()
+        return
+      }
+    } else if (peer?.principal?.kind !== 'owner') {
+      // 新宿主（>= 0.2.3-alpha.1）已在匹配路由后完成准入；直接管理接口仍要自己校验 owner，取不到 Peer 时 fail-closed。
+      return fail(res, 403, 'forbidden')
     }
     if (!sameOrigin(req)) return fail(res, 403, '拒绝跨站请求')
     const url = new URL(req.url || '/', 'http://localhost')

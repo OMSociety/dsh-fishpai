@@ -298,6 +298,19 @@ test('DSH 访问检查先于鱼排路由的任何读写', async () => {
   assert.deepEqual(seen, ['/fishpai/api/doc', '/fishpai/api/doc'])
 })
 
+test('新宿主无 requestRejection：非 owner 或缺 Peer 回 403，owner 放行到路由', async () => {
+  const cwd = tmpWorkspace()
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  const route = { method: 'GET', url: '/fishpai/api/themes' }
+  for (const peer of [undefined, { principal: { kind: 'guest' } }]) {
+    const out = await callRoute(handler, route, peer)
+    assert.equal(out.status, 403)
+    assert.equal(out.json.error, 'forbidden')
+  }
+  const out = await callRoute(handler, route, { principal: { kind: 'owner' } })
+  assert.equal(out.status, 200)
+})
+
 test('POST /render：body.meta 里的 color 也要过形态校验（它不是写状态那条路）', async () => {
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: '## 标题\n\n正文。\n', by: 'ai' })
@@ -531,7 +544,7 @@ test('复制回退：解析不出 body 时抛错（回退路径是 Firefox 等�
 
 // ── 6. 路由调用的最小桩（与 host.test.mjs 同一口径）─────────────
 
-function callRoute(handler, { method, url, body }) {
+function callRoute(handler, { method, url, body }, peer) {
   const payload = body === undefined ? [] : [Buffer.from(JSON.stringify(body), 'utf8')]
   const req = {
     method,
@@ -567,6 +580,6 @@ function callRoute(handler, { method, url, body }) {
         resolve({ status: this.statusCode, headers: this.headers, json, raw })
       },
     }
-    handler(req, res)
+    handler(req, res, peer)
   })
 }
