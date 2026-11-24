@@ -10,6 +10,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-11-25
+
+### 变更
+
+- `fishpai_read` 返回 `doc_key`、`read_token` 与 `base_revision`。`fishpai_write` 必须传回同次读取的后两项：省略 `doc_key` 会写回读过的文档，显式指定则须一致。模型写入与面板保存均核对磁盘正文；外部编辑后请重读并合并。面板历史恢复也以用户所见版本为准。
+- 文档先校验设置，再保存正文与状态。模型上次写入的基线独立于最近 50 份历史快照，长期人工改稿仍可查看块级差异。
+- HTML 导出新建文件，同名时在扩展名前加 `-2`、`-3` 等序号。默认导出须完成图片内嵌，遇到未解决的图片会列出原因并停止写文件；`embed_images:false` 允许保留引用，成功报告列出实际内嵌与保留引用的数量。单次 `professional_spec` 按键叠加到文档画布，持久设置保持原值。
+- HTML 导入保留段首 Markdown 标记的字面含义；特殊编号、嵌套列表等结构保留为 raw HTML。公开网页抓取共用 15 秒时限，覆盖域名解析、重定向与正文读取。
+- 页头页尾片段确认时复核预览时的同名记录；如有变动，须重新预览并确认。面板 API 在 DSH 0.2.2-rc.5 与 0.2.3-alpha.2 上均要求宿主认证的 owner 身份。
+
+### Changed
+
+- `fishpai_read` returns `doc_key`, `read_token`, and `base_revision`. Pass the latter two from the same read to `fishpai_write`. Omitting `doc_key` targets the document that was read; an explicit key must match. Both tool writes and panel saves check the text on disk. After an external edit, read again and merge. History restoration also checks the revision the user saw.
+- Document settings are validated before saving text and state. The model’s last write is retained separately from the 50 recent history snapshots, so block diffs remain available throughout a long editing session.
+- HTML export creates a file, adding `-2`, `-3`, and so on before the extension when a name is taken. Default export requires all images to be embedded; it reports unresolved images and their reasons before writing any file. `embed_images:false` permits references. Successful exports report embedded and referenced counts. A one-off `professional_spec` overrides only the supplied keys and leaves the saved canvas settings intact.
+- HTML import preserves literal Markdown markers at the start of paragraphs. Lists with custom numbering or nesting retain their structure as raw HTML. Public page retrieval has a single 15-second deadline covering DNS, redirects, and body reads.
+- Committing a header or footer snippet checks the named entry against its preview; if it changed, preview and confirm again. The panel API requires a host-authenticated owner on both DSH 0.2.2-rc.5 and 0.2.3-alpha.2.
+
 ## [2.0.3] - 2026-11-24
 
 ### 修复
