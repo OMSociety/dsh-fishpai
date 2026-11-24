@@ -59,7 +59,7 @@ function callRoute(handler, { method, url, body }) {
         resolve({ status: this.status, json, text })
       },
     }
-    handler(req, res)
+    handler(req, res, { principal: { kind: 'owner' } })
   })
 }
 
@@ -113,7 +113,7 @@ test('fishpai_open 声明并持久化 professional_spec，文档 meta 回带同�
   const key = result.doc_key
   assert.deepEqual(store.readState(cwd, key).professionalSpec, normalizeSpec(input))
 
-  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
+  const handler = createApiHandler({ resolveCwd: () => cwd })
   const doc = await callRoute(handler, { method: 'GET', url: `/fishpai/api/doc?sessionId=s1&docKey=${key}` })
   assert.equal(doc.status, 200)
   assert.deepEqual(doc.json.meta.professionalSpec, normalizeSpec(input))
@@ -131,7 +131,7 @@ test('fishpai_open 声明并持久化 professional_spec，文档 meta 回带同�
 test('POST /meta 与 POST /render 共用文档规格，显式 body.professional_spec 优先且预览发布一致', async () => {
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
-  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
+  const handler = createApiHandler({ resolveCwd: () => cwd })
   const saved = await callRoute(handler, {
     method: 'POST',
     url: '/fishpai/api/meta',
@@ -205,7 +205,7 @@ test('专业画布的 raw HTML/SVG 素材在预览中列示，在发布与导出
   assert.deepEqual(images.map((image) => image.src), ['assets/pixel.png'])
   assert.equal(images[0].embed, true)
 
-  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
+  const handler = createApiHandler({ resolveCwd: () => cwd })
   const preview = await callRoute(handler, {
     method: 'POST', url: '/fishpai/api/render',
     body: { sessionId: 's1', docKey: opened.key, target: 'professional', mode: 'preview' },

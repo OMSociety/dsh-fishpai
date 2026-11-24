@@ -39,6 +39,22 @@ test('snippets：pending 确认后入库，compose 在渲染前装配', async ()
   assert.equal(await service.delete('研究尾注'), true)
 })
 
+test('同名候选同时确认仅接受首项，force 候选也绑定预览基线', async () => {
+  const stores = memoryStores()
+  const service = new SnippetService(async () => stores)
+  const preview = (text, force = false) => service.preview({ name: '尾注', footerHtml: `<p>${text}</p>`, force })
+  const commit = ({ pendingId }) => service.commit({ pendingId, confirm: true })
+  const [first, second] = await Promise.all([preview('甲'), preview('乙')])
+  const results = await Promise.allSettled([commit(first), commit(second)])
+  assert.equal(results[0].status, 'fulfilled')
+  assert.match(results[1].reason.message, /预览后已变更/)
+  assert.equal((await service.get('尾注')).footerHtml, '<p>甲</p>')
+  const [third, fourth] = await Promise.all([preview('丙', true), preview('丁', true)])
+  await commit(fourth)
+  await assert.rejects(commit(third), /预览后已变更/)
+  assert.equal((await service.get('尾注')).footerHtml, '<p>丁</p>')
+})
+
 test('snippets：URL 预览沿用公开网页抓取边界', async () => {
   const stores = memoryStores()
   const service = new SnippetService(async () => stores, {
@@ -72,8 +88,8 @@ test('POST /snippets：preview/commit/list 共用 pending，并等待异步 KvTa
     },
   }
   const snippets = new SnippetService(async () => asyncStores)
-  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => process.cwd(), getStores: async () => asyncStores, snippets })
-  const server = createServer((req, res) => { if (req.url.startsWith(API_PREFIX)) return handler(req, res); res.statusCode = 404; res.end() })
+  const handler = createApiHandler({ resolveCwd: () => process.cwd(), getStores: async () => asyncStores, snippets })
+  const server = createServer((req, res) => { if (req.url.startsWith(API_PREFIX)) return handler(req, res, { principal: { kind: 'owner' } }); res.statusCode = 404; res.end() })
   server.listen(0, '127.0.0.1'); await once(server, 'listening')
   const origin = `http://127.0.0.1:${server.address().port}`
   const call = async (body) => {

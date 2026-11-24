@@ -31,7 +31,7 @@ async function callRoute(handler, method, requestPath, body, sessionId = 'sessio
     setHeader() {},
     end(chunk) { payload = String(chunk || '') },
   }
-  await handler(req, res)
+  await handler(req, res, { principal: { kind: 'owner' } })
   return { status: res.statusCode, body: JSON.parse(payload) }
 }
 
@@ -101,7 +101,7 @@ test('HOST-02：baseline.file 越界是损坏状态，不能读取工作目录�
 test('HOST-03：非法 base64 与伪造 PNG 经 POST /upload 返回 400 且不落盘', async () => {
   const cwd = workspace()
   const { key } = store.openDoc({ cwd, docPath: 'upload.md', markdown: '# 上传\n' })
-  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd, getStores: async () => { throw new Error('unused') } })
+  const handler = createApiHandler({ resolveCwd: () => cwd, getStores: async () => { throw new Error('unused') } })
   for (const data of ['***not-base64***', Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>').toString('base64')]) {
     const response = await callRoute(handler, 'POST', '/fishpai/api/upload', { docKey: key, sessionId: 'session-1', mime: 'image/png', data, name: 'fake.png' })
     assert.equal(response.status, 400)
@@ -138,7 +138,7 @@ test('HOST-04：storageDomain 打开失败时 themes/state 降级而不是整体
   persisted.theme = 'custom:missing'
   fs.writeFileSync(statePath, JSON.stringify(persisted))
   const failure = new Error('storageDomain unavailable')
-  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd, getStores: async () => { throw failure } })
+  const handler = createApiHandler({ resolveCwd: () => cwd, getStores: async () => { throw failure } })
   const themes = await callRoute(handler, 'GET', '/fishpai/api/themes')
   assert.equal(themes.status, 200)
   assert.equal(themes.body.ok, true)

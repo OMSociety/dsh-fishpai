@@ -8,6 +8,7 @@
  * 工具文案本身就是给模型的纪律：写之前先读、写要带 base_revision、人改优先。
  */
 import fs from 'node:fs'
+import { createHmac, randomBytes } from 'node:crypto'
 import path from 'node:path'
 import { render as renderCore, safeThemeKey } from '../core/render.mjs'
 import { themes } from '../core/runtime.mjs'
@@ -26,7 +27,7 @@ import {
   themeFor,
   writeCustomTheme,
 } from './custom-theme.mjs'
-import { MAX_EMBED_BYTES, listLocalImages, listRemoteImages, makeImageResolver, inlineHtmlImages } from './assets.mjs'
+import { MAX_EMBED_BYTES, listLocalImages, listRemoteImages, exportImages } from './assets.mjs'
 import { importArticleDocument } from './importer.mjs'
 
 const OUT_SCHEMA = {
@@ -35,6 +36,8 @@ const OUT_SCHEMA = {
   properties: {
     text: { type: 'string' },
     doc_key: { type: 'string' },
+    read_token: { type: 'string' },
+    base_revision: { type: 'integer' },
     isError: { type: 'boolean' },
   },
   required: ['text'],
@@ -152,6 +155,8 @@ function readBaseline(cwd, state) {
  * @returns {() => void} 全部工具的卸载函数
  */
 export function registerTools(ctx, deps) {
+  const bindingKey = randomBytes(32)
+  const readToken = (sessionId, key, revision, contentDigest) => `${key}.${createHmac('sha256', bindingKey).update(JSON.stringify([sessionId, key, revision, contentDigest])).digest('hex')}`
   const disposers = []
   const failures = []
   const register = (tool) => {
@@ -239,8 +244,10 @@ export function registerTools(ctx, deps) {
     output: { schema: OUT_SCHEMA, render: renderText },
     async execute(args, exec) {
       try {
-        const { cwd, key, abs, state } = locate(deps, exec, args)
+        const { cwd, key, abs, sessionId } = locate(deps, exec, args)
         const markdown = readText(abs)
+        const state = store.observeDoc(cwd, key, markdown)
+        const token = readToken(sessionId, key, state.revision, state.contentDigest)
         const blocks = splitBlocks(markdown)
         const baseline = readBaseline(cwd, state)
         // 基线丢了就别算差异：拿空串去比会把整篇算成"人重写了全文"，比不算更误导
@@ -250,7 +257,7 @@ export function registerTools(ctx, deps) {
         const images = listLocalImages({ markdown, cwd, docPath: abs })
         const include = String(args.include || 'full')
 
-        const out = []
+        const out = [`doc_key = ${key}　base_revision = ${state.revision}　read_token = ${token}`]
         out.push(`文档：${store.docTitle(markdown, abs)}`)
         out.push(`路径：${path.relative(cwd, abs).replace(/\\/g, '/')}　revision = ${state.revision}　共 ${blocks.length} 块`)
         const hasBaseline = !!state.baseline && !baseline.missing
@@ -331,7 +338,7 @@ export function registerTools(ctx, deps) {
           out.push(markdown)
         }
         out.push('—— 改稿提示：用 fishpai_write 的 mode:"patch" 只改你需要的块（block_id 见上），不要整篇重写，以免覆盖用户其余的手改。')
-        return ok(out.join('\n'), key)
+        return { ...ok(out.join('\n'), key), base_revision: state.revision, read_token: token }
       } catch (error) {
         return err(`fishpai_read 失败：${error.message}`)
       }
@@ -342,12 +349,13 @@ export function registerTools(ctx, deps) {
   register({
     name: 'fishpai_write',
     description:
-      '按用户的最新改动改稿。必须带上你 read 到的 base_revision：如果用户在 read 之后又改过，写入会被拒绝并回带最新 diff（这是为了不覆盖人的手改）。优先用 mode:"patch" 只替换/插入/删除指定块，整篇重写只在确实需要时用 mode:"replace"。',
+      '按用户的最新改动改稿。必须带上同一次 fishpai_read 的 read_token 和 base_revision：如果用户在 read 之后又改过，写入会被拒绝并回带最新 diff（这是为了不覆盖人的手改）。优先用 mode:"patch" 只替换/插入/删除指定块，整篇重写只在确实需要时用 mode:"replace"。',
     parameters: {
       type: 'object',
       properties: {
-        doc_key: { type: 'string', description: '文档键；省略则写本会话当前打开的那一份' },
-        base_revision: { type: 'number', description: '你 read 到的 revision；不匹配则拒绝写入' },
+        doc_key: { type: 'string', description: '文档键；省略则写 read_token 绑定的文档' },
+        read_token: { type: 'string', description: '同一次 fishpai_read 返回的文档与正文绑定值' },
+        base_revision: { type: 'integer', description: '你 read 到的 revision；不匹配则拒绝写入' },
         mode: { type: 'string', enum: ['patch', 'replace'], description: 'patch=按块局部改（推荐）；replace=整篇替换' },
         markdown: { type: 'string', description: 'mode=replace 时的全文' },
         patches: {
@@ -366,23 +374,26 @@ export function registerTools(ctx, deps) {
           },
         },
       },
-      required: ['base_revision', 'mode'],
+      required: ['read_token', 'base_revision', 'mode'],
       additionalProperties: false,
     },
     output: { schema: OUT_SCHEMA, render: renderText },
     async execute(args, exec) {
       try {
-        const { cwd, key, abs, state } = locate(deps, exec, args)
+        const boundKey = /^([0-9a-f]{12})\.[0-9a-f]{64}$/.exec(String(args.read_token || ''))?.[1]
+        if (!boundKey || (args.doc_key !== undefined && args.doc_key !== boundKey)) return err('写入被拒绝：请使用同一次 fishpai_read 返回的文档绑定值与版本。')
+        const { cwd, key, abs, sessionId } = locate(deps, exec, { doc_key: boundKey })
         const current = readText(abs)
+        const state = store.observeDoc(cwd, key, current)
         const mode = String(args.mode)
 
         // 先卡版本再看内容：版本不对时，块 id 也可能已经失效（人改了正文），
         // 那种情况下报"找不到块"会误导模型，报"版本不匹配，请重新 read"才准确。
-        if (Number(args.base_revision) !== state.revision) {
+        if (args.base_revision !== state.revision || args.read_token !== readToken(sessionId, key, state.revision, state.contentDigest)) {
           const baseline = readBaseline(cwd, state)
           const diff = baseline.missing ? { entries: [] } : diffBlocks(baseline.text, current)
           const lines = [
-            `写入被拒绝：base_revision=${args.base_revision} 但当前是 ${state.revision}——文档在你 read 之后被改过。`,
+            `写入被拒绝：base_revision=${args.base_revision} 当前版本 ${state.revision}；版本或读取绑定不匹配。`,
             '请重新 fishpai_read 拿到最新内容与块 id，再用新的 base_revision 提交，不要凭旧内容覆盖。',
           ]
           if (baseline.missing) lines.push(`（${baseline.missing}，因此这次给不出改动明细。）`)
@@ -410,7 +421,7 @@ export function registerTools(ctx, deps) {
           next = result.markdown
           applied = result.applied
           patchErrors = result.errors
-          if (!applied.length) return err(`没有一个补丁能应用：\n${patchErrors.join('\n')}`)
+          if (patchErrors.length || !applied.length) return err(`补丁未写入：\n${patchErrors.join('\n')}`)
         } else if (mode === 'replace') {
           if (typeof args.markdown !== 'string' || !args.markdown.trim()) return err('mode=replace 需要 markdown 全文')
           next = args.markdown
@@ -469,7 +480,7 @@ export function registerTools(ctx, deps) {
             '只写想改的槽位，其余从 base 继承；base 省略时为 default。与 theme 同时给时以 theme_spec 为准。' +
             '可用槽位与允许的 CSS 属性见技能 fishpai 的「自定义主题」一节（超出白名单会被拒绝并说明原因）。',
         },
-        out_path: { type: 'string', description: '输出 HTML 路径（工作目录内；可省略扩展名，会自动补 .html）；省略则与文档同名的 .html' },
+        out_path: { type: 'string', description: '输出 HTML 路径（工作目录内；可省略扩展名，会自动补 .html）；省略则用文档同名 .html；撞名时自动加编号，返回实际路径' },
         embed_images: { type: 'boolean', description: '是否把本地图片内嵌成 base64，默认 true' },
         publish: { type: 'boolean', description: 'true（默认）=「复制到剪贴板」形态；false = 预览原样 HTML' },
         snippetId: { type: 'string', description: '已确认的页头页尾片段名；渲染前拼入 Markdown，不改源文件' },
@@ -490,7 +501,9 @@ export function registerTools(ctx, deps) {
         const targetName = args.target || state.target || 'professional'
         if (!['quick', 'professional'].includes(targetName)) throw new Error(`未知渲染目标：${targetName}`)
         if (targetName !== 'quick' && args.theme_spec !== undefined) throw new Error('theme_spec 仅可用于 target=quick；专业目标请使用 professional_spec')
-        const professionalSpec = args.professional_spec || state.professionalSpec || {}
+        const patch = args.professional_spec
+        if (patch !== undefined && (!patch || typeof patch !== 'object' || Array.isArray(patch))) throw new Error('professional_spec 必须是对象')
+        const professionalSpec = { ...state.professionalSpec, ...patch }
         const custom = targetName === 'quick' && args.theme_spec ? buildCustomTheme(args.theme_spec, themes()) : null
         const stores = targetName === 'quick' && deps.getStores ? await deps.getStores() : null
         const theme = targetName === 'professional'
@@ -516,20 +529,28 @@ export function registerTools(ctx, deps) {
           wrapText: args.publish !== false,
           wechatBackground: args.publish !== false,
           promoteFontSize: args.publish !== false,
-          imageResolver: args.embed_images === false ? undefined : makeImageResolver({ cwd, docPath: abs }),
         })
-        if (targetName === 'professional' && args.publish !== false && args.embed_images !== false) {
-          out.html = inlineHtmlImages(out.html, { cwd, docPath: abs })
-        }
-        const target = args.out_path
+        const images = exportImages(out.html, { cwd, docPath: abs, embed: args.embed_images !== false })
+        out.html = images.html
+        const requested = args.out_path
           ? store.resolveInCwd(cwd, store.withDefaultExt(String(args.out_path), '.html'), { exts: ['.html', '.htm'] })
           : store.resolveInCwd(cwd, path.join(path.dirname(abs), `${path.basename(abs, path.extname(abs))}.html`), { exts: ['.html', '.htm'] })
-        fs.mkdirSync(path.dirname(target), { recursive: true })
-        fs.writeFileSync(target, out.html, 'utf8')
+        const { dir, name, ext } = path.parse(requested)
+        fs.mkdirSync(dir, { recursive: true })
+        let target = requested
+        for (let n = 2; ; n++) {
+          try {
+            fs.writeFileSync(target, out.html, { encoding: 'utf8', flag: 'wx' })
+            break
+          } catch (error) {
+            if (error.code !== 'EEXIST') throw error
+            target = path.join(dir, `${name}-${n}${ext}`)
+          }
+        }
         const lines = [
-          `${targetName === 'professional' ? '已导出专业 HTML' : '已导出 HTML'}：${path.relative(cwd, target).replace(/\\/g, '/')}`,
+          `${targetName === 'professional' ? '已导出专业 HTML' : '已导出 HTML'}：${path.relative(store.canonicalCwd(cwd), target).replace(/\\/g, '/')}`,
           `主题「${out.themeName}」　${out.html.length} 字符（约 ${Math.round(Buffer.byteLength(out.html, 'utf8') / 1024)} KB）`,
-          args.embed_images !== false && (targetName === 'quick' || args.publish !== false) ? '本地图片已内嵌 base64。' : '本地图片保留原始引用。',
+          `图片：已内嵌 ${images.embedded} 项，保留引用 ${images.unresolved} 项${args.embed_images === false ? '（关闭内嵌）' : ''}。`,
         ]
         if (custom) {
           lines.push(describeThemeSpec(custom.spec))

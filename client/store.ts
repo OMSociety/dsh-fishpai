@@ -724,7 +724,8 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     },
 
     async restore(id: string, label: string) {
-      if (!state.docKey) return
+      const key = state.docKey
+      if (!key) return
       // 与 `reloadSafely` 同一个约定：回滚会整篇换掉正文，先把未保存的输入落盘。
       // 少了这一步，"回滚到某一版"就顺带静默丢掉了用户刚打的字。
       if (state.conflict) {
@@ -739,8 +740,9 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         }
       }
       try {
-        await api.history(state.sessionId, state.docKey, { action: 'restore', id })
-        if (await loadDoc(state.docKey)) toast(`已回滚到 ${label}`)
+        if (state.docKey !== key) return
+        await api.history(state.sessionId, key, { action: 'restore', id, baseRevision: state.revision })
+        if (state.docKey === key && await loadDoc(key)) toast(`已回滚到 ${label}`)
       } catch (error) {
         if (error instanceof ConflictError) {
           patch({ conflict: { revision: error.revision, markdown: error.markdown } })
@@ -777,16 +779,16 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     },
 
     /** 复制用：生成可粘贴到目标编辑器的 HTML（本地图片已内嵌 base64）。 */
-    async copyHtml(): Promise<string> {
+    async copyHtml(selfContained = false): Promise<string> {
       if (!state.docKey) throw new Error('还没有打开文档')
       await saveNow()
-      const res = await api.renderCopyHtml(state.sessionId, state.docKey, state.markdown, state.meta, { target: state.meta.target })
+      const res = await api.renderCopyHtml(state.sessionId, state.docKey, state.markdown, state.meta, { target: state.meta.target, ...(selfContained ? { selfContained: true } : {}) })
       return res.html
     },
 
     /** 导出与复制使用同一种 HTML 形态，由面板负责下载。 */
     async exportHtml(): Promise<string> {
-      return actions.copyHtml()
+      return actions.copyHtml(true)
     },
 
     /** 轮询发现宿主的当前文档变了（AI 写入 / 换了一篇 / 别的窗口写的 / 模型换了主题）。 */

@@ -190,12 +190,20 @@ function readJson(file, fallback) {
   }
 }
 
-function writeJson(file, value) {
+function atomicText(file, text) {
   fs.mkdirSync(path.dirname(file), { recursive: true })
   // 临时文件 + rename，避免写一半留下坏 JSON
-  const tmp = `${file}.${process.pid}.tmp`
-  fs.writeFileSync(tmp, JSON.stringify(value, null, 2) + '\n', 'utf8')
-  fs.renameSync(tmp, file)
+  const tmp = `${file}.${randomUUID()}.tmp`
+  try {
+    fs.writeFileSync(tmp, text, { encoding: 'utf8', flag: 'wx', mode: fs.existsSync(file) ? fs.statSync(file).mode : 0o600 })
+    fs.renameSync(tmp, file)
+  } finally {
+    fs.rmSync(tmp, { force: true })
+  }
+}
+
+function writeJson(file, value) {
+  atomicText(file, JSON.stringify(value, null, 2) + '\n')
 }
 
 function indexPath(cwd) {
@@ -246,6 +254,7 @@ function defaultState(absPath) {
 }
 
 export function readState(cwd, key) {
+  recoverSave(cwd, key)
   const st = readJson(statePathFor(cwd, key), null)
   if (!st) return null
   st.version = STATE_VERSION
@@ -313,23 +322,16 @@ export function defaultDocPath(cwd, markdown) {
 
 // ── 历史 ───────────────────────────────────────────────────────
 
-function pushHistory(cwd, key, state, content, rev, by) {
+function pushHistory(cwd, key, state, content, rev, by, dropped = []) {
   const at = Date.now()
-  const id = `${String(rev).padStart(4, '0')}-${at.toString(36)}`
+  const id = `${String(rev).padStart(4, '0')}-${at.toString(36)}-${randomUUID()}`
   const rel = path.join('.fishpai', 'history', key, `${id}-${by || 'system'}.md`)
   const abs = path.join(cwd, rel)
   fs.mkdirSync(path.dirname(abs), { recursive: true })
   fs.writeFileSync(abs, content, 'utf8')
   const entry = { id, rev, at, by: by || 'system', file: rel.replace(/\\/g, '/'), chars: content.length }
   state.history.unshift(entry)
-  // 只留最近 50 份，避免无限膨胀
-  for (const dropped of state.history.splice(50)) {
-    try {
-      fs.unlinkSync(path.join(cwd, dropped.file))
-    } catch {
-      /* 已经不在就算了 */
-    }
-  }
+  dropped.push(...state.history.splice(50))
   return entry
 }
 
@@ -369,9 +371,11 @@ export function stash({ cwd, docPath, markdown, by = 'human', label }) {
   const key = docKey(abs)
   const state = readState(cwd, key)
   if (!state) return null
-  const entry = pushHistory(cwd, key, state, String(markdown ?? ''), state.revision, by)
+  const dropped = []
+  const entry = pushHistory(cwd, key, state, String(markdown ?? ''), state.revision, by, dropped)
   if (label) entry.label = label
   writeState(cwd, key, state)
+  pruneSnapshots(cwd, state, dropped)
   return { entry, revision: state.revision }
 }
 
@@ -444,9 +448,10 @@ export function openDoc({ cwd, docPath, markdown, theme, meta, by = 'ai', exclus
     }
     state = { ...defaultState(abs), ...metaPatch }
     state.revision = 1
+    state.contentDigest = digest(content)
     state.updatedBy = by
     if (theme) state.theme = theme
-    state.baseline = { rev: 1, at: Date.now(), by, file: pushHistory(cwd, key, state, content, 1, by).file }
+    state.baseline = pushHistory(cwd, key, state, content, 1, by)
     state = writeState(cwd, key, state)
     registerDoc(cwd, key, abs, content, state)
     return { key, path: abs, state, markdown: content, created: true, markdownIgnored: false }
@@ -459,6 +464,7 @@ export function openDoc({ cwd, docPath, markdown, theme, meta, by = 'ai', exclus
     const content = fs.readFileSync(abs, 'utf8')
     state = { ...defaultState(abs), ...metaPatch }
     state.revision = 1
+    state.contentDigest = digest(content)
     state.updatedBy = 'human'
     if (theme) state.theme = theme
     state.baseline = null
@@ -541,41 +547,79 @@ export function saveDoc({ cwd, docPath, markdown, baseRevision, by = 'human', me
   ensureFishpaiLayout(cwd)
   const abs = resolveInCwd(cwd, docPath)
   const key = docKey(abs)
-  const prevContent = fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : ''
-  let state = readState(cwd, key)
-  if (!state) {
-    state = defaultState(abs)
-    state.revision = 1
-  }
-
-  const hasBase =
-    baseRevision !== undefined && baseRevision !== null && Number.isFinite(Number(baseRevision))
-  if (!hasBase || Number(baseRevision) !== state.revision) {
+  const prevContent = readDocText(abs)
+  const state = observeDoc(cwd, key, prevContent)
+  if (!Number.isSafeInteger(baseRevision) || baseRevision !== state.revision) {
     return { ok: false, conflict: true, revision: state.revision, markdown: prevContent, path: abs, key }
   }
-
-  // 先留旧内容，再覆盖：任何一版都能回滚
-  if (prevContent && prevContent !== markdown) {
-    pushHistory(cwd, key, state, prevContent, state.revision, state.updatedBy || 'system')
-  }
-
-  fs.mkdirSync(path.dirname(abs), { recursive: true })
-  fs.writeFileSync(abs, markdown, 'utf8')
-
-  state.revision += 1
+  applyMeta(state, meta)
+  if (typeof markdown !== 'string') throw new Error('markdown 必须是字符串')
+  const previousBaseline = state.baseline
+  const dropped = []
+  if (prevContent !== markdown) pushHistory(cwd, key, state, prevContent, state.revision, state.updatedBy, dropped)
+  state.revision++
+  state.contentDigest = digest(markdown)
   state.updatedAt = Date.now()
   state.updatedBy = by
-  applyMeta(state, meta)
-
-  if (by === 'ai') {
-    // AI 写入即刷新 baseline：下一次 read 看到的就是"人在这之后改了什么"
-    state.baseline = { rev: state.revision, at: Date.now(), by, file: pushHistory(cwd, key, state, markdown, state.revision, by).file }
+  if (by === 'ai') state.baseline = pushHistory(cwd, key, state, markdown, state.revision, by, dropped)
+  const journal = saveJournal(cwd, key)
+  // 正文 rename 是提交点；恢复按正文摘要选择状态，不用日志里的正文覆盖外部编辑。
+  writeJson(journal, { state, key, dropped: [...dropped, previousBaseline].filter(Boolean) })
+  if (readDocText(abs) !== prevContent) {
+    fs.unlinkSync(journal)
+    const latest = readDocText(abs)
+    return { ok: false, conflict: true, revision: observeDoc(cwd, key, latest).revision, markdown: latest, path: abs, key }
   }
-  // 人的写入**不**动 baseline（没有 baseline 时也不凭空造一个）——那正是"人改了什么"的来源
-
-  state = writeState(cwd, key, state)
-  registerDoc(cwd, key, abs, markdown, state)
+  atomicText(abs, markdown)
+  recoverSave(cwd, key)
   return { ok: true, state, path: abs, key }
+}
+
+export function digest(markdown) {
+  return createHash('sha256').update(markdown).digest('hex')
+}
+
+export function observeDoc(cwd, key, markdown) {
+  const state = readState(cwd, key)
+  if (!state) throw new Error('文档状态缺失，请重新打开文档')
+  const current = digest(markdown)
+  if (state.contentDigest !== current) {
+    state.revision++
+    state.updatedAt = Date.now()
+    state.updatedBy = 'human'
+    state.contentDigest = current
+    writeState(cwd, key, state)
+  }
+  return state
+}
+
+function saveJournal(cwd, key) {
+  return path.join(stateDir(cwd), `${key}.pending.json`)
+}
+
+function pruneSnapshots(cwd, state, dropped) {
+  const keep = new Set([state.baseline?.file, ...state.history.map(h => h.file)])
+  for (const entry of dropped) {
+    if (keep.has(entry.file)) continue
+    const file = stateSnapshotPath(cwd, entry.file, '历史快照')
+    if (path.dirname(file) !== historyDir(cwd, docKey(state.docPath))) throw new Error('历史目录不匹配')
+    fs.rmSync(file, { force: true })
+  }
+}
+
+function recoverSave(cwd, key) {
+  const journal = saveJournal(cwd, key)
+  if (!fs.existsSync(journal)) return
+  const { state, dropped } = JSON.parse(fs.readFileSync(journal, 'utf8'))
+  const abs = resolveInCwd(cwd, state.docPath)
+  if (docKey(abs) !== key) throw new Error('保存记录与文档不匹配')
+  const markdown = readDocText(abs)
+  if (digest(markdown) === state.contentDigest) {
+    writeState(cwd, key, state)
+    registerDoc(cwd, key, abs, markdown, state)
+    pruneSnapshots(cwd, state, dropped)
+  }
+  fs.unlinkSync(journal)
 }
 
 /** 重新对齐 baseline 到当前内容（人在面板上点"以当前为准"时用）。 */
@@ -586,9 +630,12 @@ export function rebase({ cwd, docPath, by = 'human' }) {
   if (!state) return null
   // 走 readDocText：正文不在了要让路由层回 404，不能让裸 ENOENT 落进兜底 400。
   const content = readDocText(abs)
-  const entry = pushHistory(cwd, key, state, content, state.revision, by)
+  const dropped = [state.baseline].filter(Boolean)
+  const entry = pushHistory(cwd, key, state, content, state.revision, by, dropped)
   const next = { ...state, baseline: { rev: state.revision, at: Date.now(), by, file: entry.file } }
-  return writeState(cwd, key, next)
+  writeState(cwd, key, next)
+  pruneSnapshots(cwd, next, dropped)
+  return next
 }
 
 /**

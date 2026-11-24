@@ -9,6 +9,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { load } from 'cheerio'
 import { IMAGE_EXTS, MAX_ASSET_BYTES, mimeFor, resolveInCwd } from './store.mjs'
 
 /**
@@ -44,16 +45,51 @@ function imageSources(markdown) {
   return out
 }
 
-/** 发布产物内嵌 raw HTML/SVG 的本地图片；远程图、越界图与超限图保持原引用。 */
-export function inlineHtmlImages(html, { cwd, docPath, maxBytes = MAX_EMBED_BYTES }) {
-  const resolve = makeImageResolver({ cwd, docPath, maxBytes })
-  const replace = (full, prefix, quote, src) => {
-    const dataUri = resolve(decodeAttr(src))
-    return dataUri ? `${prefix}${quote}${dataUri}${quote}` : full
+/** 从最终 HTML 统计图片并只改写属性区间，保留 SVG 和内联排版的原始字节。 */
+export function exportImages(html, { cwd, docPath, embed = true, strict = embed, maxBytes = MAX_EMBED_BYTES }) {
+  const $ = load(html, { sourceCodeLocationInfo: true }, false)
+  const cache = new Map()
+  const edits = []
+  const unresolved = new Map()
+  const embedded = new Set()
+  for (const node of $('img, image, source, [style]')) {
+    const attrs = node.sourceCodeLocation?.attrs || {}
+    const name = node.name
+    const srcset = node.attribs.srcset
+    if ((name === 'img' || name === 'source') && srcset) unresolved.set('srcset: ' + srcset.split('?')[0].slice(0, 80), '响应式图片引用')
+    for (const m of (node.attribs.style || '').matchAll(/url\(\s*['"]?([^)'"\s]+)/gi)) {
+      if (!/^(data:|#)/i.test(m[1])) unresolved.set(m[1], '样式图片引用')
+    }
+    const keys = name === 'img' ? ['src'] : name === 'image' ? ['href', 'xlink:href'] : []
+    for (const key of keys) {
+      const loc = attrs[key]
+      if (!loc) continue
+      const src = (node.attribs[key] ?? node.attribs.href ?? '').trim()
+      if (/^data:image\//i.test(src) || (name === 'image' && src.startsWith('#'))) { embedded.add(src); continue }
+      if (!embed || isRemote(src)) { unresolved.set(src, embed ? '外部图片引用' : '关闭内嵌'); continue }
+      const result = cache.get(src) ?? localImage(src, { cwd, docPath, maxBytes })
+      cache.set(src, result)
+      if (!result.data) { unresolved.set(src, result.reason); continue }
+      embedded.add(src)
+      edits.push({ loc, replacement: `${key}="${result.data}"` })
+    }
   }
-  return String(html || '')
-    .replace(/(<img\b[^>]*?\bsrc\s*=\s*)(["'])(.*?)\2/gi, replace)
-    .replace(/(<image\b[^>]*?\b(?:href|xlink:href)\s*=\s*)(["'])(.*?)\2/gi, replace)
+  if (strict && unresolved.size) {
+    const detail = [...unresolved].map(([src, reason]) => `${src.split(/[?#]/)[0].slice(0, 180) || '（空引用）'}（${reason}）`).join('、')
+    throw new Error(`自包含导出缺少 ${unresolved.size} 项图片：${detail}`)
+  }
+  const parts = []
+  let start = 0
+  for (const { loc, replacement } of edits.sort((a, b) => a.loc.startOffset - b.loc.startOffset)) {
+    parts.push(html.slice(start, loc.startOffset), replacement)
+    start = loc.endOffset
+  }
+  parts.push(html.slice(start))
+  return { html: parts.join(''), embedded: embedded.size, unresolved: unresolved.size }
+}
+
+export function inlineHtmlImages(html, options) {
+  return exportImages(html, { ...options, strict: false }).html
 }
 
 /**
@@ -63,24 +99,26 @@ export function inlineHtmlImages(html, { cwd, docPath, maxBytes = MAX_EMBED_BYTE
  * @returns {(src: string) => string | null} 返回 null 表示保持原样
  */
 export function makeImageResolver({ cwd, docPath, maxBytes = MAX_EMBED_BYTES }) {
-  const baseDir = path.dirname(docPath)
-  return (src) => {
-    if (!src || isRemote(src)) return null
-    let abs
-    try {
-      abs = resolveInCwd(cwd, path.isAbsolute(src) ? src : path.join(baseDir, src), { exts: IMAGE_EXTS })
-    } catch {
-      return null // 越界或不是图片：原样保留，交给微信去处理
-    }
-    let stat
-    try {
-      stat = fs.statSync(abs)
-    } catch {
-      return null
-    }
-    if (!stat.isFile() || stat.size > maxBytes) return null
-    const data = fs.readFileSync(abs)
-    return `data:${mimeFor(abs)};base64,${data.toString('base64')}`
+  return (src) => !src || isRemote(src) ? null : localImage(src, { cwd, docPath, maxBytes }).data ?? null
+}
+
+function localImage(src, { cwd, docPath, maxBytes }) {
+  let abs
+  try {
+    const file = decodeURIComponent(src.split(/[?#]/)[0])
+    abs = resolveInCwd(cwd, path.resolve(path.dirname(docPath), file), { exts: IMAGE_EXTS })
+  } catch {
+    return { reason: '路径或格式不支持' }
+  }
+  try {
+    const stat = fs.statSync(abs)
+    if (!stat.isFile()) return { reason: '不是文件' }
+    if (stat.size > maxBytes) return { reason: '文件过大' }
+    const bytes = fs.readFileSync(abs)
+    if (bytes.length > maxBytes) return { reason: '文件过大' }
+    return { data: `data:${mimeFor(abs)};base64,${bytes.toString('base64')}` }
+  } catch (error) {
+    return { reason: error.code === 'ENOENT' ? '文件不存在' : '无法读取' }
   }
 }
 

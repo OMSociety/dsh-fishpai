@@ -57,11 +57,14 @@ async function responseText(response) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-export async function fetchPublicPage(value, { fetchImpl = fetch, lookup = dns.lookup } = {}) {
+async function readPage(value, fetchImpl, lookup, signal) {
   let url = await assertPublicUrl(value, lookup)
   for (let redirect = 0; redirect < 5; redirect += 1) {
-    const response = await fetchImpl(url, { redirect: 'manual', headers: { accept: 'text/html,text/plain,markdown;q=0.9,*/*;q=0.1' } })
+    signal.throwIfAborted()
+    const response = await fetchImpl(url, { signal, redirect: 'manual', headers: { accept: 'text/html,text/plain,markdown;q=0.9,*/*;q=0.1' } })
     if ([301, 302, 303, 307, 308].includes(response.status)) {
+      await response.body?.cancel()
+      signal.throwIfAborted()
       const location = response.headers.get('location')
       if (!location) throw new Error('网页重定向缺少 Location')
       url = await assertPublicUrl(new URL(location, url).href, lookup)
@@ -72,4 +75,22 @@ export async function fetchPublicPage(value, { fetchImpl = fetch, lookup = dns.l
     return { text, contentType, finalUrl: url.href }
   }
   throw new Error('网页重定向超过 5 次')
+}
+
+export async function fetchPublicPage(value, { fetchImpl = fetch, lookup = dns.lookup, timeoutMs = 15_000 } = {}) {
+  const controller = new AbortController()
+  let timer
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error(`网页抓取超时：总时限 ${timeoutMs} 毫秒`)
+      reject(error)
+      controller.abort(error)
+    }, timeoutMs)
+  })
+  try {
+    return await Promise.race([deadline, readPage(value, fetchImpl, lookup, controller.signal)])
+  } finally {
+    clearTimeout(timer)
+    controller.abort()
+  }
 }

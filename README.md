@@ -1,3 +1,5 @@
+<p align="center"><strong>中文</strong> • <a href="README_en.md">English</a></p>
+
 <div align="center">
 <h1><img src="https://raw.githubusercontent.com/OMSociety/dsh-fishpai/main/docs/logo.png" width="192" alt="鱼排 FishPai"><br>鱼排编辑器 FishPai</h1>
 
@@ -67,9 +69,9 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 | 工具 | 作用 | 关键参数 |
 |---|---|---|
 | `fishpai_open` | 打开 / 新建文档，并在右侧栏弹出面板 | `path`（可省扩展名，自动补 `.md`）、`markdown`（新建时写正文）、`theme`、`professional_spec`（专业画布持久规格） |
-| `fishpai_read` | **改稿前必做**：读块级 diff、批注、占位、图片提醒与块 id | `doc_key`、`include` |
-| `fishpai_write` | 改稿。必须带 `base_revision`；优先按块改 | `doc_key`、`base_revision`、`mode`（`patch` / `replace`）、`patches[{block_id 或 block_index, op, markdown}]` |
-| `fishpai_render` | 导出可粘贴 / 归档的自包含 HTML（本地图片内嵌 base64） | `out_path`（可省扩展名）、`theme`、`theme_spec`（仅 `'quick'` 快速目标的临时自定义主题，不落盘）、`target`（`'professional'` 专业默认 / `'quick'` 快速）、`professional_spec`（当次画布覆盖）、`snippetId`（装配页头页尾片段）、`publish`（`false` = 预览原样形态）、`embed_images` |
+| `fishpai_read` | **改稿前必做**：读块级 diff、批注、占位、图片提醒与块 id，返回 `doc_key`、`base_revision`、`read_token` | `doc_key`、`include` |
+| `fishpai_write` | 按同一次读取的文档与版本改稿；优先按块改 | `read_token`、`base_revision`（均必填）、`doc_key`（省略则写回读过的文档）、`mode`（`patch` / `replace`）、`patches[{block_id 或 block_index, op, markdown}]` |
+| `fishpai_render` | 导出可粘贴 / 归档的自包含 HTML（本地图片内嵌 base64） | `out_path`（可省扩展名）、`theme`、`theme_spec`（仅 `'quick'` 快速目标的临时自定义主题，不落盘）、`target`（`'professional'` 专业默认 / `'quick'` 快速）、`professional_spec`（在文档规格上逐项覆盖，仅本次有效）、`snippetId`（装配页头页尾片段）、`publish`（`false` = 预览原样形态）、`embed_images` |
 | `fishpai_import` | 从公众号 URL、粘贴 HTML 或工作区 HTML 导入为新专业文档；raw 保真、保守提升、素材本地化，附结构 / 规格 / lint 报告 | `url` / `html` / `path`（三选一）、`out_path`（必须是不存在的 `.md`） |
 | `fishpai_theme` | 用户级**「命名主题库」**（多套，`set` / `show` / `clear` / `list`）：模型在某套内置主题上只覆盖想改的槽位，存为 `custom:<id>` 命名主题 | `action`、`theme_id`、`theme_spec` |
 | `fishpai_snippets` | 页头页尾片段库：预览确认后入库，渲染时按名装配 | `action`、`name`、`headerHtml` / `footerHtml` / `footerImg`、`footerAnchors`、`pending_id`、`confirm` |
@@ -77,6 +79,12 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 
 模型的标准动作顺序是 **`open` → 等你改 → `read` → `write` → 你点复制**；技能 `fishpai`
 （随插件注册）里写明了这套纪律与排版口径，模型会在需要时自己读。
+
+### 如何处理冲突和导出结果
+
+- 模型写稿时原样传回同次读取的 `read_token` 和 `base_revision`。切换面板文档不会改变写入对象；若正文在外部编辑器或面板里已改，请重读后合并。面板保存、恢复历史也核对操作时所见的版本。文档设置先校验，再保存正文。
+- 导出会新建文件。同名 HTML 已存在时，实际文件名依次取 `文章-2.html`、`文章-3.html`。默认内嵌要求图片齐全；失败时根据报告补齐素材后再导出。若要保留引用，显式设 `embed_images:false`，交付时一并提供图片，并核对报告中的内嵌数与引用数。
+- 导入保留段首的字面标记；特殊编号与嵌套列表保留为 raw HTML。公开文章网页抓取的 15 秒总时限包含域名解析、重定向和正文读取。页头页尾片段从预览到确认之间若同名记录有变，请重新预览并确认。
 
 ## 面板快捷键
 
@@ -100,7 +108,7 @@ dsh plugin --profile <profile> add "dsh-fishpai"
 | `.fishpai/docs/` | 没指定路径时新建的文档 | `fishpai_open` 省略 `path` 就落在这里，按标题命名 |
 | `<文档同级>/assets/` | 粘贴或导入的图片 | 相对路径引用（`assets/xxx.png`），文档搬走图也跟着走 |
 | `.fishpai/state/` | revision、baseline、批注与文档渲染状态 | 按文档路径哈希命名；删掉会丢批注、历史与「模型上次写入的基线」（正文不动，但模型暂时看不出你改了什么） |
-| `.fishpai/history/` | 历史快照（最多 50 份） | 面板「历史」抽屉里可一键回滚 |
+| `.fishpai/history/` | 最近历史快照（最多 50 份） | 在面板「历史」抽屉中恢复；用于比较人工修改的模型基线独立保留 |
 | 用户级存储（`storageDomain`） | 命名主题库、页头页尾片段库 | 跨工作目录、跨重启持久；命名主题为 `custom:<id>` |
 | `.fishpai/.gitignore` | 忽略 `state/`、`history/` | 插件自建，只追加缺失的行（你写的改动一字不动）；正文与图片是否入库由你自己决定 |
 

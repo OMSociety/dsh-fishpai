@@ -277,15 +277,15 @@ test('updateMeta / saveDoc：非十六进制形态的 color 一律不写进状�
 test('DSH 访问检查先于鱼排路由的任何读写', async () => {
   const seen = []
   const handler = createApiHandler({
-    requestRejection: (req) => {
+    admit: (req) => {
       seen.push(req.url)
-      return req.headers['x-test-rejection']
+      return { rejection: req.headers['x-test-rejection'] }
     },
     resolveCwd: () => { throw new Error('被拒绝的请求不得解析工作目录') },
   })
   for (const rejection of [401, 403]) {
     let ended = false
-    const res = { statusCode: 200, end: () => { ended = true } }
+    const res = { statusCode: 200, writeHead(code) { this.statusCode = code }, end: () => { ended = true } }
     await handler({
       method: 'POST',
       url: '/fishpai/api/doc',
@@ -298,14 +298,14 @@ test('DSH 访问检查先于鱼排路由的任何读写', async () => {
   assert.deepEqual(seen, ['/fishpai/api/doc', '/fishpai/api/doc'])
 })
 
-test('新宿主无 requestRejection：非 owner 或缺 Peer 回 403，owner 放行到路由', async () => {
+test('三参分派按宿主认证的 owner 身份准入', async () => {
   const cwd = tmpWorkspace()
   const handler = createApiHandler({ resolveCwd: () => cwd })
   const route = { method: 'GET', url: '/fishpai/api/themes' }
   for (const peer of [undefined, { principal: { kind: 'guest' } }]) {
     const out = await callRoute(handler, route, peer)
     assert.equal(out.status, 403)
-    assert.equal(out.json.error, 'forbidden')
+    assert.equal(out.json.error, '请以宿主所有者身份连接')
   }
   const out = await callRoute(handler, route, { principal: { kind: 'owner' } })
   assert.equal(out.status, 200)
@@ -315,7 +315,7 @@ test('POST /render：body.meta 里的 color 也要过形态校验（它不是写
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: '## 标题\n\n正文。\n', by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
+  const handler = createApiHandler({ resolveCwd: () => cwd })
 
   const out = await callRoute(handler, {
     method: 'POST',
@@ -352,7 +352,7 @@ test('字号入口二：POST /render 的 body.meta.fontSize 也要过形态校�
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: '## 标题\n\n正文。\n', by: 'ai' })
   store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ requestRejection: () => undefined, resolveCwd: () => cwd })
+  const handler = createApiHandler({ resolveCwd: () => cwd })
 
   const out = await callRoute(handler, {
     method: 'POST',
@@ -580,6 +580,6 @@ function callRoute(handler, { method, url, body }, peer) {
         resolve({ status: this.statusCode, headers: this.headers, json, raw })
       },
     }
-    handler(req, res, peer)
+    handler(req, res, arguments.length < 3 ? { principal: { kind: 'owner' } } : peer)
   })
 }

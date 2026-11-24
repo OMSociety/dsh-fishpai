@@ -13,7 +13,7 @@ import { Context } from '@deepseek-ai/cordis'
 import * as plugin from '../plugin/index.mjs'
 
 /** 搭一个最小宿主：五个服务 + 一块临时工作目录。 */
-function makeApp(cwd, requestRejection = () => undefined) {
+function makeApp(cwd, admit = () => ({ peer: { principal: { kind: 'owner' } } })) {
   const app = new Context()
   const registeredTools = []
   const routes = []
@@ -29,7 +29,7 @@ function makeApp(cwd, requestRejection = () => undefined) {
       }
     },
   })
-  app.provide('connection', { requestRejection })
+  app.provide('connection', { admit })
   app.provide('sessions', {
     get: (id) => sessions.get(id),
     list: () => [...sessions.values()],
@@ -123,14 +123,14 @@ test('宿主挂载把 connection 的拒绝结果接到鱼排路由', async () =>
   const os = await import('node:os')
   const path = await import('node:path')
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'fishpai-connection-'))
-  const { app, routes } = makeApp(cwd, () => 401)
+  const { app, routes } = makeApp(cwd, () => ({ rejection: 401 }))
   const fiber = app.plugin(plugin)
   await fiber
   await flush()
   const route = routes.find((entry) => entry.path === '/fishpai/api')
   assert.ok(route, '鱼排路由已注册')
   let ended = false
-  const res = { statusCode: 200, end: () => { ended = true } }
+  const res = { statusCode: 200, writeHead(code) { this.statusCode = code }, end: () => { ended = true } }
   await route.handler({ method: 'GET', url: '/fishpai/api/themes', headers: { host: '127.0.0.1:3080' } }, res)
   assert.equal(res.statusCode, 401)
   assert.equal(ended, true)
@@ -145,7 +145,7 @@ test('缺少 webServer 时照样挂载（工具与技能仍然可用）', async 
 
   const app = new Context()
   app.provide('webServer', undefined) // 服务存在但没有实现：插件应当降级，而不是挂不起来
-  app.provide('connection', { requestRejection: () => undefined })
+  app.provide('connection', {})
   app.provide('sessions', { get: () => ({ header: { cwd } }), list: () => [] })
   const tools = []
   app.provide('tools', {

@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import { load } from 'cheerio'
 import { importArticle } from '../plugin/core/import/index.mjs'
 import { DEFAULT_SPEC } from '../plugin/core/professional/spec.mjs'
 import { renderProfessionalPublish } from '../plugin/core/professional/index.mjs'
@@ -38,6 +39,17 @@ test('简单标题、段落、列表与图片提升为原生 Markdown', async ()
   assert.equal(result.blocks.filter((block) => block.kind === 'native').length, 4)
   assert.equal(result.blocks.at(-1).kind, 'native')
   assert.match(result.blocks.at(-1).markdown, /!\[示意图\]\(https:\/\/example\.invalid\/a\.png\)/)
+})
+
+test('普通段落的行首标点、换行与自定义编号在专业输出中保持原意', async () => {
+  const result = await importArticle({ html: '<main><p><span>##</span> 标记<br>2. 示例</p><p>:::card</p><ol start="7"><li>甲<ul><li>子项</li></ul></li><li value="12">乙</li></ol></main>' })
+  const $ = load(renderProfessionalPublish(result.markdown).html)
+  const paragraphs = $('p').toArray().map((p) => $(p).text())
+  assert.deepEqual(paragraphs.map((text) => text.replace(/\s+/g, ' ').trim()), ['## 标记 2. 示例', ':::card'])
+  assert.equal($('p br').length, 1)
+  assert.equal($('ol').attr('start'), '7')
+  assert.equal($('ol > li').last().attr('value'), '12')
+  assert.equal($('ol > li > ul > li').text(), '子项')
 })
 
 test('带重要样式的段落保留 raw，不伪造等价 Markdown', async () => {
@@ -155,12 +167,12 @@ test('markdown 可交给 renderProfessionalPublish，lint 无主动内容类错�
 test('IMPORT-01：公开公众号剪贴板样本穿透排版外壳并保留复杂原子块', async () => {
   const html = fs.readFileSync(new URL('./golden/site-clip.default.html', import.meta.url), 'utf8')
   const result = await importArticle({ html })
-  assert.ok(result.stats.native >= 10, `native 只有 ${result.stats.native}：${JSON.stringify(result.blocks.map((block) => ({ tag: block.tag, kind: block.kind })))}`)
+  assert.equal(result.stats.native, 8)
   const headings = result.blocks.filter((block) => /^h[1-6]$/.test(block.tag))
   assert.equal(headings.length, 6)
   assert.equal(headings.every((block) => block.kind === 'native'), true)
-  assert.equal(result.blocks.filter((block) => ['ul', 'ol'].includes(block.tag)).every((block) => block.kind === 'native'), true)
-  assert.match(result.markdown, /- 无序项一[\s\S]*- 嵌套项/)
+  assert.equal(result.blocks.find((block) => block.tag === 'ul').kind, 'raw')
+  assert.match(result.markdown, /<li[^>]*>[\s\S]*无序项一[\s\S]*<ul[^>]*>[\s\S]*嵌套项/)
   assert.match(result.markdown, /!\[示例图片\]\(https:\/\/example\.com\/demo\.png\)/)
   assert.equal(result.blocks.find((block) => block.tag === 'table')?.kind, 'raw')
   assert.equal(result.blocks.filter((block) => block.tag === 'pre').every((block) => block.kind === 'raw'), true)

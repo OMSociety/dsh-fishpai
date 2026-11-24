@@ -37,12 +37,12 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 | 工具 | 用途 |
 |---|---|
 | `fishpai_open` | 打开/新建文档并在右侧栏弹出面板。传 `markdown` 新建；传 `path` 打开已有的 `.md`（**不覆盖**已有内容）。专业稿可同时传 `professional_spec`，画布参数随文档保存，预览、复制与导出共用 |
-| `fishpai_read` | **改稿前必做**。返回：与"你上次写入的版本"的**块级 diff**、人的**批注**、**行内占位**、图片提醒、全文与块 id |
-| `fishpai_write` | 改稿。必须带 `base_revision`；优先 `mode:"patch"` 只改指定块，`mode:"replace"` 才整篇换 |
-| `fishpai_render` | 导出可粘贴/归档用的 HTML 文件（发布形态默认内嵌本地图片；`out_path` 可省略扩展名）。`target` 选 `professional`（专业，默认跟随文档）或 `quick`（快速）；`snippetId` 可拼入已确认的页头页尾片段 |
+| `fishpai_read` | **改稿前必做**。返回：与"你上次写入的版本"的**块级 diff**、人的**批注**、**行内占位**、图片提醒、全文与块 id，以及本次写回用的 `doc_key`、`base_revision` 和 `read_token` |
+| `fishpai_write` | 改稿。必须带同次读取的 `read_token` 和 `base_revision`；优先 `mode:"patch"` 只改指定块，`mode:"replace"` 才整篇换 |
+| `fishpai_render` | 导出可粘贴/归档用的 HTML 文件（发布形态默认内嵌本地图片；`out_path` 可省略扩展名；撞名时以返回路径为准）。`target` 选 `professional`（专业，默认跟随文档）或 `quick`（快速）；`snippetId` 可拼入已确认的页头页尾片段。图片未齐时按报告补齐再导出；仅当用户要引用模式时设 `embed_images:false`，交付时说明引用数量与所需图片 |
 | `fishpai_import` | 从公众号 URL、粘贴 HTML 或工作区 HTML 新建专业文档。`url` / `html` / `path` 三选一，`out_path` 必须不存在；raw 保真、保守提升、图片本地化，返回结构 / 素材 / 规格证据 / lint 报告 |
 | `fishpai_theme` | 管理**用户级命名主题库**（`set` / `show` / `clear` / `list`），可存多套命名主题，跨工作目录共享。用户要"某种观感"时用，见下面「自定义主题」一节 |
-| `fishpai_snippets` | 提取并管理页头页尾片段。`preview` 生成候选 → 用户确认 → `commit` 入库；渲染时用 `fishpai_render` 的 `snippetId` 装配，不改源 Markdown |
+| `fishpai_snippets` | 提取并管理页头页尾片段。`preview` 生成候选 → 用户确认 → `commit` 入库；同名片段有变则重新预览并请用户确认。渲染时用 `fishpai_render` 的 `snippetId` 装配，不改源 Markdown |
 | `fishpai_lint` | 检查 HTML 是否满足微信粘贴约束（id/class/CSS 动画/grid 等禁令），结果区分草稿 API 路径观察与粘贴路径推论 |
 
 标准流程：
@@ -64,7 +64,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 
 ### 文档级 `professional_spec`
 
-`fishpai_open({ path, professional_spec })` 保存画布；`fishpai_render({ target:'professional', professional_spec })` 只做当次覆盖。两组工具都不需要手动修改渲染代码。
+`fishpai_open({ path, professional_spec })` 保存画布；`fishpai_render({ target:'professional', professional_spec })` 在文档画布规格上逐键覆盖，只用于当次渲染。两组工具都不需要手动修改渲染代码。
 
 ```json
 {
@@ -131,8 +131,8 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 
 ## 铁律
 
-1. **先读后写**。`fishpai_write` 不带 `base_revision` 或版本不匹配会被**拒绝**——这是为了不覆盖人的手改。
-   被拒绝时不要硬来：重新 `fishpai_read`，看清人又改了什么，再用新 revision 提交。
+1. **先读后写**。将同次 `fishpai_read` 返回的 `read_token` 和 `base_revision` 原样交给 `fishpai_write`。省略 `doc_key` 时写回读过的文档；显式指定时须与该次读取一致。若要改另一篇，先读那一篇。
+   遇到冲突时，重读目标文档，合并面板或外部编辑器中的修改，再用新返回的一对值提交。
 2. **只改要改的块**。`mode:"patch"` 配 `block_id`（来自 `fishpai_read` 的 diff 或 `outline`）局部改；
    整篇 `replace` 会覆盖人其它位置的改动，只在确实需要重写时用。
 3. **块 id 是内容寻址的**：人改了某块内容，它的 id 就变了。所以要用**最近一次 `read` 的结果**里的 id，

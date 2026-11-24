@@ -254,7 +254,7 @@ export const api = {
     docKey: string,
     markdown: string,
     meta: Partial<DocMeta>,
-    options: { target?: RenderTarget; snippetId?: string } = {},
+    options: { target?: RenderTarget; snippetId?: string; selfContained?: boolean } = {},
   ) =>
     call<{ ok: true; html: string; themeName: string; target?: RenderTarget }>(`/render`, {
       method: 'POST',

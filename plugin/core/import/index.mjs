@@ -174,6 +174,13 @@ function escapeText(text) {
   return String(text).replace(/\\/g, '\\\\').replace(/([`*_[\]<>])/g, '\\$1').replace(/\r?\n/g, ' ')
 }
 
+// 行首由相邻行内节点共同组成，须在拼接与去除首尾空白之后转义。
+function escapeBlockStarts(markdown) {
+  return markdown
+    .replace(/^(\s*)([#~+=:-])/gm, '$1\\$2')
+    .replace(/^(\s*\d{1,9})([.)])(?=\s|$)/gm, '$1\\$2')
+}
+
 function inlineEmphasis($, node, tag) {
   const style = declarationsObject($(node).attr('style'))
   const boldTag = tag === 'strong' || tag === 'b'
@@ -225,7 +232,7 @@ function inlineMarkdown($, node) {
 function simpleInline($, node, blockStyles = PARAGRAPH_STYLES) {
   if (!hasOnlyStyles($, node, blockStyles) || negativeHorizontalMargin($(node).attr('style'))) return null
   const content = $(node).contents().toArray().map((child) => inlineMarkdown($, child))
-  if (!content.some((part) => part === null)) return content.join('').trim()
+  if (!content.some((part) => part === null)) return escapeBlockStarts(content.join('').trim())
   return null
 }
 
@@ -234,24 +241,14 @@ function listMarkdown($, node) {
   const items = $(node).children('li').toArray()
   if (!items.length || $(node).children().length !== items.length) return null
   const ordered = tagName(node) === 'ol'
+  // 专业列表组件只有平铺的条目，从 1 起连续编号。
+  if ($(node).is('[reversed], [type]') || (ordered && $(node).is('[start]') && $(node).attr('start') !== '1')) return null
   const lines = []
   for (const [index, item] of items.entries()) {
-    if (!hasOnlyStyles($, item, PARAGRAPH_STYLES) || negativeHorizontalMargin($(item).attr('style'))) return null
-    const contents = $(item).contents().toArray()
-    const nested = contents.filter((child) => child.type === 'tag' && ['ul', 'ol'].includes(tagName(child)))
-    const inline = contents.filter((child) => !nested.includes(child))
-    if (inline.some((child) => child.type === 'tag' && !INLINE_TAGS.has(tagName(child)))) return null
-    const parts = inline.map((child) => inlineMarkdown($, child))
-    if (parts.some((part) => part === null)) return null
-    const content = parts.join('').trim()
-    if (!content && !nested.length) return null
-    let line = `${ordered ? `${index + 1}.` : '-'} ${content}`
-    for (const child of nested) {
-      const markdown = listMarkdown($, child)
-      if (!markdown) return null
-      line += `\n${markdown.split('\n').map((nestedLine) => `  ${nestedLine}`).join('\n')}`
-    }
-    lines.push(line)
+    if ($(item).is('[value], [type]') || !hasOnlyStyles($, item, PARAGRAPH_STYLES) || negativeHorizontalMargin($(item).attr('style'))) return null
+    const content = simpleInline($, item)
+    if (!content || content.includes('\n')) return null
+    lines.push(`${ordered ? `${index + 1}.` : '-'} ${content}`)
   }
   return lines.join('\n')
 }
@@ -284,7 +281,7 @@ function semanticChildren($, node) {
 function collectBlocks($, node, blocks) {
   if (node.type === 'text') {
     const text = String(node.data || '').trim()
-    if (text) blocks.push({ html: `<p>${escapeText(text)}</p>`, markdown: escapeText(text), tag: 'p', component: 'paragraph', kind: 'native', confidence: 0.8, reason: '正文直接文本转为段落' })
+    if (text) blocks.push({ html: $.html($('<p>').text(text)), markdown: escapeBlockStarts(escapeText(text)), tag: 'p', component: 'paragraph', kind: 'native', confidence: 0.8, reason: '正文直接文本转为段落' })
     return
   }
   const tag = tagName(node)

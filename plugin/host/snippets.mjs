@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { isDeepStrictEqual } from 'node:util'
 import { load } from 'cheerio'
 import { composeMarkdown, extractSnippets, normalizeSnippetName, sanitizeFragment } from '../core/snippets.mjs'
 import { fetchPublicPage } from './public-fetch.mjs'
@@ -16,6 +17,13 @@ export class SnippetService {
     this.fetchPage = fetchPage
     this.renderFragment = renderFragment
     this.pending = new Map()
+    this.writeTail = Promise.resolve()
+  }
+
+  enqueueWrite(write) {
+    const result = this.writeTail.then(write)
+    this.writeTail = result.then(() => undefined, () => undefined)
+    return result
   }
 
   async stores() {
@@ -56,19 +64,28 @@ export class SnippetService {
       throw error
     }
     const pendingId = randomUUID()
-    this.pending.set(pendingId, { record, sourceName: candidate.sourceName, sourceRef: candidate.sourceRef, createdAt: Date.now() })
+    this.pending.set(pendingId, { record, baseline: structuredClone(existing), sourceName: candidate.sourceName, sourceRef: candidate.sourceRef, createdAt: Date.now() })
     if (this.pending.size > 64) this.pending.delete(this.pending.keys().next().value)
     return { pendingId, snippet: record, sourceName: candidate.sourceName, sourceRef: candidate.sourceRef }
   }
 
   async commit({ pendingId, confirm }) {
-    this.sweep()
     if (confirm !== true) throw new Error('请让用户确认片段预览后，再以 confirm:true 提交')
-    const row = this.pending.get(pendingId)
-    if (!row) throw new Error('pendingId 不存在或已过期，请重新 preview')
-    await (await this.stores()).snippets.table('snippets').put(row.record.name, row.record)
-    this.pending.delete(pendingId)
-    return publicSnippet(row.record)
+    return this.enqueueWrite(async () => {
+      this.sweep()
+      const row = this.pending.get(pendingId)
+      if (!row) throw new Error('pendingId 不存在或已过期，请重新 preview')
+      const table = (await this.stores()).snippets.table('snippets')
+      if (!isDeepStrictEqual(await table.get(row.record.name), row.baseline)) {
+        this.pending.delete(pendingId)
+        const error = new Error(`片段「${row.record.name}」在预览后已变更，请重新 preview`)
+        error.duplicate = true
+        throw error
+      }
+      await table.put(row.record.name, row.record)
+      this.pending.delete(pendingId)
+      return publicSnippet(row.record)
+    })
   }
 
   async list() {
@@ -84,7 +101,7 @@ export class SnippetService {
 
   async delete(name) {
     const id = normalizeSnippetName(name)
-    return (await this.stores()).snippets.table('snippets').delete(id)
+    return this.enqueueWrite(async () => (await this.stores()).snippets.table('snippets').delete(id))
   }
 
   async compose(markdown, name) {

@@ -690,7 +690,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
       const html = await store.actions.exportHtml()
       const base = (state.title || 'article').replace(/[\\/:*?"<>|]/g, '')
       download(`${base}.html`, html)
-      store.actions.toast(`已导出 ${base}.html`)
+      store.actions.toast('已发起 HTML 下载，实际文件名与位置见浏览器下载记录')
     } catch (error) {
       store.actions.toast(`导出失败：${(error as Error).message}　可以改用「复制到剪贴板」`, 'error')
     }

@@ -2,8 +2,8 @@
  * `/fishpai/api/*` HTTP 路由：浏览器侧唯一的读写入口。
  *
  * 安全边界（这是浏览器与文件系统之间唯一的一道门）：
- *   1. **DSH 访问检查**：每个请求先交给 `ctx.connection.requestRejection`，统一执行宿主的
- *      Host/Origin 检查与浏览器登录态认证；返回 401/403 时立即结束，不能进入任何读写分支。
+ *   1. **DSH 访问检查**：每个请求先核对宿主提供的 owner 身份，再执行
+ *      Host/Origin 来源校验；身份未获准入时返回 401/403。
  *   2. **同源校验**：`sec-fetch-site: cross-site` 直接拒；`Origin` 与 `Host` 归一后必须一致
  *      （远程、局域网、反向代理下 Host 为域名同样放行，Host 白名单与登录态由第 1 条负责）；
  *      `Origin` 缺失视为同源，但 `Origin: null`（沙箱 iframe / `data:` 文档）一律拒。
@@ -31,7 +31,7 @@ import { attachPlaceholdersToBlocks, extractPlaceholders, reanchorNotes } from '
 import { lintWechatHtml } from '../core/wechat-lint.mjs'
 import { renderProfessional, renderProfessionalPublish } from '../core/professional/index.mjs'
 import * as store from './store.mjs'
-import { listLocalImages, makeImageResolver, readAsset, inlineHtmlImages } from './assets.mjs'
+import { listLocalImages, exportImages, readAsset } from './assets.mjs'
 
 export const API_PREFIX = '/fishpai/api'
 
@@ -49,7 +49,7 @@ function fail(res, code, message) {
 /**
  * Host / Origin 一致性（纵深防御）。
  *
- * 宿主的 `ctx.connection.requestRejection` 已统一执行 Host 白名单与浏览器登录态认证；
+ * 宿主负责访问域名及身份检查；
  * 远程访问、局域网地址与反向代理（Host 为域名）由它按部署配置裁决，这里不再要求 Host 是环路字面量。
  * 本函数只做同源：`sec-fetch-site: cross-site` 拒；`Origin: null` 拒；Origin 缺失视为同源；
  * Origin 与 Host 经 WHATWG URL 归一后 authority 相等才放行（大小写、默认端口、尾随点由归一吸收）。
@@ -177,9 +177,8 @@ function liveSurface({ cwd, key, abs, markdown }) {
 
 function docPayload({ cwd, key, domain }) {
   const abs = docPathByKey(cwd, key)
-  const state = store.readState(cwd, key)
-  if (!state) throw new Error(`文档状态缺失：${key}`)
   const markdown = readText(abs)
+  const state = store.observeDoc(cwd, key, markdown)
   return {
     doc: {
       key,
@@ -212,10 +211,10 @@ function docPayload({ cwd, key, domain }) {
 /**
  * 建一个 `/fishpai/api` 前缀处理器。
  *
- * @param {{resolveCwd: (sessionId: string) => string, requestRejection?: (req: object) => 401|403|undefined, log?: (msg: string) => void, getStores?: () => Promise<object|null>}} deps
+ * @param {{resolveCwd: (sessionId: string) => string, admit?: (req: object) => object, log?: (msg: string) => void, getStores?: () => Promise<object|null>}} deps
  * @returns {(req: object, res: object, peer?: object) => Promise<void>}
  */
-export function createApiHandler({ resolveCwd, requestRejection, log = () => {}, getStores = async () => null, snippets }) {
+export function createApiHandler({ resolveCwd, admit, log = () => {}, getStores = async () => null, snippets }) {
   async function readableStores() {
     try {
       const stores = await getStores()
@@ -243,19 +242,14 @@ export function createApiHandler({ resolveCwd, requestRejection, log = () => {},
   }
 
   return async function handle(req, res, peer) {
-    if (typeof requestRejection === 'function') {
-      // 旧宿主（@deepseek-ai/dsh-client-connection <= 0.2.2-rc.5）的 WebServer 不传 Peer，只能靠 requestRejection 准入。
-      // 失效条件：DSH 0.2.3 出 rc 版后，整段 requestRejection 分支及对应的旧宿主测试一并删除（见 AGENTS.md）。
-      const rejection = requestRejection(req)
-      if (rejection !== undefined) {
-        res.statusCode = rejection
-        res.end()
-        return
-      }
-    } else if (peer?.principal?.kind !== 'owner') {
-      // 新宿主（>= 0.2.3-alpha.1）已在匹配路由后完成准入；直接管理接口仍要自己校验 owner，取不到 Peer 时 fail-closed。
-      return fail(res, 403, 'forbidden')
+    // rc.5 分派两个参数；alpha.2 把已认证的 Peer 放在第三参。
+    if (arguments.length === 2) {
+      let admission
+      try { admission = admit?.(req) } catch { return fail(res, 403, '宿主身份校验不可用；请检查连接服务') }
+      if (admission?.rejection === 401 || admission?.rejection === 403) return fail(res, admission.rejection, '请以宿主所有者身份连接')
+      peer = admission?.peer
     }
+    if (peer?.principal?.kind !== 'owner') return fail(res, 403, '请以宿主所有者身份连接')
     if (!sameOrigin(req)) return fail(res, 403, '拒绝跨站请求')
     const url = new URL(req.url || '/', 'http://localhost')
     const route = `${req.method} ${url.pathname.slice(API_PREFIX.length)}`
@@ -276,7 +270,7 @@ export function createApiHandler({ resolveCwd, requestRejection, log = () => {},
       if (route === 'GET /state') {
         const { sessionId, cwd } = sessionOf({}, url)
         const key = store.activeKey(cwd, sessionId)
-        const state = key ? store.readState(cwd, key) : null
+        const state = key ? store.observeDoc(cwd, key, readText(docPathByKey(cwd, key))) : null
         const pending = store.pendingOpenRequest(state, sessionId)
         const entry = key ? store.readIndex(cwd).docs[key] : null
         const { stores, storage } = await readableStores()
@@ -475,11 +469,13 @@ export function createApiHandler({ resolveCwd, requestRejection, log = () => {},
         if (!['quick', 'professional'].includes(target)) return fail(res, 400, `未知渲染目标：${target}`)
         if (target === 'professional') {
           const isPublish = String(body.mode) === 'publish'
-          const spec = body.professional_spec || state?.professionalSpec || {}
+          const patch = body.professional_spec
+          if (patch !== undefined && (!patch || typeof patch !== 'object' || Array.isArray(patch))) return fail(res, 400, 'professional_spec 必须是对象')
+          const spec = { ...state?.professionalSpec, ...patch }
           // 发布/复制走文本包裹形态（过粘贴 lint）；预览保持原始产物。
           const out = isPublish ? renderProfessionalPublish(markdown, { spec }) : renderProfessional(markdown, { spec })
           if (isPublish) {
-            const html = inlineHtmlImages(out.html, { cwd, docPath: abs })
+            const { html } = exportImages(out.html, { cwd, docPath: abs, strict: body.selfContained === true })
             return json(res, 200, { ok: true, target, mode: 'publish', html, themeKey: out.themeKey, themeName: out.themeName })
           }
           return json(res, 200, {
@@ -527,9 +523,9 @@ export function createApiHandler({ resolveCwd, requestRejection, log = () => {},
             // 同一条兼容层：微信的安全过滤按属性名过，`background` 简写不在名单里、
             // `background-color` 才在 —— 不拆的话引用块的框、表头底色粘过去就没了。
             wechatBackground: true,
-            imageResolver: makeImageResolver({ cwd, docPath: abs }),
           })
-          return json(res, 200, { ok: true, mode: 'publish', html: out.html, themeKey: out.themeKey, themeName: out.themeName })
+          const { html } = exportImages(out.html, { cwd, docPath: abs, strict: body.selfContained === true })
+          return json(res, 200, { ok: true, mode: 'publish', html, themeKey: out.themeKey, themeName: out.themeName })
         }
         const out = renderCore(markdown, { ...common, annotate: true })
         return json(res, 200, {
@@ -572,7 +568,7 @@ export function createApiHandler({ resolveCwd, requestRejection, log = () => {},
         if (action === 'restore') {
           const found = store.readHistoryEntry(cwd, key, body.id !== undefined ? body.id : Number(body.rev))
           if (!found) return fail(res, 404, '找不到这一版历史')
-          const saved = store.saveDoc({ cwd, docPath: abs, markdown: found.content, baseRevision: state.revision, by: 'human' })
+          const saved = store.saveDoc({ cwd, docPath: abs, markdown: found.content, baseRevision: body.baseRevision, by: 'human' })
           if (!saved.ok) return json(res, 409, { ok: false, conflict: true, revision: saved.revision, markdown: saved.markdown, key })
           return json(res, 200, { ok: true, revision: saved.state.revision })
         }
