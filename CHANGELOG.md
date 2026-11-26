@@ -10,6 +10,62 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-11-27
+
+### 新增
+
+- 面板工具栏新增「普通 / 深色」切换，按微信公众平台 Dark Mode 转换规则近似还原读者开启深色模式后的效果；切换只作用于预览，复制与导出内容与普通模式相同。
+- `fishpai_lint` 与 `POST /lint` 返回 `dark` 段，提示深色模式下的低对比度、渐变文字与背景、SVG 文字和缺失背景。
+- 交付质检：面板复制、导出 HTML 与 `fishpai_render` 在写出前检查粘贴结构，结构问题列出位置后停止交付；对比度与深色可读性只作提示，并在成功消息中给出处数。
+- `fishpai_render` 新增 `screenshot` 参数，用本机 Chrome、Edge 或 Chromium 按 375px 手机宽度截取普通与深色整页图；浏览器可由 `FISHPAI_BROWSER` 指定。没有可用浏览器或当前模型不读图时，返回原因与文字版面摘要。
+- 专业模式底栏新增「画布」页签，可编辑全部 19 个画布键并恢复默认。
+- 技能新增「交付审稿」流程：截图或版面摘要，按首屏、层级、宽度、图片、深色、交互六项复核。
+
+### 变更
+
+- 快速模式复制与导出会拦下文稿中手写的 raw `<div>` 等结构问题，需改为 `<section>` 等可粘贴结构。
+- 工具栏固定为「专业 | 快速」「编辑 | 预览 | 并排」「普通 | 深色」、刷新，右侧为导出 HTML 与复制到剪贴板；快速模式设置位于第二行，主题色收进下拉面板，脚注与 Mac 代码框仅在文稿含外链或代码时显示。
+- 底栏页签按模式显示：专业模式为画布、页头页尾、历史；快速模式为页头页尾、历史、块、待补；批注在编辑与并排视图显示。历史版本显示为「第 N 版」。
+- 从专业切换到快速时，若文稿含专业组件，面板内确认后再切换。
+- 下拉菜单、浮层与确认框使用 DSH 原生菜单材质；字号选择改为与主题、字体一致的下拉面板。
+- 快速模式默认主题色调整为 `#4a69f2`，白底对比度达到 4.5:1。
+- 模型工具说明按当前能力重写：专业模式为默认目标，`theme` 只作用于快速模式，补全 `fishpai_snippets` 参数说明。
+- `playwright-core` 改为运行时依赖，用于驱动本机浏览器截图。
+- 面板文案统一为简洁的动作描述，空状态统一为「暂无…」。
+
+### 修复
+
+- 代码高亮的多类名不再被交付检查误报。
+- mermaid 代码块在复制形态中以 `<section>` 占位。
+- 光标定位与批注位置跟随编辑器选区。
+
+### Added
+
+- The panel toolbar adds a Normal / Dark switch that approximates what readers see with dark mode enabled, following the WeChat Official Accounts Dark Mode conversion rules. The switch affects only the preview; copied and exported content is identical to normal mode.
+- `fishpai_lint` and `POST /lint` return a `dark` section flagging low contrast, gradient text and backgrounds, SVG text, and missing backgrounds under dark mode.
+- Delivery check: panel copy, HTML export, and `fishpai_render` check paste structure before writing; structural problems are listed by location and stop delivery, while contrast and dark-mode readability are reported as counts in the success message.
+- `fishpai_render` adds a `screenshot` option that captures full-page normal and dark images at 375px phone width using local Chrome, Edge, or Chromium; `FISHPAI_BROWSER` selects the browser. Without a usable browser, or when the current model does not read images, it returns the reason and a text layout digest.
+- Professional mode adds a Canvas tab in the bottom bar for editing all 19 canvas keys and restoring defaults.
+- The skill adds a delivery review workflow: screenshots or a layout digest, reviewed for first screen, hierarchy, width, images, dark mode, and interaction.
+
+### Changed
+
+- Quick-mode copy and export stop on structural problems such as hand-written raw `<div>`; use pasteable structures such as `<section>`.
+- The toolbar is fixed as Professional | Quick, Edit | Preview | Side by side, Normal | Dark, and Reload, with Export HTML and Copy on the right. Quick-mode settings sit on the second row; accent colors move into a dropdown, and footnote and Mac code-frame toggles appear only when the document contains links or code.
+- Bottom-bar tabs follow the mode: Canvas, Header & footer, and History in professional mode; Header & footer, History, Blocks, and Placeholders in quick mode; Annotations in Edit and Side-by-side views. History entries read "Version N".
+- Switching from professional to quick asks for confirmation inside the panel when the document uses professional components.
+- Dropdowns, popovers, and confirmation dialogs use the DSH native menu material; font size uses the same dropdown as theme and font.
+- The quick-mode default accent is `#4a69f2`, reaching 4.5:1 contrast on white.
+- Model tool descriptions are rewritten for current behavior: professional is the default target, `theme` applies only to quick mode, and all `fishpai_snippets` parameters are documented.
+- `playwright-core` becomes a runtime dependency for driving the local browser for screenshots.
+- Panel copy uses concise action wording; empty states read "No … yet".
+
+### Fixed
+
+- Multi-class syntax highlighting is no longer flagged by the delivery check.
+- Mermaid code blocks use a `<section>` placeholder in copied output.
+- Cursor location and annotation placement follow the editor selection.
+
 ## [2.1.0] - 2026-11-25
 
 ### 变更
