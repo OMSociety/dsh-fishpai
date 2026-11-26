@@ -10,6 +10,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-11-27
+
+### 变更
+
+- 模型工具按需展开：插件启动时只注册 `fishpai` 技能与面板路由，模型成功 invoke `fishpai` 技能后才注册全部 `fishpai_*` 工具；恢复的会话若历史里已 invoke 过技能，启动时直接展开。
+
+### Changed
+
+- Model tools are revealed on demand: on startup the plugin registers only the `fishpai` skill and the panel routes, and registers all `fishpai_*` tools after the model successfully invokes the `fishpai` skill; resumed sessions whose history already invoked the skill get the tools at startup.
+
 ## [2.2.0] - 2026-11-27
 
 ### 新增

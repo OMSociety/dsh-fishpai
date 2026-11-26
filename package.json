@@ -1,6 +1,6 @@
 {
   "name": "dsh-fishpai",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "DeepSeek Harness plugin: 鱼排 FishPai — WeChat Official Account typesetting and collaborative editing with a professional canvas, interactive components, and clipboard-ready output.",
   "type": "module",
   "license": "MIT",
