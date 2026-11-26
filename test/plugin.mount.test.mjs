@@ -65,7 +65,7 @@ function makeApp(cwd, admit = () => ({ peer: { principal: { kind: 'owner' } } })
 const flush = async (times = 8) => {
   for (let i = 0; i < times; i++) await new Promise((resolve) => setTimeout(resolve, 0))
 }
-test('宿主插件能在真实 Cordis 里挂载，并注册八个工具、一条路由、一个技能', async () => {
+test('宿主插件能在真实 Cordis 里挂载：一条路由、一个技能，invoke 技能后展开八个工具', async () => {
   const fs = await import('node:fs')
   const os = await import('node:os')
   const path = await import('node:path')
@@ -74,6 +74,10 @@ test('宿主插件能在真实 Cordis 里挂载，并注册八个工具、一条
   const { app, registeredTools, routes, skills } = makeApp(cwd)
   const fiber = app.plugin(plugin)
   await fiber
+  await flush()
+
+  assert.equal(registeredTools.length, 0, '技能被 invoke 之前不注册工具')
+  app.emit('tools/result', { name: 'skill', arguments: { name: 'fishpai' } }, { isError: false })
   await flush()
 
   assert.deepEqual(
@@ -176,6 +180,8 @@ test('缺少 webServer 时照样挂载（工具与技能仍然可用）', async 
 
   const fiber = app.plugin(plugin)
   await fiber
+  await flush()
+  app.emit('tools/result', { name: 'skill', arguments: { name: 'fishpai' } }, { isError: false })
   await flush()
 
   assert.equal(tools.length, 8, '没有 webServer 时工具仍应注册')

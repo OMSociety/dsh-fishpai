@@ -2,7 +2,7 @@
  * 鱼排 FishPai —— 宿主入口。
  *
  * 三件事，都挂在 ctx.effect 上（HMR / 卸载时逐条收回）：
- *   1. 注册模型工具：文档协作、渲染、用户资产与 lint
+ *   1. 模型工具（文档协作、渲染、用户资产与 lint）：模型 invoke `fishpai` 技能后懒展开
  *   2. 注册 `/fishpai/api/*` 路由：右侧栏面板读写文档的唯一通道
  *   3. 注册 `fishpai` 技能：告诉模型什么时候用、按什么纪律改稿
  *
@@ -13,6 +13,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerTools } from './host/tools.mjs'
+import { armLazyTools } from './host/lazy-tools.mjs'
 import { createApiHandler, API_PREFIX } from './host/routes.mjs'
 import { canonicalCwd, ensureFishpaiLayout } from './host/store.mjs'
 import { openUserStores } from './host/store-domain.mjs'
@@ -113,8 +114,11 @@ export function apply(ctx) {
 
   const snippets = new SnippetService(getStores)
 
-  // ── 1. 模型工具 ────────────────────────────────────────────
-  ctx.effect(() => registerTools(ctx, { resolveCwd, log, getStores, snippets }), 'fishpai: 注册模型工具')
+  // ── 1. 模型工具：invoke fishpai 技能后懒展开 ────────────────
+  ctx.effect(
+    () => armLazyTools(ctx, () => registerTools(ctx, { resolveCwd, log, getStores, snippets })),
+    'fishpai: 模型工具懒展开',
+  )
 
   // ── 2. HTTP 路由 ───────────────────────────────────────────
   ctx.effect(() => {

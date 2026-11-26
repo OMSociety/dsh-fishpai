@@ -147,6 +147,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 
 | 路径 | 风险 | 改动前后置动作 |
 |---|---|---|
+| `plugin/host/lazy-tools.mjs` | 工具只在 `fishpai` 技能被成功 invoke 后注册，改触发条件会让工具静默不出场 | `node --test test/lazy-tools.test.mjs test/plugin.mount.test.mjs`，并在新会话验证「invoke 技能后工具进场」 |
 | `plugin/core/render.mjs` | 47KB 主流程，默认路径与 golden 字节级绑定 | 先 `npm test`；动过就全量回归 |
 | `plugin/core/patch.mjs` | CRLF、同块多补丁与列表分隔空行会改变补丁落点 | `node --test test/core.test.mjs test/host.test.mjs` |
 | `plugin/host/routes.mjs` | 浏览器与文件系统之间唯一的门；同源守卫比对 Origin 与 Host（不限定环路，远程与反向代理可用） | `node --test test/security.test.mjs` |
@@ -161,6 +162,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 | snapshot 测试红 / `snapshot 有 ... 处渲染差异` | 先确认是否动了默认渲染路径；预期行为变化才 `npm run test:golden:regen` 并审阅差异，否则回退 |
 | `check:build` 红（`git diff --exit-code -- lib/`） | `npm run build` 并把 `lib/client.js` 一起提交 |
 | `TS1005`（tsc） | 查 `client/styles.ts` 模板字符串注释里的反引号 |
+| 会话工具表里没有 `fishpai_*` | 工具按需展开：先在对话里 invoke `fishpai` 技能 |
 | 技能加载报 `source must be a string` | `plugin/index.mjs` 注册技能时必须带 `source: 'bundled'` |
 | 面板整块白掉 / bundle 里多出 `require('@deepseek-ai/...')` | 客户端新 import 了宿主包；把几何 / 逻辑复制进本包，守卫见 `test/client.bundle.test.mjs` |
 
