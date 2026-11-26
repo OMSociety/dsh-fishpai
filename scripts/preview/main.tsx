@@ -1,6 +1,6 @@
 /**
  * README 预览入口：直接运行正式 Panel、createFishpaiStore 与面板 CSS。
- * 仅 /fishpai/api 传输由本地 fixture 应答，页面可通过 #theme=light 切换浅色。
+ * 仅 /fishpai/api 传输由本地 fixture 应答；默认深色界面与普通预览，#theme=light 切换浅色界面，#preview=dark 切换深色预览。
  */
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
@@ -25,6 +25,7 @@ interface PreviewFixture {
     themeKey: string
     themeName: string
     hljsCss: string
+    darkHtml: string
     linkCount: number
     hasCode: boolean
     blocks: DocPayload['blocks']
@@ -58,12 +59,13 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
     return json({ ok: true, ...data.doc })
   }
   if (method === 'POST' && route === '/render') {
-    const body = JSON.parse(String(init?.body || '{}')) as { docKey?: string; target?: string; mode?: string }
+    const body = JSON.parse(String(init?.body || '{}')) as { docKey?: string; target?: string; mode?: string; dark?: boolean }
     if (body.docKey !== data.key) return json({ ok: false, error: '演示文档不存在' }, 404)
     if (body.mode !== 'preview' || body.target !== 'professional') {
       return json({ ok: false, error: '演示传输层只提供公众号专业预览' }, 400)
     }
-    return json({ ok: true, ...data.render })
+    const { darkHtml, ...render } = data.render
+    return json({ ok: true, ...render, ...(body.dark === true ? { html: darkHtml, dark: true } : { dark: false }) })
   }
   return json({ ok: false, error: `演示预览为只读模式：${method} ${route}` }, 405)
 }
@@ -196,6 +198,7 @@ hostTheme.textContent = `
 document.head.appendChild(hostTheme)
 
 const store = createFishpaiStore(data.sessionId)
+store.actions.setPreviewDark(previewParams.get('preview') === 'dark')
 const root = createRoot(document.getElementById('root')!)
 root.render(
   <div className="dsh-preview-shell">

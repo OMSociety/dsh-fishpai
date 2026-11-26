@@ -73,3 +73,21 @@ test('目标文件已存在时拒绝覆盖', async () => {
   }), /为避免覆盖/)
   assert.equal(fs.readFileSync(path.join(cwd, 'existing.md'), 'utf8'), '用户原文')
 })
+
+test('同 out_path 并发导入只成功一篇，失败方返回 409 且磁盘保留胜稿', async () => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'fishpai-import-race-'))
+  const options = { cwd, sessionId: 'session-1' }
+  const first = importArticleDocument({ html: '<h1>第一篇</h1><p>甲</p>', out_path: 'race.md' }, options)
+  const second = importArticleDocument({ html: '<h1>第二篇</h1><p>乙</p>', out_path: 'race.md' }, options)
+  const results = await Promise.allSettled([first, second])
+  const rejected = results.filter((result) => result.status === 'rejected')
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1, '同一路径只能有一个导入成功')
+  assert.equal(rejected.length, 1, '另一个导入必须明确失败')
+  assert.equal(rejected[0].reason.statusCode, 409)
+  assert.equal(rejected[0].reason.code, 'CONFLICT')
+  assert.match(rejected[0].reason.message, /race\.md.*已存在|已存在.*race\.md/)
+  const markdown = fs.readFileSync(path.join(cwd, 'race.md'), 'utf8')
+  const winnerHeading = results.findIndex((result) => result.status === 'fulfilled') === 0 ? '# 第一篇' : '# 第二篇'
+  assert.equal(markdown.includes(winnerHeading), true)
+  assert.equal(['# 第一篇', '# 第二篇'].filter((heading) => markdown.includes(heading)).length, 1)
+})

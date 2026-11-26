@@ -8,6 +8,7 @@ import { renderProfessional, normalizeSpec } from '../../plugin/core/professiona
 import { hljsPreviewCss, themeCatalog } from '../../plugin/core/render.mjs'
 import { colorPresets } from '../../plugin/core/runtime.mjs'
 import { splitBlocks } from '../../plugin/core/markdown.mjs'
+import { toWechatDark } from '../../plugin/core/dark-preview.mjs'
 
 export const PREVIEW_KEY = 'preview'
 export const PREVIEW_SESSION = 'preview'
@@ -21,13 +22,14 @@ const PREVIEW_ARTICLE = readFileSync(
   'utf8',
 ).replace(/\r\n/g, '\n')
 
-// 头图品牌标直接内嵌 icon.svg 的渐变定义与 path / circle，只按文字高度做整体缩放与对位。
+// 头图品牌标取 icon.svg 的 path / circle 几何，以渐变首色填涂（公众号正文不保留 id 引用），只按文字高度做整体缩放与对位。
 function previewBrandMark() {
   const icon = readFileSync(new URL('../../icon.svg', import.meta.url), 'utf8')
-  const defs = icon.match(/^\s*<defs>[\s\S]*?<\/defs>\s*$/m)?.[0].trim()
+  const color = icon.match(/<stop stop-color="(#[0-9A-Fa-f]{6})"/)?.[1]
   const shapes = ['path', 'circle'].map((tag) => icon.match(new RegExp(`^\\s*<${tag}\\b.*\\/>$`, 'm'))?.[0].trim())
-  if (!defs || shapes.some((shape) => !shape)) throw new Error('icon.svg 缺少品牌渐变或鱼标 path / circle')
-  return `${defs}<g fill="none" transform="translate(30 17) scale(1.8)">${shapes.join('')}</g>`
+  if (!color || shapes.some((shape) => !shape)) throw new Error('icon.svg 缺少品牌渐变首色或鱼标 path / circle')
+  const solid = shapes.map((shape) => shape.replace(/url\(#[\w-]+\)/g, color))
+  return `<g fill="none" transform="translate(30 17) scale(1.8)">${solid.join('')}</g>`
 }
 
 const BRAND_PLACEHOLDER = '<!-- FISHPAI_BRAND -->'
@@ -128,6 +130,7 @@ export function createPreviewFixture() {
       mode: 'preview',
       ...rendered,
       hljsCss: hljsPreviewCss(),
+      darkHtml: toWechatDark(rendered.html),
       linkCount: 0,
       hasCode: false,
       blocks,

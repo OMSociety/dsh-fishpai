@@ -109,12 +109,6 @@ export interface ThemeInfo {
   scope: 'builtin' | 'user'
   /** 该主题是否使用主题色（只有用到的主题才显示取色控件）。 */
   usesAccent: boolean
-  /** 用渐变文字（background-clip: text + 透明字色）：微信编辑器可能重写掉。 */
-  gradientText: boolean
-  /** wrapper 是深色底：粘进公众号会是一整块深色。 */
-  darkWrapper: boolean
-  /** 综合判断：是否适合直接粘进公众号（= !gradientText && !darkWrapper）。 */
-  wechatSafe: boolean
 }
 
 export interface SnippetInfo {
@@ -139,6 +133,9 @@ export interface ThemesPayload {
   fonts: string[]
   sizes: string[]
 }
+
+/** 交付质检的提示计数：对比度不足与深色模式下可能不易阅读的位置。 */
+export type DeliveryNotices = { contrast: number; dark: number }
 
 export class ConflictError extends Error {
   constructor(
@@ -232,7 +229,7 @@ export const api = {
    * 代码块 token 只有 class、没有颜色——宿主把同一份色表（hljs-map.json）生成 CSS 带下来，
    * 客户端注入 srcdoc。复制/导出产物不吃它（走内联），所以 golden 不受影响。
    */
-  renderPreview: (sessionId: string, docKey: string, markdown: string, meta: Partial<DocMeta>, target: RenderTarget) =>
+  renderPreview: (sessionId: string, docKey: string, markdown: string, meta: Partial<DocMeta>, target: RenderTarget, options: { dark?: boolean } = {}) =>
     call<{
       ok: true
       html: string
@@ -246,7 +243,7 @@ export const api = {
       images: ImageInfo[]
     }>(`/render`, {
       method: 'POST',
-      body: JSON.stringify({ sessionId, docKey, markdown, meta, target, mode: 'preview' }),
+      body: JSON.stringify({ sessionId, docKey, markdown, meta, target, mode: 'preview', dark: options.dark === true }),
     }),
 
   renderCopyHtml: (
@@ -256,7 +253,7 @@ export const api = {
     meta: Partial<DocMeta>,
     options: { target?: RenderTarget; snippetId?: string; selfContained?: boolean } = {},
   ) =>
-    call<{ ok: true; html: string; themeName: string; target?: RenderTarget }>(`/render`, {
+    call<{ ok: true; html: string; themeName: string; target?: RenderTarget; notices?: DeliveryNotices }>(`/render`, {
       method: 'POST',
       body: JSON.stringify({ sessionId, docKey, markdown, meta, mode: 'publish', ...options }),
     }),

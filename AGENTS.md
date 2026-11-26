@@ -7,7 +7,7 @@
 ## 项目概览
 
 - 一句话定位：DSH 插件——把 Markdown 排成可直接粘进微信公众号编辑器的内联样式 HTML；宿主侧（Node ESM）与客户端侧（浏览器 TSX）在同一个包里，面板长在 DSH 右侧栏，人与模型协同改稿。
-- 技术栈：Node ≥20（CI 用 22）/ React 18 + TSX（esbuild 打包）/ npm；`cheerio` 是现有文章导入的运行时 HTML 解析依赖，`playwright-core` 是 README 预览构建的开发依赖，`@deepseek-ai/dsh-storage-domain` 是 optional peer（宿主提供用户级存储时启用）。
+- 技术栈：Node ≥20（CI 用 22）/ React 18 + TSX（esbuild 打包）/ npm；`cheerio` 是现有文章导入的运行时 HTML 解析依赖，`playwright-core` 是审稿截图与 README 预览构建共用的运行时依赖（驱动本机浏览器，不下载浏览器），`@deepseek-ai/dsh-storage-domain` 是 optional peer（宿主提供用户级存储时启用）。
 - 许可基线：快速管线的早期设计参考 `ye4wzp/mopai-markdown`（MIT），初始对应上游 `c91487a`（2026-08-19）；`plugin/vendor/themes.js` 保留其 MIT 主题数据与版权声明。当前行为以本仓库代码、测试与自产 snapshot 为准，署名与出处见 [NOTICE.md](./NOTICE.md)。
 - 文档索引：
   - 功能与安装：[README.md](./README.md)
@@ -82,7 +82,7 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 | `client/` | 跑 `npm run build`，把 `lib/client.js` 与源码一起提交 | `npm run check:build`；安装器只安装不构建，漏交产物会装到旧界面 |
 | 默认渲染路径或 `plugin/vendor/themes.js` | 先跑 `npm test`；只用 `npm run test:golden:regen` 重生成 snapshot，审阅全部 fixture 与主题差异 | 测试通过，PR 说清预期行为变化 |
 | 专业渲染或演示文稿 | 跑 `npm run build:preview`，核对手机文章区与展开交互 | `test/preview.test.mjs` 通过，并人工查看 PNG |
-| 包根 `icon.svg` | 同步 `client/icons.tsx` 的 `FishMark`；跑 `npm run build` 与 `npm run build:preview` | 品牌几何一致；预览保留原始渐变与根节点 `fill="none"` 的透明区域 |
+| 包根 `icon.svg` | 同步 `client/icons.tsx` 的 `FishMark`；跑 `npm run build` 与 `npm run build:preview` | 品牌几何一致；预览鱼标取 icon.svg 的 path / circle，以渐变首色填涂，保留根节点 `fill="none"` 的透明区域 |
 | `client/theme-icons.tsx` 几何 | 按 NOTICE.md 记录的 `@deepseek-ai/dsh-client-ui-primitives` 原版逐字比对，再构建 | `test/theme-icons.test.mjs` 通过；该测试只守结构，不替代几何比对 |
 | 新增主题 | 在 `plugin/vendor/themes.js` 补齐 19 槽位，在 `client/icons.tsx` 的 `THEME_GLYPH` 补图标，重生成 golden，同步 README / 技能中的主题计数 | `test/theme-info.test.mjs` 与 golden 测试通过 |
 | 快捷键或格式化动作 | 只改 `client/mdedit.ts` 与 `test/mdedit.test.mjs`，不复制第二份实现 | `node --test test/mdedit.test.mjs` 通过 |
@@ -111,10 +111,11 @@ client/（TSX，浏览器）──fetch──▶ plugin/host/（路由+存储+�
 12. **自定义主题是数据，不是代码**：`plugin/core/theme-spec.mjs` 只做校验 + 合并，绝不求值模型给的代码。属性白名单统计自 11 套内置主题（它们实测能在公众号里活）；规格只认 `name` / `base` / `styles`，多写的键报错而不是默默忽略；必须在内置主题上做增量覆盖（缺槽位 = 不加 style 属性）；`wrapper` 最终必须含 `font-family` / `font-size`（面板控件靠替换它们生效）；输入漏写时从 `base` 继承补齐，base 也缺才报错。命名主题存 storageDomain themes 表，主题 key 为 `custom:<id>`，同一 id 的 `set` 即覆盖；损坏或非法记录在读取时给出错误，缺失 id 回默认并标记 `missing`。临时 `theme_spec` 仍只用于本次 `quick` 目标渲染。规格里**没有图标字段**。换主题**不动 revision**——面板靠 `/state` 的 `active.theme` 发现，只换 meta、不重载正文，别让用户正在打的字被换掉。
 13. **页头页尾片段是预览确认后的用户资产**：`POST /snippets` 与 `fishpai_snippets` 走 preview→commit；页头取正文首个 mmbiz 图，页尾锚点关键词必须由用户显式配置。渲染通过 `snippetId` 在 render 前拼 Markdown，不改源文档；片段存 storageDomain snippets 表。
 14. **微信 lint 必须标明证据边界**：`fishpai_lint` 与 `POST /lint` 检查全内联、禁 position/class/id/div/CSS 变量/grid、文本节点包裹、正文 4.5:1 对比度、全幅限宽与表格默认边框。固定结构白名单只匹配已知的鱼排根节点、代码框、脚注、参考资料与内置主题实际样式；外部 raw、自定义主题和普通正文仍按原规则检查。既有规则观察来自草稿 API 路径；用于鱼排粘贴路径时默认标为推论。只有 `full-bleed-width` 与 `table-cell-border-reset` 等逐条标注 `微信临时预览粘贴路径实测` 的规则可按实测引用，不把单条实测扩大为整套规则的背书。
-15. **专业是独立渲染目标与自由排版画布**：组件与 Markdown 映射只放 `plugin/core/professional/`，接入点是 `fishpai_render.target` 与 `POST /render.target`；微信 `render()` 不加 target。静态组件与 8 个交互组件分别由 components.mjs、interactive.mjs 注册，DEFAULT_SPEC 的 18 个键按模块常量校验；文档级 `professionalSpec` 由 store 持久化，预览、复制与导出共用。`raw` 承载安全 HTML / SVG，素材经 assets.mjs 统一收集与内嵌；`full_bleed` 复用 raw 安全校验，按 `page_padding_x` 输出左右负外边距并显式设置 `max-width:none !important`，专业表格单元格先写 `border:0` 再保留指定边线。未知组件、非法规格和主动内容必须报错。微信复制形态不用 `div`，SVG 不依赖 `image href`；需要固定字形的 SVG 展示字转成带 `aria-label` 的矢量路径，不依赖手机字体，普通正文保留 HTML 文本；复制与导出出口包裹文本容器中的全部直接文本节点（含行内元素与换行后的文本），SVG 内部除外。展开组件使用零高正文与 SVG 高度动画，不依赖 foreignObject；高度按 320px 视口扣除页面与正文容器留白后的可用宽度估算，不能为压缩宽屏留白而裁掉窄屏末行。复制到目标编辑器后的结构与交互以该编辑器的粘贴处理为准。
-16. **复制与导出是插件的交付面**：面板复制与 `fishpai_render` 通过 publish 模式生成同一形态的 HTML；插件运行时只执行本地渲染、剪贴板复制与文件导出，平台草稿与群发由用户在对应平台完成。`playwright-core` 仅服务于维护者执行 `npm run build:preview`，属于开发依赖。
+15. **专业是独立渲染目标与自由排版画布**：组件与 Markdown 映射只放 `plugin/core/professional/`，接入点是 `fishpai_render.target` 与 `POST /render.target`；微信 `render()` 不加 target。静态组件与 8 个交互组件分别由 components.mjs、interactive.mjs 注册，DEFAULT_SPEC 的 19 个键按模块常量校验；文档级 `professionalSpec` 由 store 持久化，预览、复制与导出共用。`raw` 承载安全 HTML / SVG，素材经 assets.mjs 统一收集与内嵌；`full_bleed` 复用 raw 安全校验，按 `page_padding_x` 输出左右负外边距并显式设置 `max-width:none !important`，专业表格单元格先写 `border:0` 再保留指定边线。未知组件、非法规格和主动内容必须报错。微信复制形态不用 `div`，SVG 不依赖 `image href`；需要固定字形的 SVG 展示字转成带 `aria-label` 的矢量路径，不依赖手机字体，普通正文保留 HTML 文本；复制与导出出口包裹文本容器中的全部直接文本节点（含行内元素与换行后的文本），SVG 内部除外。展开组件使用零高正文与 SVG 高度动画，不依赖 foreignObject；高度按 320px 视口扣除页面与正文容器留白后的可用宽度估算，不能为压缩宽屏留白而裁掉窄屏末行。复制到目标编辑器后的结构与交互以该编辑器的粘贴处理为准。
+16. **复制与导出是插件的交付面**：面板复制与 `fishpai_render` 通过 publish 模式生成同一形态的 HTML；插件运行时只执行本地渲染、剪贴板复制与文件导出，平台草稿与群发由用户在对应平台完成。publish 形态在返回前经 `checkDelivery`：非 `contrast` 的粘贴约束问题阻断交付（路由回 422、工具报错），对比度与深色可读性只计数提示。`fishpai_render` 的 `screenshot` 选项经 `plugin/host/screenshot.mjs` 驱动本机 Chromium 内核浏览器（FISHPAI_BROWSER → Chrome → Edge → Chromium），找不到浏览器、启动失败或模型不读图时返回原因与文字版面摘要，不抛错、不下载浏览器。
 17. **预览与复制产物是两条渲染路径，预览的样式问题不许改渲染内核**。`publish` 模式才开三处兼容层；`preview`（`annotate: true`）不开，也不做 hljs 内联。预览 iframe 是沙箱 srcdoc、没有外部样式表：预览缺的样式只能由宿主生成 CSS 随响应下发（范例：`hljsPreviewCss()` → `hljsCss` → 客户端 `buildSrcdoc`），不能改 `render.mjs`（golden 守的是 publish + 默认路径，改内核同时污染两条路）。判据：**预览有差异、复制产物正常 = 补在预览侧，不是内核 bug**。
 18. **导入以保真和可编辑分块为边界**：`fishpai_import` 只抓公开公众号 HTTPS URL，粘贴 / 本地 HTML 走通用 `article` / `main` / `body` 提取；复杂 SVG、表格和微信专用节点保持原子 raw，只有能保留原意的简单结构提升为 Markdown。`out_path` 必须不存在，文档与素材都过工作目录路径守卫；公开网页与图片各自执行重定向、DNS 私网、大小、MIME / 魔数校验。所有 URL 属性先清除 `tempkey` / `exportkey` / `pass_ticket` 等敏感查询与 fragment，再进入文稿或报告；主动内容、事件、`srcdoc` 与可执行 URL 必须拒绝。结构报告不回传完整 raw HTML，私有测试样本只放暂存区。
+19. **深色预览是预览侧视图**：`POST /render` 的 `dark` 只作用于 `mode:preview`，由 `plugin/core/dark-preview.mjs` 按 wechatjs/mp-darkmode 的公开转换规则改写预览 HTML 与 hljs CSS；publish 分支不读取 `dark`，复制与导出逐字节同普通请求。`previewDark` 是面板视图状态，不进 meta 与 `professionalSpec`。转换阈值与上游一致，不另加规则；深色 lint 只出 warning 并标明「按微信公众平台 Dark Mode 转换算法推演」。
 
 ## 禁止操作
 

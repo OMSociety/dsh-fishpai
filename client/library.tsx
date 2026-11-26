@@ -88,14 +88,14 @@ export function SnippetLibrary({ store }: { store: FishpaiStore }) {
           className="fp-input fp-library-source"
           value={source}
           onChange={(event) => setSource(event.target.value)}
-          placeholder="粘贴含页头页尾的 Markdown / HTML，或输入一个 URL"
+          placeholder="文章 HTML、Markdown 或公众号文章链接"
           disabled={busy}
         />
         <input
           className="fp-input"
           value={anchors}
           onChange={(event) => setAnchors(event.target.value)}
-          placeholder="页尾锚点（可选，多个用逗号分隔）"
+          placeholder="页尾起始文字（可选，逗号分隔）"
           disabled={busy}
         />
         <button
@@ -104,13 +104,13 @@ export function SnippetLibrary({ store }: { store: FishpaiStore }) {
           disabled={busy || !name.trim() || !source.trim()}
           onClick={() => void preview()}
         >
-          暂存并预览
+          提取
         </button>
       </div>
       {(error || state.libraryError) && <div className="fp-library-error">{error || state.libraryError}</div>}
       {pending && (
         <section className="fp-library-pending" aria-label="待确认片段">
-          <div className="fp-item-title">确认入库：{pending.snippet.name}</div>
+          <div className="fp-item-title">保存「{pending.snippet.name}」？</div>
           <div className="fp-item-meta">
             页头 {pending.snippet.headerHtml ? '已识别' : '无'} · 页尾 {pending.snippet.footerHtml || pending.snippet.footerImg ? '已识别' : '无'}
           </div>
@@ -121,13 +121,13 @@ export function SnippetLibrary({ store }: { store: FishpaiStore }) {
           </details>
           <Warnings items={pending.warnings || []} />
           <div className="fp-item-actions">
-            <button type="button" className="fp-btn fp-btn-primary" disabled={busy} onClick={() => void commit()}>确认入库</button>
+            <button type="button" className="fp-btn fp-btn-primary" disabled={busy} onClick={() => void commit()}>保存</button>
             <button type="button" className="fp-btn" disabled={busy} onClick={() => setPending(null)}>取消</button>
           </div>
         </section>
       )}
       {state.libraryLoading && <div className="fp-library-status">正在读取片段库…</div>}
-      {!state.libraryLoading && !state.snippets.length && <div className="fp-library-status">片段库还是空的。</div>}
+      {!state.libraryLoading && !state.snippets.length && <div className="fp-library-status">暂无片段。页头页尾用于复制与导出时自动拼接固定开头和结尾。</div>}
       <div className="fp-library-list">
         {state.snippets.map((snippet) => (
           <article className="fp-item" key={snippet.id}>

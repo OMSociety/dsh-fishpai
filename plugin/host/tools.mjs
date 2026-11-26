@@ -13,7 +13,7 @@ import path from 'node:path'
 import { render as renderCore, safeThemeKey } from '../core/render.mjs'
 import { themes } from '../core/runtime.mjs'
 import { buildCustomTheme, describeThemeSpec } from '../core/theme-spec.mjs'
-import { lintWechatHtml } from '../core/wechat-lint.mjs'
+import { lintWechatHtml, checkDelivery, describeDelivery } from '../core/wechat-lint.mjs'
 import { renderProfessional, renderProfessionalPublish } from '../core/professional/index.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
 import { diffBlocks } from '../core/diff.mjs'
@@ -29,6 +29,7 @@ import {
 } from './custom-theme.mjs'
 import { MAX_EMBED_BYTES, listLocalImages, listRemoteImages, exportImages } from './assets.mjs'
 import { importArticleDocument } from './importer.mjs'
+import { captureArticle, describeLayout, staticLayoutDigest } from './screenshot.mjs'
 
 const OUT_SCHEMA = {
   type: 'object',
@@ -44,6 +45,19 @@ const OUT_SCHEMA = {
 }
 
 const renderText = (_args, value) => [{ type: 'text', text: value.text }]
+
+/** 调用方会话当前路由的模型是否声明了图像输入；无法判定时按不支持处理。 */
+async function modelSeesImages(ctx, exec) {
+  try {
+    const route = exec?.agent?.session?.requestHeader?.()?.config
+    const llm = ctx.get?.('llm')
+    if (!route?.provider || !route?.model || typeof llm?.resolveModelInfo !== 'function') return false
+    const info = await llm.resolveModelInfo(route.provider, route.model)
+    return info?.inputModalities?.includes('image') === true
+  } catch {
+    return false
+  }
+}
 
 function ok(text, docKey) {
   return { text, ...(docKey ? { doc_key: docKey } : {}), isError: false }
@@ -175,14 +189,16 @@ export function registerTools(ctx, deps) {
   register({
     name: 'fishpai_open',
     description:
-      '在 DSH 右侧栏打开「鱼排编辑器」公众号排版台，并把它指向一篇 Markdown。传 markdown 会新建文档并写入；传 path 打开工作区里已有的 .md（已存在的文件不会被覆盖）。文档打开后请让用户在侧栏直接改字或加批注（也可用 <!-- 鱼排: … --> 留占位），然后用 fishpai_read 拿到块级 diff 与批注，再用 fishpai_write 局部改稿。',
+      '在 DSH 右侧栏打开「鱼排编辑器」并指向一篇文档：传 markdown 新建并写入，传 path 打开工作区已有的 .md（已存在的文件不被覆盖）。' +
+      '文档默认走专业模式（自由画布 + ::: 交互组件，画布由 professional_spec 设定），快速模式用内置主题。' +
+      '打开后用户可在侧栏改字、加批注或写 <!-- 鱼排: … --> 占位；改稿循环是 fishpai_read 读 diff → fishpai_write 局部改。',
     parameters: {
       type: 'object',
       properties: {
         path: { type: 'string', description: '工作目录内的 .md 路径（可省略扩展名，会自动补 .md）；省略则在 <工作目录>/.fishpai/docs/ 下按标题新建' },
         markdown: { type: 'string', description: '初始 Markdown。目标文件已存在时不会覆盖，只打开现状' },
-        theme: { type: 'string', description: '主题 key 或中文名；省略则用 default（默认公众号，最适合粘进微信）。tech / gradient / dark_night 等风格更适合导出 HTML' },
-        professional_spec: { type: 'object', additionalProperties: true, description: '专业画布的 DEFAULT_SPEC 增量配置；打开或新建文档时校验并保存为该文档的持久设置' },
+        theme: { type: 'string', description: '快速模式的主题 key 或中文名；省略为 default。专业模式不使用主题' },
+        professional_spec: { type: 'object', additionalProperties: true, description: '专业画布规格的增量配置（19 个键，见技能 fishpai「专业画布」）；校验后保存为该文档的持久设置' },
       },
       required: [],
       additionalProperties: false,
@@ -465,7 +481,10 @@ export function registerTools(ctx, deps) {
   register({
     name: 'fishpai_render',
     description:
-      '把文档渲染成可直接粘贴进微信公众号编辑器的自包含 HTML 文件（内联样式、本地图片内嵌 base64），落在工作目录里。用于交付、预览或归档；日常发布仍由用户在侧栏点「复制到剪贴板」或「导出」。',
+      '把文档渲染成可粘进微信公众号编辑器的自包含 HTML 文件（内联样式、本地图片内嵌 base64），写入工作目录。' +
+      'publish 形态先过交付质检：结构问题直接失败并列出位置，对比度与深色可读性只提示。' +
+      'screenshot:true 额外产出 375px 普通/深色整页截图与版面摘要，用于交付前审稿。' +
+      '日常交付由用户在侧栏点「复制到剪贴板」或「导出 HTML」，两者走同一道质检。',
     parameters: {
       type: 'object',
       properties: {
@@ -486,6 +505,7 @@ export function registerTools(ctx, deps) {
         snippetId: { type: 'string', description: '已确认的页头页尾片段名；渲染前拼入 Markdown，不改源文件' },
         target: { type: 'string', enum: ['quick', 'professional'], description: '渲染目标；省略则跟随文档的专业/快速模式（默认 professional），quick 走内置主题快速管线' },
         professional_spec: { type: 'object', additionalProperties: true, description: 'target=professional 时当次使用的 DEFAULT_SPEC 增量覆盖；省略则读文档设置，不隐式保存' },
+        screenshot: { type: 'boolean', description: 'true 时用本机浏览器按 375px 手机宽度截取普通与深色两张整页 PNG，并返回版面摘要；交付前审稿用。默认 false' },
       },
       required: [],
       additionalProperties: false,
@@ -532,6 +552,8 @@ export function registerTools(ctx, deps) {
         })
         const images = exportImages(out.html, { cwd, docPath: abs, embed: args.embed_images !== false })
         out.html = images.html
+        const delivery = args.publish !== false ? checkDelivery(out.html) : null
+        if (delivery && !delivery.ok) throw new Error(describeDelivery(delivery))
         const requested = args.out_path
           ? store.resolveInCwd(cwd, store.withDefaultExt(String(args.out_path), '.html'), { exts: ['.html', '.htm'] })
           : store.resolveInCwd(cwd, path.join(path.dirname(abs), `${path.basename(abs, path.extname(abs))}.html`), { exts: ['.html', '.htm'] })
@@ -552,6 +574,23 @@ export function registerTools(ctx, deps) {
           `主题「${out.themeName}」　${out.html.length} 字符（约 ${Math.round(Buffer.byteLength(out.html, 'utf8') / 1024)} KB）`,
           `图片：已内嵌 ${images.embedded} 项，保留引用 ${images.unresolved} 项${args.embed_images === false ? '（关闭内嵌）' : ''}。`,
         ]
+        if (delivery) lines.push(describeDelivery(delivery))
+        if (args.screenshot === true) {
+          const shot = await captureArticle({ html: out.html, outDir: path.dirname(target), baseName: path.basename(target, path.extname(target)) })
+          const rel = (file) => path.relative(store.canonicalCwd(cwd), file).replace(/\\/g, '/')
+          if (shot.performed) {
+            lines.push(`审稿截图（375px）：${shot.shots.map((item) => `${item.mode === 'dark' ? '深色' : '普通'} ${rel(item.path)}`).join('；')}`)
+            lines.push(describeLayout(shot.layout))
+            lines.push(
+              (await modelSeesImages(ctx, exec))
+                ? '用 read_image 逐张查看截图，对照技能 fishpai 的「交付审稿」清单复核。'
+                : '当前模型未声明图像输入：按上面的版面摘要审稿，截图留给用户查看。',
+            )
+          } else {
+            lines.push(`未生成审稿截图：${shot.reason}。改用文字版面摘要：`)
+            lines.push(staticLayoutDigest(out.html))
+          }
+        }
         if (custom) {
           lines.push(describeThemeSpec(custom.spec))
           lines.push(
@@ -693,12 +732,12 @@ export function registerTools(ctx, deps) {
     parameters: {
       type: 'object', additionalProperties: false,
       properties: {
-        action: { type: 'string', enum: ['preview', 'commit', 'list', 'delete'] },
+        action: { type: 'string', enum: ['preview', 'commit', 'list', 'delete'], description: 'preview 生成候选；commit 入库；list 列出；delete 删除' },
         name: { type: 'string', description: '片段名，也是 snippetId' },
         url: { type: 'string', description: '公开 HTTPS 文章 URL' },
-        headerHtml: { type: 'string' }, footerHtml: { type: 'string' }, footerImg: { type: 'string' },
+        headerHtml: { type: 'string', description: '页头 HTML（不给 url 时手动提供）' }, footerHtml: { type: 'string', description: '页尾 HTML' }, footerImg: { type: 'string', description: '页尾图片地址' },
         footerAnchors: { type: 'array', items: { type: 'string' }, description: '页尾锚点关键词，必须由用户配置' },
-        pending_id: { type: 'string' }, confirm: { type: 'boolean' }, force: { type: 'boolean', description: 'preview 时允许覆盖同名片段' },
+        pending_id: { type: 'string', description: 'preview 返回的候选 id，commit 时必填' }, confirm: { type: 'boolean', description: 'commit 时必须为 true，表示用户已确认' }, force: { type: 'boolean', description: 'preview 时允许覆盖同名片段' },
       },
       required: [],
     },
@@ -717,7 +756,7 @@ export function registerTools(ctx, deps) {
 
   register({
     name: 'fishpai_lint',
-    description: '检查 HTML 是否满足微信粘贴约束；结果会区分草稿 API 路径的既有观察与粘贴路径推论。',
+    description: '检查一段 HTML 的微信粘贴约束（errors）与深色模式可读性（dark.warnings），返回逐条位置与证据边界。fishpai_render 与侧栏复制/导出会自动执行同一检查；这里用于查看明细或检查 raw 片段。',
     parameters: {
       type: 'object', additionalProperties: false,
       properties: { html: { type: 'string', description: '待检查的内联样式 HTML' } },

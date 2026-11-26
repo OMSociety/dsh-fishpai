@@ -108,3 +108,19 @@ test('POST /snippets：preview/commit/list 共用 pending，并等待异步 KvTa
     assert.equal(listed[0].footerHtml, '<section>完</section>')
   } finally { server.close(); await once(server, 'close') }
 })
+
+test('SnippetService：list 等待异步 keys 并按 name 排序返回完整条目，delete 删主键', async () => {
+  const record = (name) => ({ id: name, name, headerHtml: `<section>${name}</section>`, footerHtml: '<p>完</p>', footerImg: '', createdAt: '2026-01-01T00:00:00.000Z' })
+  const rows = new Map([['zeta', record('zeta')], ['alpha', record('alpha')]])
+  const table = {
+    get: (key) => rows.get(key),
+    keys: async () => rows.keys(),
+    put: async (key, value) => { rows.set(key, value) },
+    delete: async (key) => rows.delete(key),
+  }
+  const service = new SnippetService(async () => ({ snippets: { table: () => table } }))
+  assert.deepEqual((await service.list()).map((entry) => entry.id), ['alpha', 'zeta'])
+  assert.deepEqual((await service.list())[0], record('alpha'))
+  assert.equal(await service.delete('alpha'), true)
+  assert.equal(rows.has('alpha'), false)
+})

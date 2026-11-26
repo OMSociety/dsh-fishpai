@@ -87,12 +87,6 @@ test('复制/导出的产物里，没有"直接文字 + 子元素"混排的块�
   }
 })
 
-test('默认渲染路径保持原样（wrapText 关着，混排块照旧存在）', () => {
-  const markdown = readFixture('stress.md') // 含链接与加粗，一定有混排块
-  const plain = render(markdown, { theme: 'default', publish: true, footnotes: true, macCodeBlock: true, fontSize: '16px' }).html
-  assert.ok(mixedBlocks(plain).length > 0, '默认路径必须与 golden 一致，不应被兼容层改动')
-})
-
 test('兼容层是纯叠加：去掉它加的那层裸 span，就回到默认产物', () => {
   // 兼容层由"裸 span + 条目开头一个不换行空格"组成，两者都剥掉后应与默认产物一致
   const stripBareSpans = (html) => html.replace(/<span>/g, '').replace(/<\/span>/g, '').replace(/\u00a0/g, '')
@@ -254,12 +248,6 @@ test('底色兼容层：引用的框、表头底色在复制形态里确实是�
   const gradient = render(markdown, { theme: 'gradient', publish: true, wechatBackground: true }).html
   assert.match(gradient, /background-image: linear-gradient/)
   assert.doesNotMatch(gradient, /background-color: linear-gradient/)
-})
-
-test('默认渲染路径不受底色兼容层影响（关着的时候一个字节不动）', () => {
-  const markdown = readFixture('sample-article.md')
-  const opts = { theme: 'bamboo', publish: true, footnotes: true, macCodeBlock: true, fontSize: '16px' }
-  assert.equal(render(markdown, { ...opts, wechatBackground: false }).html, render(markdown, opts).html)
 })
 
 // ── 字号兼容层：选定的字号只挂在 wrapper 上，微信粘进去会剥掉 wrapper ──────

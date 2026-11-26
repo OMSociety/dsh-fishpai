@@ -21,7 +21,7 @@ import { read } from './runtime.mjs'
 
 /** 主题内联样式的占位符替换（{{PRIMARY}} / {{PRIMARY_BG}}）。 */
 export function makeStyler(theme, customColor) {
-  const primary = customColor || '#4f6ef7'
+  const primary = customColor || '#4a69f2'
   const primaryBg = primary + '12'
   const resolve = (s) =>
     (s || '')
@@ -100,7 +100,7 @@ export function createMd(styles, opts = {}) {
     const tok = t[i]
     const info = (tok.info || '').trim()
     if (info.toLowerCase() === 'mermaid') {
-      return `<div class="mermaid-placeholder">${md.utils.escapeHtml(tok.content)}</div>`
+      return `<section class="mermaid-placeholder">${md.utils.escapeHtml(tok.content.trimEnd())}</section>`
     }
     const s = styles.code_block || ''
     let body

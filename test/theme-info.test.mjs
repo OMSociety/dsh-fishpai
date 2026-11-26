@@ -3,7 +3,7 @@
  *
  * 分两层：
  *   1. `classifyTheme` 对**合成主题**的规则边界（未来改规则时先在这里说明白）
- *   2. 真实 `themes.js` 语料的断言——它把"当前主题里谁有主题色、谁有微信风险"
+ *   2. 真实 `themes.js` 语料的断言——它把"当前主题里谁有主题色"与粘贴安全样式
  *      钉成事实；主题数据变化时这里会红，提醒复核，而不是让 UI 悄悄变错
  */
 import test from 'node:test'
@@ -11,7 +11,8 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { classifyTheme, wrapperBackground } from '../plugin/core/theme-info.mjs'
+import { classifyTheme } from '../plugin/core/theme-info.mjs'
+import { themes } from '../plugin/core/runtime.mjs'
 import { themeCatalog } from '../plugin/core/render.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -25,25 +26,9 @@ test('usesAccent：{{PRIMARY}} 与 {{PRIMARY_BG}} 都算用了主题色', () => 
   assert.equal(classifyTheme(theme({ h1: 'color: PRIMARY;' })).usesAccent, false)
 })
 
-test('gradientText：background-clip:text 的两种写法都能识别', () => {
-  assert.equal(classifyTheme(theme({ h1: 'background-clip: text; color: transparent;' })).gradientText, true)
-  assert.equal(classifyTheme(theme({ h1: '-webkit-background-clip: text; -webkit-text-fill-color: transparent;' })).gradientText, true)
-  assert.equal(classifyTheme(theme({ h1: 'background: linear-gradient(#fff, #000);' })).gradientText, false, '纯渐变背景不算渐变文字')
-})
-
-test('darkWrapper：只有深色 wrapper 才算，浅色与解析不出都不标记', () => {
-  assert.equal(classifyTheme(theme({ wrapper: 'color: #eee; background: #1a1a2e;' })).darkWrapper, true)
-  assert.equal(classifyTheme(theme({ wrapper: 'background-color: #ffffff;' })).darkWrapper, false)
-  assert.equal(classifyTheme(theme({ wrapper: 'background-color: rgb(26, 26, 46);' })).darkWrapper, true)
-  assert.equal(classifyTheme(theme({ wrapper: 'background: linear-gradient(#fff, #000);' })).darkWrapper, false, '解析不出颜色时选不标记')
-  assert.equal(classifyTheme(theme({ wrapper: 'color: #333;' })).darkWrapper, false)
-  assert.equal(wrapperBackground(theme({ wrapper: 'background: #000;' })).r, 0)
-})
-
-test('防御：结构缺失时给安全默认（wechatSafe = true）', () => {
+test('防御：结构缺失时不标记主题色', () => {
   for (const broken of [null, undefined, {}, { styles: null }, { styles: 'x' }, { styles: { h1: 42 } }]) {
-    const info = classifyTheme(broken)
-    assert.deepEqual(info, { usesAccent: false, gradientText: false, darkWrapper: false, wechatSafe: true })
+    assert.deepEqual(classifyTheme(broken), { usesAccent: false })
   }
 })
 
@@ -56,23 +41,12 @@ test('真实语料：只有「默认公众号」用主题色', () => {
   )
 })
 
-test('真实语料：渐变文字与深底的主题被准确标出', () => {
-  const catalog = themeCatalog()
-  assert.deepEqual(catalog.filter((t) => t.gradientText).map((t) => t.key).sort(), ['gradient', 'tech'])
-  assert.deepEqual(catalog.filter((t) => t.darkWrapper).map((t) => t.key), ['dark_night'])
-})
-
-test('真实语料：wechatSafe 是其余两个 flag 的结果，且数量对得上', () => {
+test('真实语料：内置主题清单与粘贴安全样式', () => {
   const catalog = themeCatalog()
   assert.equal(catalog.length, 11, '主题数量变了就要连 golden 一起重生成（见 AGENTS.md 不变量 1）')
   assert.deepEqual(catalog.map((t) => t.key), ['default', 'tech', 'elegant', 'deep_read', 'nyt', 'apple', 'claude', 'sspai', 'bamboo', 'dark_night', 'gradient'])
-  for (const t of catalog) {
-    assert.equal(t.wechatSafe, !t.gradientText && !t.darkWrapper, `${t.key} 的 wechatSafe 与前两个 flag 不一致`)
-  }
-  const safe = catalog.filter((t) => t.wechatSafe)
-  assert.equal(safe.length, 8)
-  assert.ok(safe.some((t) => t.key === 'default'), '默认公众号必须在"适合公众号"一组里')
-  assert.ok(!safe.some((t) => t.key === 'dark_night'))
+  const source = JSON.stringify(Object.values(themes()).map((theme) => theme.styles))
+  assert.doesNotMatch(source, /background-clip|text-fill-color|border-image/, '内置主题只用公众号保留的样式属性')
 })
 
 test('每套主题都配了图标（面板的主题列表靠它，不许悄悄漏）', () => {

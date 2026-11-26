@@ -39,18 +39,35 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 | `fishpai_open` | 打开/新建文档并在右侧栏弹出面板。传 `markdown` 新建；传 `path` 打开已有的 `.md`（**不覆盖**已有内容）。专业稿可同时传 `professional_spec`，画布参数随文档保存，预览、复制与导出共用 |
 | `fishpai_read` | **改稿前必做**。返回：与"你上次写入的版本"的**块级 diff**、人的**批注**、**行内占位**、图片提醒、全文与块 id，以及本次写回用的 `doc_key`、`base_revision` 和 `read_token` |
 | `fishpai_write` | 改稿。必须带同次读取的 `read_token` 和 `base_revision`；优先 `mode:"patch"` 只改指定块，`mode:"replace"` 才整篇换 |
-| `fishpai_render` | 导出可粘贴/归档用的 HTML 文件（发布形态默认内嵌本地图片；`out_path` 可省略扩展名；撞名时以返回路径为准）。`target` 选 `professional`（专业，默认跟随文档）或 `quick`（快速）；`snippetId` 可拼入已确认的页头页尾片段。图片未齐时按报告补齐再导出；仅当用户要引用模式时设 `embed_images:false`，交付时说明引用数量与所需图片 |
+| `fishpai_render` | 导出可粘贴/归档用的 HTML 文件（发布形态默认内嵌本地图片；`out_path` 可省略扩展名；撞名时以返回路径为准）。`target` 选 `professional`（专业，默认跟随文档）或 `quick`（快速）；`snippetId` 可拼入已确认的页头页尾片段。图片未齐时按报告补齐再导出；仅当用户要引用模式时设 `embed_images:false`，交付时说明引用数量与所需图片。发布形态先过**交付质检**（结构问题直接失败，对比度与深色只提示）；`screenshot:true` 另出 375px 普通/深色整页截图与版面摘要 |
 | `fishpai_import` | 从公众号 URL、粘贴 HTML 或工作区 HTML 新建专业文档。`url` / `html` / `path` 三选一，`out_path` 必须不存在；raw 保真、保守提升、图片本地化，返回结构 / 素材 / 规格证据 / lint 报告 |
 | `fishpai_theme` | 管理**用户级命名主题库**（`set` / `show` / `clear` / `list`），可存多套命名主题，跨工作目录共享。用户要"某种观感"时用，见下面「自定义主题」一节 |
 | `fishpai_snippets` | 提取并管理页头页尾片段。`preview` 生成候选 → 用户确认 → `commit` 入库；同名片段有变则重新预览并请用户确认。渲染时用 `fishpai_render` 的 `snippetId` 装配，不改源 Markdown |
-| `fishpai_lint` | 检查 HTML 是否满足微信粘贴约束（id/class/CSS 动画/grid 等禁令），结果区分草稿 API 路径观察与粘贴路径推论 |
+| `fishpai_lint` | 查看一段 HTML 的粘贴约束（id/class/CSS 动画/grid 等禁令）与深色可读性明细，结果区分草稿 API 路径观察与粘贴路径推论。复制、导出与 `fishpai_render` 已自动执行同一检查 |
 
 标准流程：
 
-- **直接排版**：`fishpai_open`（专业稿同时设 `professional_spec`）→ 写稿或局部改稿 → 面板复制或 `fishpai_render` 导出。插件内部自动校验规格、组件必填内容和 raw 安全边界；不逐项跑 lint、不主动做浏览器截图、不研究平台内部机制。工具明确报错时才针对该错误修正。
+- **直接排版**：`fishpai_open`（专业稿同时设 `professional_spec`）→ 写稿或局部改稿 → 交付审稿（见下节）→ 面板复制或 `fishpai_render` 导出。插件内部自动校验规格、组件必填内容和 raw 安全边界；工具明确报错时针对该错误修正。
 - **协同改稿**：打开后告诉用户可在右侧栏改字、选块加批注；用户说“我改了”再 `fishpai_read`，按 diff 与批注用 `fishpai_write` 局部修改。
 - **现有文章导入**：`fishpai_import({url, out_path})`，或传 `html` / `path`。导入后先读返回的分块、素材、规格证据与 lint 报告；复杂 raw 块按块编辑，不强行把 SVG / 微信专用结构改写成普通 Markdown。私有测试原文、图片与报告放暂存区，不进仓库。
 - **交付**：用户点「复制到剪贴板」；需要成品 HTML 文件时调用 `fishpai_render`。真实设备验收只在最终候选完成后做一次，不把中途验收转嫁给用户。
+
+## 交付审稿
+
+成稿定型后、交给用户复制之前做一轮：
+
+1. 调 `fishpai_render({ screenshot: true })`。质检失败时按列出的位置改稿后重来。
+2. 返回截图时用 `read_image` 看普通与深色两张；模型不支持读图或本机没有浏览器时，按返回的版面摘要逐条核对。
+3. 对照清单复核：
+   - 首屏：标题、导语与头图在手机首屏内成立，没有大片空白。
+   - 层级：标题、正文、注释三级可辨，组件间距一致，没有连续堆叠的同类组件。
+   - 宽度：没有元素超出 375px，表格与长代码可读。
+   - 图片：全部加载，尺寸与画布匹配。
+   - 深色：正文与卡片在深色截图里仍清晰；渐变文字、浅灰小字、SVG 里的文字重点看。
+   - 交互：展开类组件的封面文案独立成立，收起状态也能读懂。
+4. 只提示类结论（对比度、深色）告诉用户位置与取舍，不擅自改作者配色。
+
+截图与 HTML 写在文档同级目录；向用户报告时给出路径。
 
 ## 专业自由画布
 
@@ -125,7 +142,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 
 组件会按当前文稿的 `page_padding_x` 自动计算左右出血，并显式设置 `max-width:none !important`。普通 `max-width:none` 会被微信临时预览的高优先级规则覆盖，不能作为全幅验收依据。不要在 `raw` 里手写依赖某个固定留白值的负外边距。raw 表格的 `td` / `th` 先写 `border:0`，再写需要保留的 `border-top` 等边线。
 
-含手写 `raw` 的复制或导出候选，用 `fishpai_lint` 检查发布形态 HTML，处理 `full-bleed-width`、`table-cell-border-reset` 及其它被检出的结构问题；不能只凭侧栏预览判断粘贴结果。普通 Markdown 与语义组件不增加这套流程。
+含手写 `raw` 的稿件，交付质检会拦下 `full-bleed-width`、`table-cell-border-reset` 等结构问题；按报出的位置修正，需要逐条明细时用 `fishpai_lint` 查发布形态 HTML。不能只凭侧栏预览判断粘贴结果。
 
 正文使用系统默认字体。SVG 里的 `font-family` 只决定支持该字体时的显示，微信与手机可能回退成系统字形；需要固定造型的展示字、艺术字和标题字，优先转成带 `aria-label` 的矢量路径，不把 `<text>` 的字号生效误认为字体生效，也不必位图化。普通正文仍保留可选择、可编辑的 HTML 文本，不配置网页字体。文章是一套明确配色；深色适配由微信阅读端处理，不使用 `prefers-color-scheme` 假设编辑端会生成双主题，最终候选在目标阅读环境检查即可。
 
@@ -149,10 +166,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
   或明确说"只是要一份 HTML"时才换主题。
 - **主题色只对「默认公众号」生效**：只有它用了主题色占位符，换到别的主题点了也不会变
   （面板在这种情况下已经把取色控件藏起来）。别向用户承诺"换个主题色"。
-- **微信风险主题**：`tech`、`gradient` 用渐变文字（`background-clip: text` + 透明字色），
-  微信编辑器可能重写掉渐变导致标题异常（平台结构校验也会直接标出 `darkmode-no-gradient`）；
-  `dark_night` 是深色底，粘进公众号会是一整块深色。要发公众号就先提醒用户；
-  需要这些风格时走「导出 HTML」拿文件。
+- **11 套内置主题都只用公众号保留的样式**，可直接复制粘贴；`dark_night` 是深色底设计，粘进公众号后整篇为深色。
 - **复制/导出会加一层结构兼容层**：把文字包进 `<span>`（微信自己插入内容后的形态），
   这样公众号编辑器的结构校验不会把"含行内元素的段落"误报成行高过小；同时把 `background:`
   简写拆成 `background-color:` / `background-image:`（微信按属性名过滤，简写会被整条丢掉，
@@ -227,8 +241,7 @@ description: 把 Markdown 排成可直接粘进微信公众号编辑器的内联
 - 想跟「主题色」联动就用 `{{PRIMARY}}` / `{{PRIMARY_BG}}` 占位符
 - 不许出现 `{}` `<` `>` `"`（双引号；单引号可以，`font-family: 'Georgia', serif` 这类字体栈没问题）`url(...)` `expression(...)` `@import` `javascript:`；`!important` 写了会被自动去掉（微信不保留它）。不要写图标或 emoji
   （图标由鱼排统一给）
-- 白色/深色底、渐变文字这类**微信会掉样式**的组合：`fishpai_render` 会照做，但你要当场提醒用户
-  "这套更适合导出 HTML，发公众号可能变形"
+- 渐变文字（`background-clip: text` + 透明字色）与 `border-image` 粘进公众号会丢失，自定义主题用纯色 `color` 与普通边框表达
 
 ## 支持的 Markdown（比标准多几种）
 

@@ -28,7 +28,8 @@ import { clearCustomTheme, customCatalogEntries, normalizeCustomThemeId, themeFo
 import { colorPresets } from '../core/runtime.mjs'
 import { splitBlocks } from '../core/markdown.mjs'
 import { attachPlaceholdersToBlocks, extractPlaceholders, reanchorNotes } from '../core/notes.mjs'
-import { lintWechatHtml } from '../core/wechat-lint.mjs'
+import { lintWechatHtml, checkDelivery, describeDelivery } from '../core/wechat-lint.mjs'
+import { toWechatDark, darkenCss } from '../core/dark-preview.mjs'
 import { renderProfessional, renderProfessionalPublish } from '../core/professional/index.mjs'
 import * as store from './store.mjs'
 import { listLocalImages, exportImages, readAsset } from './assets.mjs'
@@ -467,6 +468,7 @@ export function createApiHandler({ resolveCwd, admit, log = () => {}, getStores 
         const markdown = body.snippetId ? await snippets.compose(sourceMarkdown, body.snippetId) : sourceMarkdown
         const target = String(body.target || 'quick')
         if (!['quick', 'professional'].includes(target)) return fail(res, 400, `未知渲染目标：${target}`)
+        const dark = body.dark === true && String(body.mode) !== 'publish'
         if (target === 'professional') {
           const isPublish = String(body.mode) === 'publish'
           const patch = body.professional_spec
@@ -476,13 +478,17 @@ export function createApiHandler({ resolveCwd, admit, log = () => {}, getStores 
           const out = isPublish ? renderProfessionalPublish(markdown, { spec }) : renderProfessional(markdown, { spec })
           if (isPublish) {
             const { html } = exportImages(out.html, { cwd, docPath: abs, strict: body.selfContained === true })
-            return json(res, 200, { ok: true, target, mode: 'publish', html, themeKey: out.themeKey, themeName: out.themeName })
+            const check = checkDelivery(html)
+            if (!check.ok) return json(res, 422, { ok: false, error: describeDelivery(check), blockers: check.blockers })
+            return json(res, 200, { ok: true, target, mode: 'publish', html, themeKey: out.themeKey, themeName: out.themeName, notices: check.notices })
           }
           return json(res, 200, {
             ok: true,
             target,
             mode: 'preview',
-            html: out.html,
+            // 深色预览：按微信深色转换算法近似还原。
+            html: dark ? toWechatDark(out.html) : out.html,
+            dark,
             themeKey: out.themeKey,
             themeName: out.themeName,
             hljsCss: '',
@@ -525,20 +531,23 @@ export function createApiHandler({ resolveCwd, admit, log = () => {}, getStores 
             wechatBackground: true,
           })
           const { html } = exportImages(out.html, { cwd, docPath: abs, strict: body.selfContained === true })
-          return json(res, 200, { ok: true, mode: 'publish', html, themeKey: out.themeKey, themeName: out.themeName })
+          const check = checkDelivery(html)
+          if (!check.ok) return json(res, 422, { ok: false, error: describeDelivery(check), blockers: check.blockers })
+          return json(res, 200, { ok: true, mode: 'publish', html, themeKey: out.themeKey, themeName: out.themeName, notices: check.notices })
         }
         const out = renderCore(markdown, { ...common, annotate: true })
         return json(res, 200, {
           ok: true,
           mode: 'preview',
-          html: out.html,
+          html: dark ? toWechatDark(out.html) : out.html,
+          dark,
           themeKey: out.themeKey,
           themeName: out.themeName,
           // 预览 iframe 是沙箱 srcdoc，里面没有 highlight.js 样式表：代码块的 token
           // 只有 class、没有颜色，预览看起来是黑的，而复制/导出的成品是彩色的。
           // 把同一份色表（hljs-map.json）生成 CSS 一起带下去，客户端注入 srcdoc。
           // 发布产物不吃它（走 inlineCodeStyles 内联），golden 不受影响。
-          hljsCss: hljsPreviewCss(),
+          hljsCss: dark ? darkenCss(hljsPreviewCss()) : hljsPreviewCss(),
           // 「脚注 / Mac 代码框」的可用状态直接取渲染结果：
           // linkCount 覆盖 linkify 生成的裸域名链接，hasCode 覆盖缩进式代码块。
           linkCount: out.linkCount,

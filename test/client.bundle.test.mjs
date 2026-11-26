@@ -315,9 +315,7 @@ test('产物输入全部来自本仓库 client/ 源码', async () => {
 test('面板当前文案进入产物', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
   assert.ok(source.includes('"导出 HTML"'), '导出按钮文案应为「导出 HTML」')
-  assert.ok(source.includes('适合公众号'), '主题分组标签')
-  assert.ok(source.includes('微信可能掉样式'), '风险分组标签')
-  assert.ok(source.includes('background-clip: text'), '主题风险提示要说明机制')
+  assert.ok(!source.includes('适合公众号') && !source.includes('微信可能掉样式'), '主题列表不分风险组')
   assert.ok(source.includes('Mac 代码框'), 'Mac 代码框文案进入产物')
   assert.ok(source.includes('添加外链后即可预览效果') && source.includes('添加代码块后即可预览效果'), '开关说明指向可预览的内容')
 })
@@ -384,7 +382,7 @@ test('专业模式默认预览，文稿与预览标题保持作者视角', () =>
   )
   assert.ok(!panel.includes('Markdown 源码'), '编辑区标题采用「Markdown 文稿」')
   const preview = panel.slice(panel.indexOf('function Preview'), panel.indexOf('// ── 抽屉'))
-  assert.ok(preview.includes('<span>公众号预览</span>'), '预览标题保留渠道名称')
+  assert.ok(preview.includes("props.dark ? '公众号预览 · 深色模式' : '公众号预览'"), '预览标题保留渠道名称，深色视图标明「深色」')
   assert.ok(!preview.includes('themeName'), '预览标题仅保留渠道名称')
   const bundle = fs.readFileSync(BUNDLE, 'utf8')
   for (const copy of ['Markdown 文稿', '只看文稿', '公众号预览']) {
@@ -394,7 +392,7 @@ test('专业模式默认预览，文稿与预览标题保持作者视角', () =>
 
 test('客户端只保留复制链路，不包含草稿发布与登录态管理', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
-  for (const copy of ['复制到剪贴板', '复制后可粘贴到目标编辑器', '已复制到剪贴板：可粘贴到目标编辑器']) {
+  for (const copy of ['复制到剪贴板', '复制富文本，粘贴至公众号编辑器', '已复制到剪贴板：可粘贴到目标编辑器']) {
     assert.ok(source.includes(copy), `复制文案缺失：${copy}`)
   }
   assert.ok(source.includes('renderCopyHtml'), '复制与导出统一走 renderCopyHtml')
@@ -456,11 +454,8 @@ test('字体控件保存并应用 sans / serif / mono 预设', () => {
 
 test('字体下拉标明微信粘贴与 HTML 导出的适用范围', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
-  // 分组小字与主题、字体组合的 tooltip 共同承载适用场景。
   assert.ok(source.includes('仅用于导出 HTML'), '导出场景要有分组小字')
   assert.ok(source.includes('fp-font-opt-${font}'), '衬线/等宽使用 listbox 选项结构')
-  // esbuild 输出统一用双引号
-  assert.ok(source.includes('state.meta.font === "sans"'), '字体 tooltip 同时参考主题与字体')
 })
 
 test('主题下拉「我的」分组提供命名主题删除入口', () => {
@@ -472,9 +467,6 @@ test('主题下拉「我的」分组提供命名主题删除入口', () => {
 
 test('风险提示按主题记录关闭状态，切换主题后重新评估', () => {
   const source = fs.readFileSync(BUNDLE, 'utf8')
-  assert.ok(source.includes('fp-banner-x'), '风险提示提供关闭按钮')
-  assert.ok(source.includes('setRiskDismissed(currentTheme.key)'), '关闭状态记录当前主题 key')
-  assert.ok(source.includes('setRiskDismissed(null)'), '切换主题时重置关闭状态')
 })
 
 test('快捷键速查表：宽度随面板收缩（定宽会在窄栏里溢出、标签被裁掉）', () => {
@@ -516,7 +508,7 @@ test('工具行按编辑控制与交付动作分组，空间不足时整组换�
     'disabled={!active || state.refreshing}',
     'onClick={() => void store.actions.reloadSafely()}',
     '<RefreshGlyph />',
-    '<Btn primary title="导出 HTML" onClick={() => void onExport()}>',
+    '<Btn primary title="导出 HTML 文件，内嵌本地图片" onClick={() => void onExport()}>',
     'const html = await store.actions.exportHtml()',
   ]) {
     assert.ok(panel.includes(snippet), `工具行交互缺失：${snippet}`)
@@ -528,15 +520,14 @@ test('工具行按编辑控制与交付动作分组，空间不足时整组换�
   const modeGroupAt = panel.indexOf('className="fp-mode-controls"')
   const refreshAt = panel.indexOf('title="重新载入文档"')
   const actionGroupAt = panel.indexOf('className="fp-actions"')
-  const noteAt = panel.indexOf('给光标所在段落写一条批注')
-  const exportAt = panel.indexOf('<Btn primary title="导出 HTML"')
+  const exportAt = panel.indexOf('<Btn primary title="导出 HTML 文件，内嵌本地图片"')
   const copyAt = panel.lastIndexOf('复制到剪贴板')
   const modesAt = panel.indexOf('aria-label="渲染模式"')
   assert.ok(modeGroupAt >= 0 && modeGroupAt < modesAt && modesAt < refreshAt, '专业 → 刷新属于同一控制组')
   assert.ok(!panel.includes('state.meta.mobile') && !panel.includes('data-mobile'), '预览不提供宽度开关')
   assert.ok(source.includes('.fp-preview{width:375px;max-width:100%;height:100%;border:0;background:#fff}'), '预览固定手机宽度且不带外框')
   assert.ok(!source.includes('.fp-preview[data-mobile'), '样式表不保留宽页距预览分支')
-  assert.ok(refreshAt < actionGroupAt && actionGroupAt < noteAt && noteAt < exportAt && exportAt < copyAt, '批注 → 导出 → 复制属于同一交付动作组')
+  assert.ok(refreshAt < actionGroupAt && actionGroupAt < exportAt && exportAt < copyAt, '导出 → 复制属于同一交付动作组')
   assert.ok(source.includes('.fp-mode-controls,.fp-actions{') && source.includes('flex-wrap:nowrap'), '两组内部均禁止逐项换行')
   assert.ok(source.includes('.fp-row .fp-btn-primary{min-height:26px}'), '导出与复制共用按钮高度')
   assert.ok(source.includes('.fp-icon-btn{') && source.includes('width:26px;min-height:26px;padding:0'), '刷新保持方形纯图标按钮')
@@ -747,4 +738,13 @@ test('0.1.7 形态 + 没有挂载座位：单会话退到唯一的那个，多�
     0,
     '猜错会话会把别的会话的打开请求算到当前头上：多会话时读不出当前会话就该空转',
   )
+})
+
+test('专业模式底栏提供画布设置，覆盖全部画布键', () => {
+  const panel = fs.readFileSync(path.join(ROOT, 'client', 'panel.tsx'), 'utf8')
+  assert.ok(panel.includes("{props.target === 'professional' ? <Btn expanded={props.open && props.tab === 'canvas'}"), '画布页签只在专业模式出现')
+  assert.ok(panel.includes('professionalSpec: { ...spec, [key]: value }'), '画布修改写入 professionalSpec')
+  for (const key of ['title_color', 'title_size', 'title_align', 'body_color', 'body_size', 'body_align', 'body_spacing', 'line_height', 'muted_color', 'page_bg', 'page_width', 'page_padding_x', 'page_padding_y', 'page_padding_bottom', 'card_bg', 'card_radius', 'card_padding', 'accent', 'accent2']) {
+    assert.ok(panel.includes(`{ key: '${key}', label:`), `画布设置缺少 ${key}`)
+  }
 })

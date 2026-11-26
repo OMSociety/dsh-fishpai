@@ -133,6 +133,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 |---|---|---|
 | [gzh-content-skill](https://github.com/songlitong521-oss/gzh-content-skill) | MIT | 公众号正文处理边界、页头页尾片段的两阶段确认。 |
 | [wechat-article-skills](https://github.com/aiworkskills/wechat-article-skills) | Apache-2.0 | 「骨架 × 配色」两层主题模型、组件三层覆写链与 `when_to_use`/`anti_pattern` 说明、单主色派生全色板的对比度门禁思路。 |
+| [mp-darkmode](https://github.com/wechatjs/mp-darkmode) v1.2.2（commit 65fb6e4deac3e1a5d3287ce4b8b9c53c547d9020） | MIT | 微信公众平台 Dark Mode 转换规则：常量与亮度调整规则用于深色预览与深色可读性检查，在 `plugin/core/dark-preview.mjs` 中按字符串管线重新实现。 |
 | [wechat-skill](https://github.com/843645440/wechat-skill) | AGPL-3.0 | 仅借鉴设计原则（全内联约束、确定性校验兜底、文本节点包裹、WCAG 对比度门禁），未复制其代码、色值、HTML 结构或文案。 |
 
 ## 4. 刻意**未**引入的东西

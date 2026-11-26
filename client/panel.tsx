@@ -26,7 +26,7 @@ import { CaretGlyph, FishMark, RefreshGlyph, ThemeGlyph, TickGlyph } from './ico
 import type { Block, DocMeta, Note, Placeholder, ThemeInfo } from './api'
 
 type ViewMode = 'edit' | 'preview' | 'side'
-type Tab = 'notes' | 'todo' | 'blocks' | 'history' | 'snippets'
+type Tab = 'canvas' | 'notes' | 'todo' | 'blocks' | 'history' | 'snippets'
 
 function countWords(text: string): number {
   const cjk = (text.match(/[\u3400-\u9fff\u3040-\u30ff]/g) || []).length
@@ -208,15 +208,12 @@ function ThemePicker(props: {
   const customGroup = React.useMemo(() => {
     const custom = themes.filter((theme) => theme.scope === 'user')
     if (!custom.length) return []
-    const risk = custom.some((theme) => !theme.wechatSafe)
-    return [{ key: 'custom', label: '我的主题', note: risk ? '部分主题在微信中可能掉样式' : '', risk, items: custom }]
+    return [{ key: 'custom', label: '我的主题', note: '', risk: false, items: custom }]
   }, [themes])
-  // 分组标题与小字提示分两行，避免窄面板把风险提示挤断。
   const groups = React.useMemo(
     () => [
       ...customGroup,
-      { key: 'safe', label: '适合公众号', note: '', risk: false, items: themes.filter((t) => t.scope !== 'user' && t.wechatSafe) },
-      { key: 'risky', label: '其它风格', note: '微信可能掉样式', risk: true, items: themes.filter((t) => t.scope !== 'user' && !t.wechatSafe) },
+      { key: 'builtin', label: customGroup.length ? '内置主题' : '', note: '', risk: false, items: themes.filter((t) => t.scope !== 'user') },
     ],
     [themes, customGroup],
   )
@@ -265,7 +262,7 @@ function ThemePicker(props: {
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="主题"
-        title="主题：默认公众号是给微信做的；其它风格更适合导出 HTML"
+        title="主题：公众号粘贴推荐「默认公众号」"
         onClick={() => (open ? setOpen(false) : openMenu())}
         onKeyDown={(event) => {
           // 菜单开着时焦点已经在容器里了，这里只负责"从按钮打开"
@@ -316,10 +313,11 @@ function ThemePicker(props: {
             // role="presentation"：分组标题是排版用的，`<div>` 直接坐在 role="listbox" 里
             // 属于非法子节点（listbox 只允许 option 与分组）
             <div key={group.key} role="presentation">
-              <div className="fp-menu-group" role="presentation" data-risk={group.risk ? 'true' : undefined}>
-                <span className="fp-menu-group-title">{group.label}</span>
-                {group.note ? <span className="fp-menu-group-note">{group.note}</span> : null}
-              </div>
+              {group.label ? (
+                <div className="fp-menu-group" role="presentation">
+                  <span className="fp-menu-group-title">{group.label}</span>
+                </div>
+              ) : null}
               {group.items.map((theme) => {
                 const index = flat.indexOf(theme)
                 const on = theme.key === value
@@ -348,7 +346,7 @@ function ThemePicker(props: {
                         type="button"
                         className="fp-menu-x"
                         aria-label={`删除自定义主题：${theme.name}`}
-                        title={`删除「${theme.name}」；若正在使用，当前文档会退回「默认公众号」`}
+                        title={`删除「${theme.name}」，使用中的文档恢复为「默认公众号」`}
                         onClick={(event) => {
                           event.stopPropagation()
                           if (window.confirm(`删掉「${theme.name}」？若正在使用，当前文档会退回「默认公众号」。`)) {
@@ -433,7 +431,7 @@ function FontPicker(props: { fonts: string[]; value: string; onPick: (font: stri
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="字体"
-        title="正文字体：公众号编辑器只认黑体（iOS 设备上才是苹方），衬线/等宽只在「导出 HTML」里有效；它会覆盖主题自带的字体栈（站点既有行为，不是 bug）"
+        title="正文字体：公众号仅支持黑体，衬线与等宽仅用于导出 HTML"
         onClick={() => (open ? setOpen(false) : openMenu())}
         onKeyDown={(event) => {
           if (open) return
@@ -517,17 +515,51 @@ function FontPicker(props: { fonts: string[]; value: string; onPick: (font: stri
   )
 }
 
+function MenuPicker(props: { label: string; options: Array<{ value: string; label: string }>; value: string; onPick: (value: string) => void }) {
+  const [open, setOpen] = React.useState(false)
+  const wrapRef = React.useRef<HTMLDivElement | null>(null)
+  React.useEffect(() => {
+    if (!open) return
+    const onDown = (event: MouseEvent) => { if (!wrapRef.current?.contains(event.target as Node)) setOpen(false) }
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [open])
+  const current = props.options.find((o) => o.value === props.value) || props.options[0]
+  return (
+    <div className="fp-picker" ref={wrapRef}>
+      <button type="button" className="fp-picker-btn" aria-haspopup="listbox" aria-expanded={open} aria-label={props.label} title={props.label} onClick={() => setOpen((v) => !v)}>
+        <span className="fp-picker-label">{current?.label}</span>
+        <CaretGlyph className="fp-picker-caret" />
+      </button>
+      {open ? (
+        <div className="fp-menu" role="listbox" aria-label={props.label}>
+          {props.options.map((o) => (
+            <button key={o.value} type="button" role="option" aria-selected={o.value === props.value} className="fp-menu-row"
+              data-on={o.value === props.value ? 'true' : undefined}
+              onClick={() => { props.onPick(o.value); setOpen(false) }}>
+              <span className="fp-menu-name">{o.label}</span>
+              {o.value === props.value ? <TickGlyph className="fp-menu-tick" /> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export function Panel(props: { store: FishpaiStore; sessionId: string }) {
   const { store, sessionId } = props
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot)
   const [mode, setMode] = React.useState<ViewMode>('preview')
-  const [tab, setTab] = React.useState<Tab>('notes')
+  const [tab, setTab] = React.useState<Tab>('blocks')
   const [drawerOpen, setDrawerOpen] = React.useState(false)
+  const [confirmQuick, setConfirmQuick] = React.useState(false)
   const [noteDraft, setNoteDraft] = React.useState('')
   const [narrow, setNarrow] = React.useState(false)
   // 哪一套主题的风险提示被用户关掉了。换主题时清空（见下面的 effect）：
   // 切走再切回来，提示要**重新出现**，而不是被永久关掉——那是"关一次就再也不提醒"的坏行为。
-  const [riskDismissed, setRiskDismissed] = React.useState<string | null>(null)
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
   const editorRef = React.useRef<HTMLTextAreaElement | null>(null)
@@ -542,11 +574,6 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
   React.useEffect(() => {
     setMode(state.meta.target === 'professional' ? 'preview' : 'side')
   }, [state.docKey, state.meta.target])
-
-  // 换主题就重置"已关掉的风险提示"：切走再切回来，提示要重新出现（而不是被永久关掉）
-  React.useEffect(() => {
-    setRiskDismissed(null)
-  }, [state.meta.theme])
 
   // 宽度自适应：窄栏不允许并排
   React.useEffect(() => {
@@ -646,6 +673,10 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
 
   const layout: 'stack' | 'side' = mode === 'side' && !narrow ? 'side' : 'stack'
   const showEditor = mode !== 'preview'
+  React.useEffect(() => {
+    const pro = state.meta.target === 'professional'
+    if ((tab === 'notes' && !showEditor) || (pro && (tab === 'todo' || tab === 'blocks')) || (!pro && tab === 'canvas')) setTab(pro ? 'canvas' : 'blocks')
+  }, [tab, showEditor, state.meta.target])
   const showPreview = mode !== 'edit' || layout === 'side'
   const selectDrawerTab = (next: Tab) => {
     if (drawerOpen && tab === next) {
@@ -678,10 +709,12 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
     try {
       const html = await store.actions.copyHtml()
       await copyRich(html, state.markdown)
-      store.actions.toast('已复制到剪贴板：可粘贴到目标编辑器')
+      const note = store.actions.deliveryNote()
+      store.actions.toast(note ? `已复制到剪贴板；提示：${note}` : '已复制到剪贴板：可粘贴到目标编辑器')
     } catch (error) {
-      // 复制失败时给出下一步：另一条路就在旁边，用户不必自己猜
-      store.actions.toast(`复制失败：${(error as Error).message}　可以改用旁边的「导出 HTML」拿文件`, 'error')
+      const message = (error as Error).message
+      // 质检未通过时导出同样会被拦，只给出问题清单；其余失败指向另一条交付路径。
+      store.actions.toast(message.startsWith('交付质检') ? message : `复制失败：${message}　可以改用旁边的「导出 HTML」拿文件`, 'error')
     }
   }
 
@@ -690,9 +723,11 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
       const html = await store.actions.exportHtml()
       const base = (state.title || 'article').replace(/[\\/:*?"<>|]/g, '')
       download(`${base}.html`, html)
-      store.actions.toast('已发起 HTML 下载，实际文件名与位置见浏览器下载记录')
+      const note = store.actions.deliveryNote()
+      store.actions.toast(note ? `已发起 HTML 下载；提示：${note}` : '已发起 HTML 下载，实际文件名与位置见浏览器下载记录')
     } catch (error) {
-      store.actions.toast(`导出失败：${(error as Error).message}　可以改用「复制到剪贴板」`, 'error')
+      const message = (error as Error).message
+      store.actions.toast(message.startsWith('交付质检') ? message : `导出失败：${message}　可以改用「复制到剪贴板」`, 'error')
     }
   }
 
@@ -746,8 +781,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
           <div className="fp-blank-card">
             <BlankMark />
             <div className="fp-blank-line fp-muted">
-              这个会话还没有鱼排文档。可以让模型调用 <code>fishpai_open</code> 打开一篇 Markdown，
-              也可以自己先起一篇：
+              当前会话无文档。新建，或由模型调用 <code>fishpai_open</code> 打开。
             </div>
             <div className="fp-blank-actions">
               <Btn primary onClick={() => void store.actions.createDoc()}>
@@ -783,11 +817,14 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
       <div className="fp-toolbar">
         <div className="fp-row">
           <div className="fp-mode-controls">
-            <div className="fp-seg" role="group" aria-label="渲染模式" title="专业=专业组件管线，支持交互动画；快速=内置主题管线">
-              <Btn on={state.meta.target === 'professional'} onClick={() => void store.actions.setMeta({ target: 'professional' })} title="专业：专业组件管线，支持交互动画">
+            <div className="fp-seg" role="group" aria-label="渲染模式" title="排版方式">
+              <Btn on={state.meta.target === 'professional'} onClick={() => void store.actions.setMeta({ target: 'professional' })} title="专业：自由画布与交互组件">
                 专业
               </Btn>
-              <Btn on={state.meta.target === 'quick'} onClick={() => void store.actions.setMeta({ target: 'quick' })} title="快速：内置主题管线">
+              <Btn on={state.meta.target === 'quick'} onClick={() => {
+                  if (state.meta.target === 'professional' && /^:::\s*\w/m.test(state.markdown)) setConfirmQuick(true)
+                  else void store.actions.setMeta({ target: 'quick' })
+                }} title="快速：内置主题排版">
                 快速
               </Btn>
             </div>
@@ -795,11 +832,19 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
               <Btn on={mode === 'edit'} onClick={() => setMode('edit')} title="只看文稿">
                 编辑
               </Btn>
-              <Btn on={mode === 'preview'} onClick={() => setMode('preview')} title="只看公众号效果">
+              <Btn on={mode === 'preview'} onClick={() => setMode('preview')} title="只看预览">
                 预览
               </Btn>
-              <Btn on={mode === 'side'} disabled={narrow} onClick={() => setMode('side')} title={narrow ? '栏位太窄，拉宽后可用并排' : '左右并排'}>
+              <Btn on={mode === 'side'} disabled={narrow} onClick={() => setMode('side')} title={narrow ? '侧栏宽度不足' : '文稿与预览并排'}>
                 并排
+              </Btn>
+            </div>
+            <div className="fp-seg" role="group" aria-label="预览配色">
+              <Btn on={!state.previewDark} onClick={() => store.actions.setPreviewDark(false)} title="预览浅色模式效果">
+                普通
+              </Btn>
+              <Btn on={state.previewDark} onClick={() => store.actions.setPreviewDark(true)} title="预览深色模式效果">
+                深色
               </Btn>
             </div>
             <button
@@ -815,20 +860,10 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
           </div>
           <span className="fp-spacer" />
           <div className="fp-actions">
-            <Btn
-              title="给光标所在段落写一条批注"
-              onClick={() => {
-                setTab('notes')
-                setDrawerOpen(true)
-                requestAnimationFrame(() => noteInputRef.current?.focus())
-              }}
-            >
-              批注
-            </Btn>
-            <Btn primary title="导出 HTML" onClick={() => void onExport()}>
+            <Btn primary title="导出 HTML 文件，内嵌本地图片" onClick={() => void onExport()}>
               导出 HTML
             </Btn>
-            <Btn primary title={`复制后可粘贴到目标编辑器（${COPY_HINT}）`} onClick={() => void onCopy()}>
+            <Btn primary title={`复制富文本，粘贴至公众号编辑器（${COPY_HINT}）`} onClick={() => void onCopy()}>
               复制到剪贴板
             </Btn>
           </div>
@@ -843,58 +878,29 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             onDeleteCustom={(key) => void store.actions.clearCustomTheme(key)}
           />
 
-          {/* 主题色只对用 {{PRIMARY}} 的主题有效（当前只有「默认公众号」）。用不上就不显示，别放个点了没反应的控件。 */}
           {currentTheme?.usesAccent ? (
-            <div className="fp-swatches" title="主题色">
-              {state.presets.map((p) => (
-                <button
-                  key={p.color}
-                  type="button"
-                  className="fp-swatch"
-                  style={{ background: p.color }}
-                  data-on={state.meta.color === p.color ? 'true' : undefined}
-                  title={`${p.name} ${p.color}`}
-                  onClick={() => void store.actions.setMeta({ color: state.meta.color === p.color ? null : p.color })}
-                />
-              ))}
-              <input
-                className="fp-color"
-                type="color"
-                title="自定义主题色"
-                value={state.meta.color || '#4f6ef7'}
-                onChange={(e) => void store.actions.setMeta({ color: e.target.value })}
-              />
-            </div>
+            <AccentPicker
+              presets={state.presets}
+              value={state.meta.color}
+              onPick={(color) => void store.actions.setMeta({ color })}
+            />
           ) : null}
 
-          <span
-            title={currentTheme
-              ? `当前组合：${currentTheme.wechatSafe && state.meta.font === 'sans' ? '适合微信粘贴' : '导出 HTML 更稳'}`
-              : undefined}
-          >
-            <FontPicker
-              fonts={state.fonts}
-              value={state.meta.font}
-              onPick={(font) => void store.actions.setMeta({ font })}
-            />
-          </span>
+          <FontPicker
+            fonts={state.fonts}
+            value={state.meta.font}
+            onPick={(font) => void store.actions.setMeta({ font })}
+          />
 
-          <select
-            className="fp-select"
+          <MenuPicker
+            label="正文字号"
+            options={state.sizes.map((size) => ({ value: size, label: size }))}
             value={state.meta.fontSize}
-            title="正文字号"
-            onChange={(e) => void store.actions.setMeta({ fontSize: e.target.value })}
-          >
-            {state.sizes.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+            onPick={(fontSize) => void store.actions.setMeta({ fontSize })}
+          />
 
-          <Btn
+          {docHasLinks ? <Btn
             on={state.meta.footnotes}
-            disabled={!docHasLinks}
             title={
               docHasLinks
                 ? '正文外链转文末「参考资料」（微信正文不支持外链）'
@@ -903,10 +909,9 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             onClick={() => void store.actions.setMeta({ footnotes: !state.meta.footnotes })}
           >
             脚注
-          </Btn>
-          <Btn
+          </Btn> : null}
+          {docHasCode ? <Btn
             on={state.meta.macCodeBlock}
-            disabled={!docHasCode}
             title={
               docHasCode
                 ? '代码块用 mac 标题栏形态（红黄绿圆点 + 语言标签）'
@@ -915,31 +920,10 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             onClick={() => void store.actions.setMeta({ macCodeBlock: !state.meta.macCodeBlock })}
           >
             Mac 代码框
-          </Btn>
+          </Btn> : null}
         </div>
         ) : null}
       </div>
-
-      {state.meta.target === 'quick' && currentTheme && !currentTheme.wechatSafe && riskDismissed !== currentTheme.key ? (
-        <div className="fp-banner" data-kind="warn">
-          <span>
-            {currentTheme.gradientText
-              ? `「${currentTheme.name}」用渐变文字（background-clip: text + 透明字色），微信编辑器可能丢掉渐变导致标题异常。`
-              : `「${currentTheme.name}」是深色底，粘进公众号会是一整块深色。`}
-            建议用「导出」拿 HTML，或换回「默认公众号」。
-          </span>
-          <span className="fp-spacer" />
-          <button
-            type="button"
-            className="fp-banner-x"
-            aria-label="关掉这条提示"
-            title="关掉这条提示（切回这套主题时会再出现）"
-            onClick={() => setRiskDismissed(currentTheme.key)}
-          >
-            ×
-          </button>
-        </div>
-      ) : null}
 
       {state.error ? (
         <div className="fp-banner" data-kind="error">
@@ -999,14 +983,31 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             html={state.previewHtml}
             imageMap={state.imageMap}
             hljsCss={state.hljsCss}
+            dark={state.previewDark}
             previewing={state.previewing}
             onLoad={restoreScroll}
           />
         ) : null}
       </div>
 
+      {confirmQuick ? (
+        <div className="fp-dialog-mask" onClick={() => setConfirmQuick(false)}>
+          <div className="fp-dialog" role="alertdialog" aria-modal="true" aria-labelledby="fp-dialog-title" onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => { if (event.key === 'Escape') setConfirmQuick(false) }}>
+            <div className="fp-dialog-title" id="fp-dialog-title">切换到快速模式？</div>
+            <div className="fp-dialog-text">这篇文稿用了专业组件。快速模式按内置主题排版，组件显示为原始文字，画布设置随之停用。</div>
+            <div className="fp-dialog-actions">
+              <Btn onClick={() => setConfirmQuick(false)}>取消</Btn>
+              <Btn primary onClick={() => { setConfirmQuick(false); void store.actions.setMeta({ target: 'quick' }) }}>切换</Btn>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <Drawer
         store={store}
+        target={state.meta.target}
+        showNotes={showEditor}
         tab={tab}
         open={drawerOpen}
         onTab={selectDrawerTab}
@@ -1030,7 +1031,7 @@ export function Panel(props: { store: FishpaiStore; sessionId: string }) {
             {manualImages.length ? (
               <span
                 className="fp-warn"
-                title={`这些图不会被内嵌，粘进公众号后要在编辑器里手动上传：\n${manualImages.map((i) => i.src).join('\n')}`}
+                title={`以下图片需在公众号编辑器中手动上传：\n${manualImages.map((i) => i.src).join('\n')}`}
               >
                 {manualImages.length} 张图需手动上传
               </span>
@@ -1223,6 +1224,40 @@ const COMPONENT_CATALOG: ComponentSpec[] = [
   },
 ]
 
+function AccentPicker(props: { presets: Array<{ name: string; color: string }>; value: string | null; onPick: (color: string | null) => void }) {
+  const [open, setOpen] = React.useState(false)
+  const rootRef = React.useRef<HTMLSpanElement | null>(null)
+  React.useEffect(() => {
+    if (!open) return
+    const onDown = (event: PointerEvent) => { if (!rootRef.current?.contains(event.target as Node)) setOpen(false) }
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('pointerdown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [open])
+  const current = props.value || '#4a69f2'
+  return (
+    <span className="fp-accent" ref={rootRef}>
+      <button type="button" className="fp-btn fp-accent-btn" aria-haspopup="dialog" aria-expanded={open} title="主题色" onClick={() => setOpen((v) => !v)}>
+        <span className="fp-accent-dot" style={{ background: current }} />
+        主题色
+      </button>
+      {open ? (
+        <div className="fp-accent-popover" role="dialog" aria-label="主题色">
+          <div className="fp-swatches">
+            {props.presets.map((p) => (
+              <button key={p.color} type="button" className="fp-swatch" style={{ background: p.color }}
+                data-on={props.value === p.color ? 'true' : undefined} title={`${p.name} ${p.color}`}
+                onClick={() => props.onPick(props.value === p.color ? null : p.color)} />
+            ))}
+            <input className="fp-color" type="color" title="自定义颜色" value={current} onChange={(e) => props.onPick(e.target.value)} />
+          </div>
+        </div>
+      ) : null}
+    </span>
+  )
+}
+
 function ComponentPicker(props: { onPick: (template: string) => void }) {
   const [open, setOpen] = React.useState(false)
   const rootRef = React.useRef<HTMLSpanElement | null>(null)
@@ -1251,7 +1286,7 @@ function ComponentPicker(props: { onPick: (template: string) => void }) {
         data-on={open ? 'true' : undefined}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title="插入专业组件"
+        title="在光标处插入组件"
         onClick={() => setOpen((value) => !value)}
       >
         ⊕ 组件
@@ -1260,7 +1295,7 @@ function ComponentPicker(props: { onPick: (template: string) => void }) {
         <div className="fp-component-popover" role="dialog" aria-label="插入专业组件">
           <div className="fp-component-title">
             <span>专业组件</span>
-            <span className="fp-muted">点击插入，填写占位内容</span>
+            <span className="fp-muted">插入后替换示例内容</span>
           </div>
           <div className="fp-component-list">
             {COMPONENT_CATALOG.map((item) => (
@@ -1412,16 +1447,16 @@ function Editor(props: {
         <span>{props.target === 'professional' ? '文稿' : 'Markdown 文稿'}</span>
         <span className="fp-spacer" />
         <span className="fp-muted">
-          {props.currentBlock ? `${kindLabel(props.currentBlock.kind)} · 第 ${props.currentBlock.startLine} 行` : '未在块内'}
+          {props.currentBlock ? `${kindLabel(props.currentBlock.kind)} · 第 ${props.currentBlock.startLine} 行` : '空行'}
         </span>
-        <ComponentPicker onPick={insertComponent} />
+        {props.target === 'professional' ? <ComponentPicker onPick={insertComponent} /> : null}
         <span className="fp-keys-wrap" ref={keysRef}>
           <button
             type="button"
             className="fp-keys-btn"
             data-on={sheet ? 'true' : undefined}
             aria-expanded={sheet}
-            title="快捷键：加粗、标题、列表、粘贴图片…"
+            title="查看快捷键"
             onClick={() => setSheet((open) => !open)}
           >
             快捷键
@@ -1438,8 +1473,7 @@ function Editor(props: {
           props.onChange(e.target.value)
           props.onCaret(caretOf(e.target))
         }}
-        onClick={(e) => props.onCaret(caretOf(e.currentTarget))}
-        onKeyUp={(e) => props.onCaret(caretOf(e.currentTarget))}
+        onSelect={(e) => props.onCaret(caretOf(e.currentTarget))}
         onKeyDown={onKeyDown}
         onPaste={(e) => {
           const files = imageFiles(e.clipboardData)
@@ -1475,13 +1509,15 @@ function Preview(props: {
   imageMap: Record<string, string>
   /** hljs 配色（宿主从 hljs-map.json 生成）：srcdoc 里没有 highlight.js 样式表，不注入代码块是黑的 */
   hljsCss: string
+  /** 按微信深色模式渲染的预览视图 */
+  dark: boolean
   previewing: boolean
   onLoad: () => void
 }) {
   return (
     <div className="fp-pane">
       <div className="fp-pane-head">
-        <span>公众号预览</span>
+        <span>{props.dark ? '公众号预览 · 深色模式' : '公众号预览'}</span>
         <span className="fp-spacer" />
         {props.previewing ? <span>渲染中…</span> : null}
       </div>
@@ -1492,7 +1528,7 @@ function Preview(props: {
             className="fp-preview"
             title="公众号预览"
             sandbox="allow-scripts"
-            srcDoc={buildSrcdoc(props.html, props.imageMap, props.hljsCss)}
+            srcDoc={buildSrcdoc(props.html, props.imageMap, props.hljsCss, props.dark)}
             onLoad={props.onLoad}
           />
         ) : (
@@ -1507,6 +1543,8 @@ function Preview(props: {
 
 function Drawer(props: {
   store: FishpaiStore
+  target: string
+  showNotes: boolean
   tab: Tab
   open: boolean
   onTab: (t: Tab) => void
@@ -1536,21 +1574,24 @@ function Drawer(props: {
     >
       <div className="fp-drawer-bar">
         <div className="fp-drawer-tabs" role="group" aria-label="文档辅助">
-        <Btn expanded={props.open && props.tab === 'notes'} on={props.open && props.tab === 'notes'} onClick={() => props.onTab('notes')}>
-          批注 {openNotes.length || ''}
-        </Btn>
-        <Btn expanded={props.open && props.tab === 'todo'} on={props.open && props.tab === 'todo'} onClick={() => props.onTab('todo')}>
-          待补 {props.placeholders.length || ''}
-        </Btn>
-        <Btn expanded={props.open && props.tab === 'blocks'} on={props.open && props.tab === 'blocks'} onClick={() => props.onTab('blocks')}>
-          块 {props.blocks.length}
+        {props.target === 'professional' ? <Btn expanded={props.open && props.tab === 'canvas'} on={props.open && props.tab === 'canvas'} onClick={() => props.onTab('canvas')}>
+          画布
+        </Btn> : null}
+        <Btn expanded={props.open && props.tab === 'snippets'} on={props.open && props.tab === 'snippets'} onClick={() => props.onTab('snippets')}>
+          页头页尾
         </Btn>
         <Btn expanded={props.open && props.tab === 'history'} on={props.open && props.tab === 'history'} onClick={() => props.onTab('history')}>
           历史
         </Btn>
-        <Btn expanded={props.open && props.tab === 'snippets'} on={props.open && props.tab === 'snippets'} onClick={() => props.onTab('snippets')}>
-          页头页尾
-        </Btn>
+        {props.target === 'professional' ? null : <Btn expanded={props.open && props.tab === 'blocks'} on={props.open && props.tab === 'blocks'} onClick={() => props.onTab('blocks')}>
+          块 {props.blocks.length}
+        </Btn>}
+        {props.showNotes ? <Btn expanded={props.open && props.tab === 'notes'} on={props.open && props.tab === 'notes'} onClick={() => props.onTab('notes')}>
+          批注 {openNotes.length || ''}
+        </Btn> : null}
+        {props.target === 'professional' ? null : <Btn expanded={props.open && props.tab === 'todo'} on={props.open && props.tab === 'todo'} onClick={() => props.onTab('todo')}>
+          待补 {props.placeholders.length || ''}
+        </Btn>}
         </div>
         <div className="fp-status">{props.status}</div>
       </div>
@@ -1561,7 +1602,7 @@ function Drawer(props: {
             <div className="fp-compose">
               <textarea
                 ref={props.noteInputRef}
-                placeholder="给光标所在段落留一条批注…（模型下次读文档时会看到）"
+                placeholder="对光标所在段落的修改意见"
                 value={props.noteDraft}
                 onChange={(e) => props.setNoteDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -1576,20 +1617,20 @@ function Drawer(props: {
                 </Btn>
               </div>
             </div>
-            {props.notes.length === 0 ? <div className="fp-empty">还没有批注。</div> : null}
+            {props.notes.length === 0 ? <div className="fp-empty">暂无批注。</div> : null}
             {props.notes.map((n) => (
               <div className="fp-item" key={n.id} data-orphan={n.orphan ? 'true' : undefined}>
                 <div className="fp-item-head">
                   <span>
                     {n.orphan
-                      ? '锚点已失效'
+                      ? '原段落已改动'
                       : n.blockIndex === null || n.blockIndex === undefined
                         ? '第 ? 块'
                         : `第 ${n.blockIndex + 1} 块`}
                   </span>
                   <span>{fmtTime(n.at)}</span>
                   <span className="fp-spacer" />
-                  <Btn onClick={() => props.onJumpNote(n)} title="跳到引用它的那段并选中">
+                  <Btn onClick={() => props.onJumpNote(n)} title="定位到对应段落">
                     定位
                   </Btn>
                   {n.orphan ? null : <Btn onClick={() => props.onResolve(n.id)}>{n.resolved ? '已解决' : '标记解决'}</Btn>}
@@ -1604,7 +1645,7 @@ function Drawer(props: {
 
         {props.tab === 'todo' ? (
           props.placeholders.length === 0 ? (
-            <div className="fp-empty">没有待补占位。在正文里写 <code>&lt;!-- 鱼排: 这里补一句 --&gt;</code> 即可。</div>
+            <div className="fp-empty">暂无待补。占位写法：<code>&lt;!-- 鱼排: 说明 --&gt;</code></div>
           ) : (
             props.placeholders.map((p) => (
               <div className="fp-item" key={`${p.line}-${p.col}`}>
@@ -1637,26 +1678,144 @@ function Drawer(props: {
 
         {props.tab === 'history' ? (
           props.history.length === 0 ? (
-            <div className="fp-empty">还没有历史版本。</div>
+            <div className="fp-empty">暂无历史版本。保留最近 50 版。</div>
           ) : (
             props.history.map((h) => (
               <div className="fp-item" key={h.id}>
                 <div className="fp-item-head">
-                  <span>rev {h.rev}</span>
+                  <span>第 {h.rev} 版</span>
                   <span>{h.by === 'ai' ? '模型' : h.by === 'human' ? '你' : h.by}</span>
                   <span>{fmtTime(h.at)}</span>
                   {h.label ? <span>{h.label}</span> : null}
                   <span className="fp-spacer" />
-                  <Btn onClick={() => props.onRestore(h.id, `rev ${h.rev}${h.label ? `（${h.label}）` : ''}`)}>回滚到这一版</Btn>
+                  <Btn onClick={() => props.onRestore(h.id, `第 ${h.rev} 版${h.label ? `（${h.label}）` : ''}`)}>回滚到这一版</Btn>
                 </div>
               </div>
             ))
           )
         ) : null}
 
+        {props.tab === 'canvas' ? <CanvasSettings store={props.store} /> : null}
         {props.tab === 'snippets' ? <SnippetLibrary store={props.store} /> : null}
       </div>
       ) : null}
     </div>
+  )
+}
+
+// ── 画布设置 ─────────────────────────────────────────────────────
+
+const CANVAS_DEFAULTS: Record<string, string | number> = {
+  title_color: '#1f2329', title_size: 24, title_align: 'left',
+  body_color: '#3f4650', body_size: 16, body_align: 'left', body_spacing: 0.5, line_height: 1.8,
+  muted_color: '#6b7280', page_bg: '#ffffff', page_width: 677,
+  page_padding_x: 20, page_padding_y: 0, page_padding_bottom: 24,
+  card_bg: '#f5f6f8', card_radius: 8, card_padding: 14, accent: '#3f63d7', accent2: '#5b7cdb',
+}
+
+type CanvasField =
+  | { key: string; label: string; kind: 'color' }
+  | { key: string; label: string; kind: 'number'; min: number; max: number; step: number; unit?: string }
+  | { key: string; label: string; kind: 'align'; options: Array<[string, string]> }
+
+const ALIGN_BASE: Array<[string, string]> = [['left', '左对齐'], ['center', '居中'], ['right', '右对齐']]
+
+const CANVAS_GROUPS: Array<{ title: string; fields: CanvasField[] }> = [
+  { title: '页面', fields: [
+    { key: 'page_bg', label: '页面底色', kind: 'color' },
+    { key: 'page_width', label: '页面宽度', kind: 'number', min: 280, max: 1200, step: 1, unit: 'px' },
+    { key: 'page_padding_x', label: '左右边距', kind: 'number', min: 0, max: 120, step: 1, unit: 'px' },
+    { key: 'page_padding_y', label: '顶部边距', kind: 'number', min: 0, max: 120, step: 1, unit: 'px' },
+    { key: 'page_padding_bottom', label: '底部延伸', kind: 'number', min: 0, max: 120, step: 1, unit: 'px' },
+  ] },
+  { title: '标题', fields: [
+    { key: 'title_color', label: '标题颜色', kind: 'color' },
+    { key: 'title_size', label: '标题字号', kind: 'number', min: 10, max: 80, step: 1, unit: 'px' },
+    { key: 'title_align', label: '标题对齐', kind: 'align', options: ALIGN_BASE },
+  ] },
+  { title: '正文', fields: [
+    { key: 'body_color', label: '正文颜色', kind: 'color' },
+    { key: 'muted_color', label: '次要文字', kind: 'color' },
+    { key: 'body_size', label: '正文字号', kind: 'number', min: 10, max: 40, step: 1, unit: 'px' },
+    { key: 'line_height', label: '行高', kind: 'number', min: 1, max: 4, step: 0.1 },
+    { key: 'body_spacing', label: '字间距', kind: 'number', min: 0, max: 20, step: 0.1, unit: 'px' },
+    { key: 'body_align', label: '正文对齐', kind: 'align', options: [...ALIGN_BASE, ['justify', '两端对齐']] },
+  ] },
+  { title: '卡片与强调', fields: [
+    { key: 'card_bg', label: '卡片底色', kind: 'color' },
+    { key: 'card_radius', label: '卡片圆角', kind: 'number', min: 0, max: 80, step: 1, unit: 'px' },
+    { key: 'card_padding', label: '卡片内边距', kind: 'number', min: 0, max: 100, step: 1, unit: 'px' },
+    { key: 'accent', label: '主强调色', kind: 'color' },
+    { key: 'accent2', label: '辅强调色', kind: 'color' },
+  ] },
+]
+
+const HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
+
+function CanvasSettings(props: { store: FishpaiStore }) {
+  const state = useSyncExternalStore(props.store.subscribe, props.store.getSnapshot)
+  const spec = { ...CANVAS_DEFAULTS, ...(state.meta.professionalSpec || {}) }
+  const save = (key: string, value: string | number) => {
+    if (spec[key] === value) return
+    void props.store.actions.setMeta({ professionalSpec: { ...spec, [key]: value } })
+  }
+  return (
+    <div className="fp-canvas">
+      {CANVAS_GROUPS.map((group) => (
+        <section className="fp-canvas-group" key={group.title}>
+          <div className="fp-canvas-title">{group.title}</div>
+          {group.fields.map((field) => (
+            <label className="fp-canvas-row" key={field.key}>
+              <span className="fp-canvas-label">{field.label}</span>
+              <CanvasControl field={field} value={spec[field.key]} onSave={(v) => save(field.key, v)} />
+            </label>
+          ))}
+        </section>
+      ))}
+      <div className="fp-canvas-foot">
+        <Btn onClick={() => void props.store.actions.setMeta({ professionalSpec: { ...CANVAS_DEFAULTS } })}>恢复默认</Btn>
+      </div>
+    </div>
+  )
+}
+
+function CanvasControl(props: { field: CanvasField; value: string | number; onSave: (value: string | number) => void }) {
+  const { field } = props
+  const [draft, setDraft] = React.useState(String(props.value))
+  React.useEffect(() => setDraft(String(props.value)), [props.value])
+  if (field.kind === 'align') {
+    return (
+      <MenuPicker
+        label={field.label}
+        options={field.options.map(([value, label]) => ({ value, label }))}
+        value={String(props.value)}
+        onPick={(value) => props.onSave(value)}
+      />
+    )
+  }
+  if (field.kind === 'color') {
+    const commit = () => {
+      const value = draft.trim()
+      if (HEX_RE.test(value)) props.onSave(value.toLowerCase())
+      else setDraft(String(props.value))
+    }
+    return (
+      <span className="fp-canvas-control">
+        <input className="fp-color" type="color" aria-label={field.label} value={HEX_RE.test(String(props.value)) && String(props.value).length === 7 ? String(props.value) : '#ffffff'} onChange={(e) => props.onSave(e.target.value)} />
+        <input className="fp-input fp-canvas-input" value={draft} spellCheck={false} onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') commit() }} />
+      </span>
+    )
+  }
+  const commit = () => {
+    const n = Number(draft)
+    if (Number.isFinite(n) && n >= field.min && n <= field.max) props.onSave(n)
+    else setDraft(String(props.value))
+  }
+  return (
+    <span className="fp-canvas-control">
+      <input className="fp-input fp-canvas-input" type="number" min={field.min} max={field.max} step={field.step} value={draft}
+        onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') commit() }} />
+      {field.unit ? <span className="fp-muted">{field.unit}</span> : null}
+    </span>
   )
 }

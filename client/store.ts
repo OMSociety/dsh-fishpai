@@ -76,6 +76,8 @@ export interface FishpaiState {
   fonts: string[]
   sizes: string[]
   previewHtml: string
+  /** 预览是否按微信深色模式渲染。属于面板视图状态，生命周期跟随当前面板。 */
+  previewDark: boolean
   /**
    * 预览 iframe 的 highlight.js 配色（宿主从同一份 hljs-map.json 生成）。
    * 沙箱 srcdoc 里没有 hljs 样式表，代码块 token 只有 class、没有颜色——
@@ -133,6 +135,7 @@ function initialState(sessionId: string): FishpaiState {
     fonts: ['sans', 'serif', 'mono'],
     sizes: ['14px', '15px', '16px', '17px', '18px'],
     previewHtml: '',
+    previewDark: false,
     hljsCss: '',
     themeName: '',
     previewing: false,
@@ -171,11 +174,11 @@ function inlineImages(html: string, imageMap: Record<string, string>): string {
  * `hljsCss` 是宿主从同一份 hljs-map.json 生成的配色：沙箱 srcdoc 里没有 highlight.js
  * 样式表，不注入的话代码块只有 class、没有颜色（预览黑的，成品却是彩色的）。
  */
-export function buildSrcdoc(html: string, imageMap: Record<string, string> = {}, hljsCss = ''): string {
+export function buildSrcdoc(html: string, imageMap: Record<string, string> = {}, hljsCss = '', dark = false): string {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  html,body{margin:0;padding:0;background:#fff;scrollbar-width:none}
+  html,body{margin:0;padding:0;background:${dark ? '#191919' : '#fff'};scrollbar-width:none}
   html::-webkit-scrollbar,body::-webkit-scrollbar{width:0;height:0;display:none}
   fp-block{display:block;height:0;overflow:hidden}
   img{max-width:100%;height:auto}
@@ -243,6 +246,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
   let previewTimer: ReturnType<typeof setTimeout> | null = null
   let disposed = false
   let libraryRequests = 0
+  let deliveryNote = ''
   // 提示条自己会消失，但它的定时器也必须能被 dispose 收走——否则面板卸载后
   // 这个闭包还攥着 state 不放，在已卸载的 store 上 patch 一次。
   const toastTimers = new Set<ReturnType<typeof setTimeout>>()
@@ -309,7 +313,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
     const epoch = notesEpoch
     patch({ previewing: true })
     try {
-      const res = await api.renderPreview(state.sessionId, state.docKey, markdown, meta, meta.target)
+      const res = await api.renderPreview(state.sessionId, state.docKey, markdown, meta, meta.target, { dark: state.previewDark })
       if (token !== previewToken) return // 有更新的渲染在路上，丢掉这次
       patch({
         previewHtml: res.html,
@@ -537,6 +541,13 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
   const actions = {
     init,
 
+    /** 切换预览的普通/深色视图。 */
+    setPreviewDark(on: boolean) {
+      if (state.previewDark === on) return
+      patch({ previewDark: on })
+      schedulePreview()
+    },
+
     /**
      * 面板上自己起一篇（空文档 + 一行标题），不必等模型 `fishpai_open`。
      * 宿主那边会把它落到 `.fishpai/docs/` 下，和模型建的是同一类普通 .md。
@@ -693,8 +704,7 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
         })
         notesEpoch += 1
         patch({ notes: res.notes })
-        toast('批注已加；模型下次 fishpai_read 就能看到')
-        return true
+          return true
       } catch (error) {
         toast(`批注失败：${(error as Error).message}　文字还在输入框里，可以直接重试`, 'error')
         return false
@@ -783,7 +793,16 @@ export function createFishpaiStore(sessionId: string, onDocLoaded?: (docKey: str
       if (!state.docKey) throw new Error('还没有打开文档')
       await saveNow()
       const res = await api.renderCopyHtml(state.sessionId, state.docKey, state.markdown, state.meta, { target: state.meta.target, ...(selfContained ? { selfContained: true } : {}) })
+      const notes: string[] = []
+      if (res.notices?.contrast) notes.push(`对比度不足 ${res.notices.contrast} 处`)
+      if (res.notices?.dark) notes.push(`深色模式下不易阅读 ${res.notices.dark} 处`)
+      deliveryNote = notes.join('，')
       return res.html
+    },
+
+    /** 最近一次复制或导出的交付质检提示；无提示时为空串。 */
+    deliveryNote(): string {
+      return deliveryNote
     },
 
     /** 导出与复制使用同一种 HTML 形态，由面板负责下载。 */

@@ -918,7 +918,7 @@ export function safeThemeKey(name) {
 /**
  * 主题清单（面板、`GET /themes` 与技能共用）。
  * 除名称之外还带上 `classifyTheme()` 算出来的能力标注：面板据此决定
- * 「主题色该不该显示」「要不要提醒这个主题粘进微信有风险」。
+ * 「主题色该不该显示」。
  */
 export function themeCatalog() {
   const THEMES = themes()

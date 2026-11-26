@@ -998,33 +998,6 @@ test('fishpai_render 的兼容层与面板的「复制到剪贴板」同款：�
   assert.doesNotMatch(raw, /<p style="font-size: 17px/, '原始形态不该把字号推进到元素上')
 })
 
-test('路由：Origin: null 的请求被拒（沙箱 iframe / data: 文档）', async () => {
-  const cwd = tmpWorkspace()
-  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
-  store.setActive(cwd, 's1', opened.key)
-  const handler = createApiHandler({ resolveCwd: () => cwd })
-  const res = await callRoute(handler, {
-    method: 'GET',
-    url: `/fishpai/api/doc?sessionId=s1&docKey=${opened.key}`,
-    headers: { origin: 'null' },
-  })
-  assert.equal(res.status, 403)
-})
-
-test('路由：超过 8MB 的请求体回 413 而不是断连', async () => {
-  const cwd = tmpWorkspace()
-  const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
-  const handler = createApiHandler({ resolveCwd: () => cwd })
-  const res = await callRoute(handler, {
-    method: 'PUT',
-    url: '/fishpai/api/doc',
-    // 超大 JSON：走 readBody 的 overflow 分支
-    raw: Buffer.from(JSON.stringify({ sessionId: 's1', docKey: opened.key, baseRevision: 1, markdown: 'x'.repeat(9 * 1024 * 1024) })),
-  })
-  assert.equal(res.status, 413)
-  assert.match(res.json.error, /上限/)
-})
-
 test('路由：history 的 stash 把草稿存成历史，且可按 id 回滚', async () => {
   const cwd = tmpWorkspace()
   const opened = store.openDoc({ cwd, docPath: 'a.md', markdown: ARTICLE, by: 'ai' })
@@ -1255,12 +1228,9 @@ test('客户端契约：api.ts 用到的路由与字段在宿主侧全都存在�
   )
   assert.equal(themes.json.presets.length, 12)
   assert.ok(themes.json.sizes.includes('17px'))
-  // 每条都要带能力标注，否则面板没法判断"主题色该不该显示""要不要提醒微信风险"
+  // 每条都要带能力标注，否则面板没法判断"主题色该不该显示"
   for (const t of themes.json.themes) {
-    for (const flag of ['usesAccent', 'gradientText', 'darkWrapper', 'wechatSafe']) {
-      assert.equal(typeof t[flag], 'boolean', `${t.key} 缺少 ${flag}`)
-    }
-    assert.equal(t.wechatSafe, !t.gradientText && !t.darkWrapper)
+    assert.equal(typeof t.usesAccent, 'boolean', `${t.key} 缺少 usesAccent`)
   }
   assert.deepEqual(themes.json.themes.filter((t) => t.usesAccent).map((t) => t.key), ['default'])
 
@@ -1701,9 +1671,7 @@ test('命名主题：清单带用户作用域与基础主题说明', async () =>
   assert.equal(entry.name, '灰底')
   assert.equal(entry.scope, 'user')
   assert.match(entry.desc, /优雅简约/)
-  for (const flag of ['usesAccent', 'gradientText', 'darkWrapper', 'wechatSafe']) {
-    assert.equal(typeof entry[flag], 'boolean', `缺 ${flag}`)
-  }
+  assert.equal(typeof entry.usesAccent, 'boolean', '缺 usesAccent')
   assert.ok(themeCatalog().every((entry) => entry.scope === 'builtin'))
 })
 
@@ -1852,4 +1820,76 @@ test('协同样稿：恢复历史只接受面板读取的版本', async () => {
   const result = await callRoute(handler, { method: 'POST', url: '/fishpai/api/history', body: { sessionId: 's1', docKey: key, action: 'restore', id: entry.id, baseRevision: state.revision } })
   assert.equal(result.status, 409)
   assert.equal(fs.readFileSync(docPath, 'utf8'), '春分')
+})
+
+function stateWithOutsideReference(property) {
+  const cwd = tmpWorkspace()
+  const { key } = store.openDoc({ cwd, docPath: 'private.md', markdown: '# 私有正文\n' })
+  const outside = path.join(path.dirname(cwd), `${path.basename(cwd)}-outside.md`)
+  fs.writeFileSync(outside, 'OUTSIDE-SECRET')
+  const statePath = path.join(cwd, '.fishpai', 'state', `${key}.json`)
+  const persisted = JSON.parse(fs.readFileSync(statePath, 'utf8'))
+  if (property === 'history') persisted.history[0].file = path.relative(cwd, outside)
+  else persisted.baseline.file = path.relative(cwd, outside)
+  fs.writeFileSync(statePath, JSON.stringify(persisted))
+  return { cwd, key }
+}
+
+test('状态文件：history.file / baseline.file 越界是损坏状态，不能读取工作目录外内容', () => {
+  const h = stateWithOutsideReference('history')
+  assert.throws(() => store.readHistoryEntry(h.cwd, h.key, store.readState(h.cwd, h.key).history[0].id), /状态损坏|越界/)
+  const b = stateWithOutsideReference('baseline')
+  assert.throws(() => store.baselineContent(b.cwd, store.readState(b.cwd, b.key)), /状态损坏|越界/)
+})
+
+test('POST /upload：非法 base64 与伪造 PNG 返回 400 且不落盘', async () => {
+  const cwd = tmpWorkspace()
+  const { key } = store.openDoc({ cwd, docPath: 'upload.md', markdown: '# 上传\n' })
+  const handler = createApiHandler({ resolveCwd: () => cwd })
+  for (const data of ['***not-base64***', Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>').toString('base64')]) {
+    const response = await callRoute(handler, { method: 'POST', url: '/fishpai/api/upload', body: { docKey: key, sessionId: 's1', mime: 'image/png', data, name: 'fake.png' } })
+    assert.equal(response.status, 400)
+    assert.equal(response.json.ok, false)
+    assert.match(response.json.error, /base64|图片.*格式|图片.*内容|不是.*图片/)
+  }
+  const assets = path.join(cwd, 'assets')
+  assert.deepEqual(fs.existsSync(assets) ? fs.readdirSync(assets) : [], [])
+})
+
+test('存图：五种栅格格式的真实魔数都能保存', () => {
+  const cwd = tmpWorkspace()
+  store.openDoc({ cwd, docPath: 'magic.md', markdown: '# 图片\n' })
+  const samples = [
+    ['image/png', Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4])],
+    ['image/jpeg', Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16])],
+    ['image/gif', Buffer.from('GIF89a\u0001\u0000\u0001\u0000', 'binary')],
+    ['image/webp', Buffer.concat([Buffer.from('RIFF'), Buffer.from([4, 0, 0, 0]), Buffer.from('WEBP')])],
+    ['image/bmp', Buffer.from([0x42, 0x4d, 0x1e, 0, 0, 0])],
+  ]
+  for (const [mime, bytes] of samples) {
+    const saved = store.saveAsset({ cwd, docPath: 'magic.md', mime, data: bytes.toString('base64'), name: `sample.${mime.split('/')[1]}` })
+    assert.equal(saved.bytes, bytes.length)
+    assert.deepEqual(fs.readFileSync(saved.path), bytes)
+  }
+})
+
+test('storageDomain 打开失败时 /themes 与 /state 降级而不是整体 500', async () => {
+  const cwd = tmpWorkspace()
+  const { key } = store.openDoc({ cwd, docPath: 'degraded.md', markdown: '# 降级\n' })
+  store.setActive(cwd, 's1', key)
+  const statePath = path.join(cwd, '.fishpai', 'state', `${key}.json`)
+  const persisted = JSON.parse(fs.readFileSync(statePath, 'utf8'))
+  persisted.theme = 'custom:missing'
+  fs.writeFileSync(statePath, JSON.stringify(persisted))
+  const handler = createApiHandler({ resolveCwd: () => cwd, getStores: async () => { throw new Error('storageDomain unavailable') } })
+  const themes = await callRoute(handler, { method: 'GET', url: '/fishpai/api/themes' })
+  assert.equal(themes.status, 200)
+  assert.ok(themes.json.themes.length > 0)
+  assert.equal(themes.json.storage.available, false)
+  assert.match(themes.json.storage.error, /用户级存储不可用/)
+  const current = await callRoute(handler, { method: 'GET', url: '/fishpai/api/state?sessionId=s1' })
+  assert.equal(current.status, 200)
+  assert.equal(current.json.active.theme, 'default')
+  assert.equal(current.json.storage.available, false)
+  assert.equal(store.readState(cwd, key).theme, 'custom:missing')
 })

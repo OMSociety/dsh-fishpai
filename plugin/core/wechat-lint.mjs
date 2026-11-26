@@ -1,4 +1,5 @@
 import { themes } from './runtime.mjs'
+import { toWechatDark, DARK_CONSTANTS } from './dark-preview.mjs'
 
 const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'meta', 'link', 'base', 'embed'])
 const TEXT_CONTAINERS = new Set(['section', 'p', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'td', 'th'])
@@ -44,7 +45,7 @@ function isBuiltinTextColor(tag, color) {
         for (const slot of slots) {
           const value = declarations(theme.styles[slot]).color
           if (!value) continue
-          const normalized = value.replace(/\{\{PRIMARY\}\}/g, '#4f6ef7').replace(/\s+/g, '').toLowerCase()
+          const normalized = value.replace(/\{\{PRIMARY\}\}/g, '#4a69f2').replace(/\s+/g, '').toLowerCase()
           if (!builtinTextColors.has(name)) builtinTextColors.set(name, new Set())
           builtinTextColors.get(name).add(normalized)
         }
@@ -55,7 +56,7 @@ function isBuiltinTextColor(tag, color) {
 }
 
 const TABLE_BORDER_PROPS = ['border', 'border-top', 'border-right', 'border-bottom', 'border-left']
-const normalizedThemeValue = (value) => String(value || '').replace(/\{\{PRIMARY\}\}/g, '#4f6ef7').replace(/\s+/g, '').toLowerCase()
+const normalizedThemeValue = (value) => String(value || '').replace(/\{\{PRIMARY\}\}/g, '#4a69f2').replace(/\s+/g, '').toLowerCase()
 
 function hasBuiltinTableBorder(tag, rules) {
   return Object.values(themes()).some((theme) => {
@@ -144,7 +145,7 @@ function fishpaiStructure(tag, attrs, stack, source, index) {
     && (/^mac-dot (?:red|yellow|green)$/.test(attrs.class || '') || attrs.class === 'mac-code-lang')) {
     return { allowClass: true, kind: 'mac-code' }
   }
-  if (tag === 'span' && /^hljs-[\w-]+$/.test(attrs.class || '') && stack.some((frame) => frame.className === 'mac-code-block')) {
+  if (tag === 'span' && /^hljs-[\w-]+(?: [\w-]+)*$/.test(attrs.class || '') && stack.some((frame) => frame.className === 'mac-code-block')) {
     return { allowClass: true, kind: 'mac-code' }
   }
   if (tag === 'section' && stack.some((frame) => frame.kind === 'fast-root')
@@ -252,9 +253,135 @@ export function lintWechatHtml(html) {
   }
   checkText(source.slice(cursor), cursor)
   return {
+    dark: lintDarkMode(source),
     ok: errors.length === 0,
     errors,
     summary: errors.length ? `${errors.length} 项粘贴约束未通过` : '微信粘贴约束检查通过',
     evidence: { ruleObservations: '微信草稿 API 路径', pastePath: '逐条 evidence 标注；未标注规则仍需以实际粘贴结果复核', measuredRules: ['full-bleed-width', 'table-cell-border-reset'] },
+  }
+}
+
+/** 只提示、不阻断交付的规则：阅读体验类判断，最终以人在目标设备上的观感为准。 */
+const ADVISORY_RULES = new Set(['contrast'])
+const DELIVERY_LIST_LIMIT = 5
+
+function excerpt(html, index) {
+  return String(html).slice(Math.max(0, index), index + 80).replace(/\s+/g, ' ')
+}
+
+/**
+ * 交付质检：复制与导出前对发布形态 HTML 运行粘贴约束检查。
+ * 结构类问题进 `blockers` 并阻断交付；对比度与深色可读性进 `notices`，随结果提示。
+ */
+export function checkDelivery(html) {
+  const source = String(html || '')
+  const result = lintWechatHtml(source)
+  const blockers = result.errors.filter((item) => !ADVISORY_RULES.has(item.rule))
+  const advisories = result.errors.filter((item) => ADVISORY_RULES.has(item.rule))
+  return {
+    ok: blockers.length === 0,
+    blockers: blockers.map((item) => ({ rule: item.rule, message: item.message, excerpt: excerpt(source, item.index) })),
+    notices: {
+      contrast: advisories.length,
+      dark: result.dark.warnings.length,
+    },
+  }
+}
+
+/** 交付质检结论的文字版：阻断时列出前几条结构问题，通过时给出提示计数。 */
+export function describeDelivery(check) {
+  if (!check.ok) {
+    const head = check.blockers.slice(0, DELIVERY_LIST_LIMIT).map((item, i) => `${i + 1}. [${item.rule}] ${item.message}：${item.excerpt}`)
+    const more = check.blockers.length > DELIVERY_LIST_LIMIT ? [`另有 ${check.blockers.length - DELIVERY_LIST_LIMIT} 处同类问题`] : []
+    return [`交付质检未通过：${check.blockers.length} 处粘贴约束问题，修正后再复制或导出。`, ...head, ...more].join('\n')
+  }
+  const notes = []
+  if (check.notices.contrast) notes.push(`正文对比度低于 4.5:1 ${check.notices.contrast} 处`)
+  if (check.notices.dark) notes.push(`深色模式下可能不易阅读 ${check.notices.dark} 处`)
+  return notes.length ? `交付质检通过；提示：${notes.join('，')}（用 fishpai_lint 查看明细）。` : '交付质检通过。'
+}
+
+const DARK_BASIS = '按微信公众平台 Dark Mode 转换算法推演，真机效果以读者设备为准'
+const DARK_LIMIT_PER_RULE = 20
+
+function darkIssue(rule, message, index, extra = {}) {
+  return { rule, severity: 'warning', message, index, evidence: DARK_BASIS, ...extra }
+}
+
+/**
+ * 深色可读性诊断：读者开深色模式后可能读不清的位置。
+ * 属阅读体验诊断，结果放在 `dark` 段；`ok` 只反映粘贴约束。
+ */
+export function lintDarkMode(html) {
+  const source = String(html || '')
+  const darkSource = toWechatDark(source)
+  const warnings = []
+  const counts = {}
+  const push = (item) => {
+    counts[item.rule] = (counts[item.rule] || 0) + 1
+    if (counts[item.rule] <= DARK_LIMIT_PER_RULE) warnings.push(item)
+  }
+
+  // 1. 深色变体里的文字对比度
+  const tagPattern = /<!--[\s\S]*?-->|<\/?([A-Za-z][\w:-]*)([^>]*)>/g
+  const stack = []
+  let svgDepth = 0
+  let cursor = 0
+  let match
+  const darkBg = parseColor(DARK_CONSTANTS.DEFAULT_DARK_BGCOLOR)
+  const darkText = parseColor(DARK_CONSTANTS.DEFAULT_DARK_TEXTCOLOR)
+  const checkDarkText = (text, index) => {
+    if (!text.replace(/&nbsp;|\s/g, '') || svgDepth > 0) return
+    const frame = stack.at(-1)
+    if (!frame || frame.checked) return
+    frame.checked = true
+    const ratio = contrastRatio(frame.foreground || darkText, frame.background || darkBg)
+    if (ratio < 4.5) push(darkIssue('dark-low-contrast', `深色模式下 <${frame.tag}> 文字对比度约 ${ratio.toFixed(2)}:1，低于 4.5:1`, index, { tag: frame.tag, ratio: Number(ratio.toFixed(2)), minimum: 4.5 }))
+  }
+  while ((match = tagPattern.exec(darkSource))) {
+    checkDarkText(darkSource.slice(cursor, match.index), cursor)
+    cursor = tagPattern.lastIndex
+    if (match[0].startsWith('<!--')) continue
+    const tag = match[1].toLowerCase()
+    if (/^<\//.test(match[0])) {
+      if (tag === 'svg') svgDepth = Math.max(0, svgDepth - 1)
+      const found = stack.map((frame) => frame.tag).lastIndexOf(tag)
+      if (found >= 0) stack.length = found
+      continue
+    }
+    if (tag === 'svg' && !/\/\s*>$/.test(match[0])) svgDepth += 1
+    const rules = declarations(attributes(match[2] || '').style)
+    const parent = stack.at(-1)
+    const background = parseColor(rules['background-color']) || parseColor(rules.background) || parent?.background || null
+    const foreground = parseColor(rules.color) || parent?.foreground || null
+    if (!VOID_TAGS.has(tag) && !/\/\s*>$/.test(match[0])) stack.push({ tag, background, foreground, checked: false })
+  }
+  checkDarkText(darkSource.slice(cursor), cursor)
+
+  // 2. 原稿结构层面的风险
+  for (const m of source.matchAll(/<([A-Za-z][\w-]*)\b[^>]*style\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) {
+    const style = m[2] ?? m[3] ?? ''
+    const tag = m[1].toLowerCase()
+    if (/(?:-webkit-)?background-clip\s*:\s*text/i.test(style)) {
+      push(darkIssue('dark-gradient-text', `<${tag}> 用渐变/背景裁切做文字，深色下渐变会被压成纯色，文字对比度可能偏低`, m.index, { tag }))
+    } else if (/background(?:-image)?\s*:[^;]*gradient\(/i.test(style)) {
+      push(darkIssue('dark-gradient-background', `<${tag}> 的渐变背景在深色下会被压成单一纯色`, m.index, { tag }))
+    }
+  }
+  for (const m of source.matchAll(/<text\b[^>]*\bfill\s*=\s*["']([^"']+)["']/gi)) {
+    const fill = parseColor(m[1])
+    if (fill && contrastRatio(fill, darkBg) < 3) {
+      push(darkIssue('dark-svg-text', `SVG 文字 fill=${m[1]} 保持原色，深色底上对比度偏低`, m.index, { fill: m[1] }))
+    }
+  }
+  const hasBackground = /background(?:-color)?\s*:/i.test(source)
+  if (!hasBackground && /\bcolor\s*:\s*(?:#|rgb)/i.test(source)) {
+    push(darkIssue('dark-missing-background', '正文全部依赖默认背景，深色下落到 #191919，深色文字与之对比度偏低', 0))
+  }
+
+  return {
+    warnings,
+    summary: warnings.length ? `${warnings.length} 处深色模式下可能不易阅读` : '深色模式可读性检查通过',
+    evidence: DARK_BASIS,
   }
 }

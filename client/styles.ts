@@ -75,8 +75,7 @@ export const CSS = `
 .fp-menu{
   position:absolute;top:calc(100% + 4px);left:0;z-index:40;min-width:12em;
   max-height:min(60vh,340px);overflow:auto;padding:4px;
-  border:1px solid var(--dsw-alias-border-l2);border-radius:8px;
-  background:var(--dsw-alias-bg-overlay);box-shadow:var(--dsw-shadow-lv3,0 4px 14px rgba(0,0,0,.28));
+  background:var(--dsw-specific-menu,var(--dsw-alias-bg-overlay));backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent,0 8px 24px rgba(0,0,0,.18));border:0;border-radius:var(--dsw-radius-lg,10px);
 }
 /* 分组标题：组名一行、小字提示一行（挤成一行在窄面板里会折得很难看） */
 .fp-menu-group{
@@ -88,7 +87,11 @@ export const CSS = `
 .fp-menu-group-note{font-size:10px;color:var(--dsw-alias-label-secondary);opacity:.8}
 /* 命名主题在各自行内删除，选择主题与删除是两个并列按钮。 */
 .fp-menu-item{display:flex;align-items:center;gap:2px;min-width:0}
-.fp-menu-item .fp-menu-row{flex:1 1 auto;min-width:0;width:auto}
+.fp-menu-item .fp-menu-group[data-risk="true"]{
+  margin-top:5px;padding-top:7px;border-top:1px solid var(--dsw-alias-border-l2);
+}
+.fp-menu-group[data-risk="true"] .fp-menu-group-note{color:var(--dsw-alias-state-warn-primary);opacity:1}
+.fp-menu-row{flex:1 1 auto;min-width:0;width:auto}
 .fp-menu-x{
   flex:none;font:inherit;font-size:12px;line-height:1;
   padding:3px 5px;cursor:pointer;color:var(--dsw-alias-label-secondary);
@@ -99,14 +102,9 @@ export const CSS = `
   flex:none;padding:0 3px;border-radius:4px;font-size:10px;line-height:1.6;
   color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);
 }
-/* 第二组之前来一条细分隔线：一眼能看出"上面是能直接用的，下面是另一类" */
-.fp-menu-group[data-risk="true"]{
-  margin-top:5px;padding-top:7px;border-top:1px solid var(--dsw-alias-border-l2);
-}
-.fp-menu-group[data-risk="true"] .fp-menu-group-note{color:var(--dsw-alias-state-warn-primary);opacity:1}
 .fp-menu-row{
   display:flex;align-items:center;gap:6px;width:100%;text-align:left;font:inherit;cursor:pointer;
-  padding:3px 6px;border-radius:5px;border:0;background:transparent;color:var(--dsw-alias-label-primary);
+  min-height:30px;padding:5px 8px;border-radius:var(--dsw-radius-md,6px);border:0;background:transparent;color:var(--dsw-alias-label-primary);
 }
 .fp-menu-row[data-active="true"]{background:var(--dsw-alias-bg-layer-2)}
 .fp-menu-row[data-on="true"]{font-weight:500}
@@ -118,11 +116,23 @@ export const CSS = `
 .fp-title-label{display:inline-flex;align-items:center;gap:5px}
 .fp-title-glyph{flex:none;color:var(--dsw-alias-label-secondary)}
 
-.fp-swatches{display:flex;gap:3px;align-items:center}
+.fp-swatches{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.fp-accent{position:relative;display:inline-flex;flex:none}
+.fp-accent-btn{display:inline-flex;align-items:center;gap:6px}
+.fp-accent-dot{width:10px;height:10px;border-radius:50%;flex:none}
+.fp-accent-popover{position:absolute;top:calc(100% + 4px);left:0;z-index:4;width:196px;padding:8px;background:var(--dsw-specific-menu,var(--dsw-alias-bg-overlay));backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent,0 8px 24px rgba(0,0,0,.18));border:0;border-radius:var(--dsw-radius-lg,10px)}
 .fp-swatch{
   width:14px;height:14px;border-radius:50%;border:1px solid var(--dsw-alias-border-l2);cursor:pointer;padding:0;
 }
 .fp-swatch[data-on="true"]{outline:2px solid var(--dsw-alias-label-primary);outline-offset:1px}
+.fp-canvas{display:flex;flex-direction:column;gap:12px}
+.fp-canvas-group{display:flex;flex-direction:column;gap:4px}
+.fp-canvas-title{font-size:11px;color:var(--dsw-alias-label-secondary);padding:0 2px 2px}
+.fp-canvas-row{display:flex;align-items:center;gap:8px;min-height:30px}
+.fp-canvas-label{flex:1 1 auto;min-width:0}
+.fp-canvas-control{display:inline-flex;align-items:center;gap:6px;flex:none}
+.fp-canvas-input{width:84px;min-height:26px;padding:2px 6px}
+.fp-canvas-foot{display:flex;justify-content:flex-end}
 .fp-color{width:22px;height:18px;padding:0;border:1px solid var(--dsw-alias-border-l2);border-radius:4px;background:transparent;cursor:pointer}
 
 .fp-main{display:flex;flex:1 1 auto;min-height:0;min-width:0}
@@ -138,6 +148,12 @@ export const CSS = `
      窄面板里才会跟着收缩，而不是定宽溢出被裁。 */
   position:relative;
 }
+.fp-root{position:relative}
+.fp-dialog-mask{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--dsw-alias-bg-mask-1,rgba(0,0,0,.32));backdrop-filter:var(--dsw-mask-blur)}
+.fp-dialog{width:100%;max-width:340px;padding:16px;background:var(--dsw-specific-menu,var(--dsw-alias-bg-overlay));backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent,0 8px 24px rgba(0,0,0,.18));border:0;border-radius:var(--dsw-radius-lg,10px)}
+.fp-dialog-title{font-size:14px;font-weight:600;color:var(--dsw-alias-label-primary);margin-bottom:8px}
+.fp-dialog-text{font-size:12.5px;line-height:1.6;color:var(--dsw-alias-label-secondary)}
+.fp-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 .fp-editor{
   flex:1 1 auto;min-height:0;width:100%;resize:none;border:0;outline:none;
   padding:10px 12px;font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Consolas,monospace);
@@ -258,8 +274,7 @@ export const CSS = `
   /* 宽度随面板收缩；max-width 留出 12px 余量，完整显示标签与键帽。 */
   width:auto;min-width:min(232px,100%);max-width:calc(100% - 12px);
   max-height:60vh;overflow:auto;
-  padding:6px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);
-  background:var(--dsw-alias-bg-overlay);box-shadow:0 8px 24px rgba(0,0,0,.18);
+  padding:6px;background:var(--dsw-specific-menu,var(--dsw-alias-bg-overlay));backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent,0 8px 24px rgba(0,0,0,.18));border:0;border-radius:var(--dsw-radius-lg,10px);
   color:var(--dsw-alias-label-primary);font-size:11.5px;line-height:1.9;text-align:left;
 }
 .fp-keys-group{padding:2px 4px;color:var(--dsw-alias-label-secondary);font-size:11px}
@@ -281,8 +296,7 @@ export const CSS = `
 .fp-components{display:inline-flex;flex:none}
 .fp-component-popover{
   position:absolute;top:calc(100% + 4px);right:0;z-index:4;width:320px;max-width:calc(100% - 12px);
-  max-height:60vh;overflow:auto;padding:8px;border-radius:8px;
-  border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-overlay);box-shadow:var(--dsw-shadow-lv2);
+  max-height:60vh;overflow:auto;padding:8px;background:var(--dsw-specific-menu,var(--dsw-alias-bg-overlay));backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent,0 8px 24px rgba(0,0,0,.18));border:0;border-radius:var(--dsw-radius-lg,10px);
   color:var(--dsw-alias-label-primary);
 }
 .fp-component-title{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;padding:0 2px 7px;font-size:11.5px}

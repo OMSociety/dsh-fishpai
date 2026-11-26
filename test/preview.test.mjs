@@ -26,9 +26,9 @@ test('README 演示文稿使用微信安全标签与品牌矢量图形', () => {
   assert.match(article, /<!-- FISHPAI_BRAND -->/, '演示源文件只保留品牌占位')
   assert.ok(brandPath && fixture.markdown.includes(`d="${brandPath}"`), '构建时从品牌图标读取同一份几何')
   assert.doesNotMatch(article, /<rect x="34" y="20" width="48" height="48" rx="12" fill="#ffffff"\/>/, '品牌标不垫白色圆角底板')
-  const iconDefs = icon.match(/<defs>[\s\S]*?<\/defs>/)?.[0]
-  assert.ok(iconDefs && fixture.markdown.includes(iconDefs), '品牌标内嵌 icon.svg 原始渐变定义')
-  assert.match(fixture.markdown, /<g fill="none" transform="translate\(30 17\) scale\(1\.8\)"><path[^>]*stroke="url\(#paint0_linear_fishpai\)"[^>]*\/><circle[^>]*fill="url\(#paint0_linear_fishpai\)"\/><\/g>/, '品牌标保留根节点透明填充并按文字高度整体对位')
+  const brandColor = icon.match(/<stop stop-color="(#[0-9A-Fa-f]{6})"/)?.[1]
+  assert.doesNotMatch(fixture.markdown, /linearGradient|url\(#/, '品牌标不依赖 id 引用')
+  assert.ok(brandColor && fixture.markdown.includes(`<g fill="none" transform="translate(30 17) scale(1.8)"><path`) && fixture.markdown.includes(`stroke="${brandColor}"`) && fixture.markdown.includes(`fill="${brandColor}"/></g>`), '品牌标以渐变首色填涂并按文字高度整体对位')
   assert.doesNotMatch(article, /<rect x="0" y="0" width="700" height="88"/, '品牌区直接使用主视觉底色')
   assert.equal((article.match(/:::full_bleed/g) || []).length, 2, '头图与结尾使用统一全幅组件')
   assert.doesNotMatch(article, /margin:[^;\"]*-20px/, '演示源文件不手写依赖页面留白的负外边距')
@@ -52,7 +52,7 @@ test('README 预览运行正式面板、store 与样式，并验收展开交互'
 
 test('独立操作与相邻按钮共用表面，键盘焦点使用独立轮廓', () => {
   const panel = read('client/panel.tsx')
-  assert.match(panel, /<Btn primary title=\{`复制后可粘贴到目标编辑器/)
+  assert.match(panel, /<Btn primary title=\{`复制富文本，粘贴至公众号编辑器/)
   const css = read('client/styles.ts')
   const primary = css.match(/\.fp-btn-primary\{([^}]+)\}/)?.[1] || ''
   assert.match(primary, /background:var\(--dsw-alias-bg-layer-2\)/)

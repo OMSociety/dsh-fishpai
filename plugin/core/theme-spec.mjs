@@ -47,7 +47,7 @@ export const THEME_SLOTS = [
  * 允许出现在自定义主题里的 CSS 属性。
  *
  * **这份名单是统计出来的，不是挑出来的**：把 11 套内置主题的 19 个槽位全部拆开，
- * 出现过的属性就是下面这 30 个（含 `-webkit-` 两个渐变文字用的）。要加属性请先给出
+ * 出现过的属性就是下面这 27 个。要加属性请先给出
  * "它在真实公众号里活下来"的证据，并同时补 `test/theme-spec.test.mjs` 的用例。
  */
 export const SPEC_PROPS = new Set([
@@ -74,12 +74,9 @@ export const SPEC_PROPS = new Set([
   'width',
   'border-collapse',
   'height',
-  '-webkit-background-clip',
-  '-webkit-text-fill-color',
   'padding-bottom',
   'box-shadow',
   'text-indent',
-  'border-image',
   'border-top',
 ])
 
